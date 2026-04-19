@@ -529,7 +529,7 @@ async function 執行AI辨識(br){
         {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：cash(現金收入),linepay(LINE Pay),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
       ]}]})
     });
-    if(!resp.ok)throw new Error('API 呼叫失敗');
+    if(!resp.ok){const errBody=await resp.json().catch(()=>({}));throw new Error(`API錯誤 ${resp.status}：${errBody?.error?.message||JSON.stringify(errBody)}`);}
     const data=await resp.json();
     const match=data.content[0].text.match(/\{[\s\S]*\}/);
     if(!match)throw new Error('無法解析回應');
@@ -667,7 +667,7 @@ async function 執行員工AI辨識(br){
         {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON。欄位：cash,linepay,twpay,uber,guests,cashShould,cashActual,voidAmt,txItems。找不到設0。'}
       ]}]})
     });
-    if(!resp.ok)throw new Error('API 呼叫失敗');
+    if(!resp.ok){const errBody=await resp.json().catch(()=>({}));throw new Error(`API錯誤 ${resp.status}：${errBody?.error?.message||JSON.stringify(errBody)}`);}
     const data=await resp.json();
     const match=data.content[0].text.match(/\{[\s\S]*\}/);
     if(!match)throw new Error('無法解析');
