@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>和木餐飲｜營運系統</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;background:#f2f1ed;color:#1a1a1a;font-size:15px;line-height:1.6}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+.login-box{background:#fff;border:1px solid #e5e5df;border-radius:16px;padding:2.5rem 2rem;width:100%;max-width:400px}
+.login-logo{text-align:center;margin-bottom:2rem}
+.login-logo h1{font-size:22px;font-weight:700}
+.login-logo p{font-size:13px;color:#888;margin-top:4px}
+.login-error{background:#fef0f0;border:1px solid #fcc;border-radius:8px;padding:10px 14px;font-size:13px;color:#c0392b;margin-bottom:1rem;display:none}
+.app{display:flex;min-height:100vh}
+.sidebar{width:210px;background:#111;color:#fff;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar-logo{padding:1.25rem;border-bottom:1px solid #2a2a2a}
+.sidebar-logo h1{font-size:14px;font-weight:600}
+.sidebar-logo p{font-size:11px;color:#666;margin-top:2px}
+.sidebar-logo small{font-size:10px;color:#555;display:block;margin-top:4px}
+.sidebar-user{padding:.75rem 1.25rem;border-bottom:1px solid #2a2a2a;font-size:12px}
+.sidebar-user .uname{color:#fff;font-weight:500}
+.sidebar-user .urole{color:#888;font-size:11px}
+.nav-group{padding:.5rem 0}
+.nav-group-label{font-size:10px;color:#555;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:6px 1.25rem 4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 1.25rem;font-size:13px;cursor:pointer;color:#888;transition:all .15s}
+.nav-item:hover{background:#1e1e1e;color:#fff}
+.nav-item.active{background:#1e1e1e;color:#fff;font-weight:500}
+.nav-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-a{background:#c8a96e}.dot-b{background:#7bb5a0}.dot-hq{background:#9b8ec4}
+.sidebar-bottom{margin-top:auto;padding:1rem 1.25rem;border-top:1px solid #2a2a2a}
+.btn-logout{width:100%;padding:8px;background:none;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer;font-family:inherit}
+.btn-logout:hover{border-color:#555;color:#fff}
+.main{flex:1;overflow-y:auto}
+.page{display:none;padding:2rem}
+.page.active{display:block}
+.brand-header{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem}
+.brand-badge{padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600}
+.badge-a{background:#f5ead8;color:#8a6a2a}
+.badge-b{background:#d9ede8;color:#2a6b58}
+.badge-hq{background:#e8e4f5;color:#4a3a8a}
+.page-title{font-size:20px;font-weight:600}
+.card{background:#fff;border:1px solid #e5e5df;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;color:#888;font-weight:500}
+.field input,.field select{padding:8px 10px;border-radius:8px;border:1px solid #e0e0da;background:#fafaf7;color:#1a1a1a;font-size:14px;font-family:inherit;width:100%}
+.field input:focus,.field select:focus{outline:none;border-color:#aaa;background:#fff}
+.field input[type="number"]{-moz-appearance:textfield}
+.field input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none}
+.field .hint{font-size:11px;color:#bbb;margin-top:2px}
+.field input.ai-filled{border-color:#c8a96e;background:#fdf8f0}
+.btn{padding:9px 18px;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;font-weight:500;border:none;transition:opacity .15s}
+.btn-dark{background:#111;color:#fff}.btn-dark:hover{opacity:.8}
+.btn-a{background:#c8a96e;color:#fff}
+.btn-b{background:#7bb5a0;color:#fff}
+.btn-hq{background:#9b8ec4;color:#fff}
+.btn-outline{background:none;border:1px solid #ddd;color:#1a1a1a}.btn-outline:hover{background:#f2f1ed}
+.btn-danger{background:none;border:1px solid #fcc;color:#c0392b}
+.btn-sm{padding:5px 12px;font-size:12px;border-radius:6px}
+.btn-full{width:100%;margin-top:.5rem}
+.btn-row{display:flex;gap:8px;justify-content:flex-end;margin-bottom:1rem;align-items:center;flex-wrap:wrap}
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.25rem}
+.metric{background:#f5f4f0;border-radius:10px;padding:.875rem 1rem}
+.metric-label{font-size:11px;color:#888;margin-bottom:4px}
+.metric-value{font-size:22px;font-weight:600;color:#1a1a1a;line-height:1.2}
+.metric-sub{font-size:11px;color:#aaa;margin-top:2px}
+.metric.green .metric-value{color:#27ae60}
+.metric.red .metric-value{color:#c0392b}
+.metric.amber .metric-value{color:#c8a96e}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;color:#999;font-weight:600;border-bottom:1px solid #eee;white-space:nowrap;font-size:12px}
+td{padding:8px 10px;border-bottom:1px solid #f0f0ec;color:#1a1a1a;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf7}
+.light-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f2f1ed}
+.light-row:last-child{border-bottom:none}
+.light-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-green{background:#2ecc71}.dot-yellow{background:#f1c40f}.dot-red{background:#e74c3c}
+.sum-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13px;border-bottom:1px solid #f2f1ed}
+.sum-row:last-child{border-bottom:none;font-weight:600;font-size:14px;padding-top:10px;margin-top:4px}
+.sum-label{color:#666}
+.progress-wrap{margin:12px 0}
+.progress-bar{height:8px;border-radius:4px;background:#eee;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;background:#27ae60}
+.progress-fill.danger{background:#e74c3c}
+.progress-label{display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:4px}
+hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
+.inner-tabs{display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap}
+.inner-tab{padding:7px 16px;font-size:13px;cursor:pointer;background:none;border:1px solid #e0e0da;border-radius:8px;color:#888;font-family:inherit}
+.inner-tab.active{background:#111;color:#fff;border-color:#111}
+.compare-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f2f1ed;font-size:13px}
+.compare-row:last-child{border-bottom:none}
+.compare-label{width:120px;color:#888;flex-shrink:0}
+.compare-bar-wrap{flex:1;display:flex;gap:6px;flex-direction:column}
+.compare-bar-item{display:flex;align-items:center;gap:8px}
+.compare-bar{height:6px;border-radius:3px;background:#eee;flex:1;overflow:hidden}
+.compare-bar-fill{height:100%;border-radius:3px}
+.fill-a{background:#c8a96e}.fill-b{background:#7bb5a0}
+.compare-val{font-size:12px;font-weight:600;min-width:70px;text-align:right}
+.hq-brand-split{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+.hq-brand-card{border-radius:10px;padding:1rem}
+.hq-brand-card.brand-a{background:#fdf8f0;border:1px solid #e8d9bc}
+.hq-brand-card.brand-b{background:#f0f8f5;border:1px solid #bcddd4}
+.sub-sec{border:1px solid #f0f0ec;border-radius:8px;padding:.75rem 1rem;margin-bottom:.75rem}
+.sub-sec-title{font-size:11px;font-weight:600;color:#bbb;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.scan-zone{border:2px dashed #ddd;border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:all .2s;background:#fafaf7;margin-bottom:1rem;position:relative}
+.scan-zone:hover{border-color:#c8a96e;background:#fdf8f0}
+.scan-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.scan-preview{max-width:180px;max-height:180px;border-radius:8px;margin:10px auto 0;display:block;object-fit:contain}
+.ai-status{display:none;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;margin-bottom:1rem;font-size:14px}
+.ai-status.loading{display:flex;background:#fef9e7;border:1px solid #f5d78e;color:#8a6a2a}
+.ai-status.success{display:flex;background:#eafaf1;border:1px solid #a9dfbf;color:#1e8449}
+.ai-status.error{display:flex;background:#fef0f0;border:1px solid #f5c6c6;color:#c0392b}
+.ai-spinner{width:18px;height:18px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ai-badge{display:inline-block;font-size:10px;font-weight:600;background:#c8a96e;color:#fff;padding:1px 6px;border-radius:4px;margin-left:4px}
+.apikey-bar{background:#fff;border:1px solid #e5e5df;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.apikey-bar label{font-size:13px;color:#888;white-space:nowrap}
+.apikey-bar input{flex:1;min-width:200px;padding:7px 10px;border-radius:8px;border:1px solid #ddd;font-size:13px;font-family:monospace;background:#fafaf7}
+.emp-card{background:#fafaf7;border:1px solid #e5e5df;border-radius:10px;padding:1rem;margin-bottom:.75rem}
+.emp-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.emp-name{font-size:15px;font-weight:600}
+.emp-net{font-size:20px;font-weight:700;color:#27ae60}
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:12px}
+.loading-spinner{width:36px;height:36px;border:3px solid #ddd;border-top-color:#111;border-radius:50%;animation:spin .7s linear infinite}
+.loading-text{font-size:14px;color:#888}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 22px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999;white-space:nowrap}
+.toast.show{opacity:1}
+.confirm-card{background:#fff;border:1px solid #e5e5df;border-radius:12px;padding:1.5rem;margin-bottom:1rem}
+.confirm-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f2f1ed;font-size:14px}
+.confirm-row:last-child{border-bottom:none}
+.confirm-label{color:#888}
+@media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:fixed;left:0;top:0;width:100%;padding:0;background:#fff}}
+.slip{border:1px solid #999;padding:1.25rem 1.5rem;font-size:13px;page-break-inside:avoid}
+.slip+.slip{border-top:2px dashed #bbb}
+.slip-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #ddd}
+.slip-co{font-size:14px;font-weight:700}
+.slip-title{font-size:12px;color:#666;margin-top:2px}
+.slip-tag{font-size:11px;color:#fff;background:#555;padding:2px 8px;border-radius:3px}
+.slip-info{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;margin-bottom:12px;font-size:12px}
+.slip-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
+.slip-table th{background:#f5f5f3;padding:5px 8px;text-align:left;border:1px solid #ddd;font-weight:600;color:#555}
+.slip-table td{padding:5px 8px;border:1px solid #ddd}
+.slip-total{display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid #333;margin-top:4px;font-weight:700}
+.slip-footer{font-size:11px;color:#888;margin-top:10px;padding-top:8px;border-top:1px solid #eee}
+.slip-sign{display:flex;gap:40px;margin-top:10px;font-size:12px}
+.slip-sign-line{border-bottom:1px solid #999;width:120px;margin-top:16px}
+@media(max-width:800px){
+  .app{flex-direction:column}
+  .sidebar{width:100%;flex-direction:row;flex-wrap:wrap;padding:.5rem}
+  .sidebar-logo,.sidebar-user,.sidebar-bottom{display:none}
+  .nav-group-label{display:none}
+  .nav-group{display:flex;flex-wrap:wrap;padding:0}
+  .nav-item{padding:6px 10px;font-size:11px}
+  .g3,.g4{grid-template-columns:1fr 1fr}
+  .hq-brand-split{grid-template-columns:1fr}
+  .page{padding:1rem}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">載入中...</div>
+</div>
+
+<div id="login-screen" style="display:none">
+  <div class="login-wrap">
+    <div class="login-box">
+      <div class="login-logo">
+        <h1>和木餐飲</h1>
+        <p>富郁霖企業社｜營運管理系統</p>
+      </div>
+      <div class="login-error" id="login-error"></div>
+      <div class="field" style="margin-bottom:1rem">
+        <label>電子郵件</label>
+        <input type="email" id="login-email" placeholder="您的電子郵件" autocomplete="email">
+      </div>
+      <div class="field" style="margin-bottom:1.5rem">
+        <label>密碼</label>
+        <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="btn btn-dark btn-full" onclick="doLogin()">登入</button>
+      <div style="font-size:12px;color:#aaa;text-align:center;margin-top:1rem">帳號由管理員建立，如有問題請聯繫老闆</div>
+    </div>
+  </div>
+</div>
+
+<div id="app-screen" style="display:none">
+<div class="app">
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h1>和木餐飲</h1>
+    <p>雙品牌營運系統</p>
+    <small>富郁霖企業社</small>
+  </div>
+  <div class="sidebar-user">
+    <div class="uname" id="sb-name">—</div>
+    <div class="urole" id="sb-role">—</div>
+  </div>
+  <div id="nav-container"></div>
+  <div class="sidebar-bottom">
+    <button class="btn-logout" onclick="doLogout()">登出</button>
+  </div>
+</nav>
+<div class="main" id="main-content"></div>
+</div>
+</div>
+
+<div class="print-area" id="print-area" style="display:none"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbxdL2zfP0RuO7x7Rxs8Okijv8FfyVKfpIV6y9t932K2ZvpcxXZoDy0UJcTbbhizzBR2/exec';
+const 品牌名稱 = {a:'林家涼麵', b:'木谷食麵所'};
+const 角色名稱 = {staff:'員工', manager:'店長', owner:'老闆'};
+const 品牌標籤 = {a:'林家涼麵', b:'木谷食麵所', both:'兩店'};
+let 目前使用者 = null;
+let 品牌設定 = {
+  a:{rent:23000,pos:0,platform:500,phone:0,ads:0,other:0,lp_rate:3,uber_rate:31},
+  b:{rent:0,pos:0,platform:500,phone:0,ads:0,other:0,lp_rate:3,uber_rate:31}
+};
+
+function 格式化金額(v){return Math.round(v||0).toLocaleString('zh-TW')}
+function 百分比(v,t){return t?((v/t)*100).toFixed(1)+'%':'—'}
+function 數值(id){return parseFloat(document.getElementById(id)?.value)||0}
+function 文字(id){return document.getElementById(id)?.value||''}
+function 固定成本(s){return(s.rent||0)+(s.platform||0)+(s.pos||0)+(s.phone||0)+(s.ads||0)+(s.other||0)}
+function 取得ApiKey(){return localStorage.getItem('hm_claude_key')||''}
+function 設定ApiKey(k){localStorage.setItem('hm_claude_key',k.trim())}
+
+function 提示(訊息){
+  const t=document.getElementById('toast');
+  t.textContent=訊息;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500)
+}
+function 載入中(顯示,訊息='處理中...'){
+  const el=document.getElementById('loading');
+  el.style.display=顯示?'flex':'none';
+  if(訊息)el.querySelector('.loading-text').textContent=訊息;
+}
+
+async function 呼叫API(參數){
+  const res=await fetch(API+'?t='+Date.now(),{method:'POST',body:JSON.stringify(參數)});
+  return res.json();
+}
+
+// ===== 登入登出 =====
+async function 初始化(){
+  const saved=localStorage.getItem('hm_user');
+  if(saved){
+    目前使用者=JSON.parse(saved);
+    await 載入品牌設定();
+    顯示主介面();
+  } else {
+    載入中(false);
+    document.getElementById('login-screen').style.display='block';
+  }
+}
+
+async function doLogin(){
+  const email=文字('login-email'),pass=文字('login-password');
+  if(!email||!pass){顯示登入錯誤('請輸入帳號和密碼');return}
+  載入中(true,'登入中...');
+  const res=await 呼叫API({action:'login',email,password:pass});
+  if(!res.ok){載入中(false);顯示登入錯誤(res.error||'帳號或密碼錯誤');return}
+  目前使用者=res.user;
+  localStorage.setItem('hm_user',JSON.stringify(目前使用者));
+  await 載入品牌設定();
+  顯示主介面();
+}
+
+function doLogout(){
+  localStorage.removeItem('hm_user');
+  目前使用者=null;
+  document.getElementById('app-screen').style.display='none';
+  document.getElementById('login-screen').style.display='block';
+  document.getElementById('login-password').value='';
+}
+
+function 顯示登入錯誤(訊息){
+  const el=document.getElementById('login-error');
+  el.textContent=訊息;el.style.display='block';
+}
+
+async function 載入品牌設定(){
+  const res=await 呼叫API({action:'getSettings'});
+  if(res.ok&&res.data){
+    Object.entries(res.data).forEach(([br,s])=>{品牌設定[br]=s;});
+  }
+}
+
+function 顯示主介面(){
+  載入中(false);
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  const {role,brand,name}=目前使用者;
+  document.getElementById('sb-name').textContent=name||'—';
+  document.getElementById('sb-role').textContent=角色名稱[role]||role;
+  建立導覽列(role,brand);
+  建立頁面(role,brand);
+  const 預設頁面=role==='staff'?`上傳-${brand}`:role==='manager'?`每日-${brand}`:`每日-a`;
+  切換頁面(預設頁面);
+}
+
+// ===== 導覽列 =====
+function 建立導覽列(role,brand){
+  const nav=document.getElementById('nav-container');
+  let html='';
+  if(role==='staff'){
+    html+=`<div class="nav-group">
+      <div class="nav-group-label">${品牌名稱[brand]}</div>
+      <div class="nav-item" data-page="上傳-${brand}"><span class="nav-dot dot-${brand}"></span>上傳結帳單</div>
+      <div class="nav-item" data-page="確認-${brand}"><span class="nav-dot dot-${brand}"></span>今日確認</div>
+    </div>`;
+  } else if(role==='manager'){
+    html+=`<div class="nav-group">
+      <div class="nav-group-label">${品牌名稱[brand]}</div>
+      <div class="nav-item" data-page="每日-${brand}"><span class="nav-dot dot-${brand}"></span>每日輸入</div>
+      <div class="nav-item" data-page="歷史-${brand}"><span class="nav-dot dot-${brand}"></span>歷史記錄</div>
+      <div class="nav-item" data-page="月報-${brand}"><span class="nav-dot dot-${brand}"></span>月報表</div>
+    </div>`;
+  } else {
+    ['a','b'].forEach(br=>{
+      html+=`<div class="nav-group">
+        <div class="nav-group-label">${品牌名稱[br]}</div>
+        <div class="nav-item" data-page="每日-${br}"><span class="nav-dot dot-${br}"></span>每日輸入</div>
+        <div class="nav-item" data-page="歷史-${br}"><span class="nav-dot dot-${br}"></span>歷史記錄</div>
+        <div class="nav-item" data-page="月報-${br}"><span class="nav-dot dot-${br}"></span>月報表</div>
+        <div class="nav-item" data-page="薪資-${br}"><span class="nav-dot dot-${br}"></span>員工薪資</div>
+      </div>`;
+    });
+    html+=`<div class="nav-group">
+      <div class="nav-group-label">總公司</div>
+      <div class="nav-item" data-page="總部"><span class="nav-dot dot-hq"></span>總部月報表</div>
+      <div class="nav-item" data-page="帳號管理"><span class="nav-dot dot-hq"></span>帳號管理</div>
+      <div class="nav-item" data-page="系統設定"><span class="nav-dot dot-hq"></span>成本設定</div>
+    </div>`;
+  }
+  nav.innerHTML=html;
+  nav.querySelectorAll('.nav-item').forEach(el=>{
+    el.addEventListener('click',()=>切換頁面(el.dataset.page));
+  });
+}
+
+function 建立頁面(role,brand){
+  const main=document.getElementById('main-content');
+  let pages=[];
+  if(role==='staff'){
+    pages=[`上傳-${brand}`,`確認-${brand}`];
+  } else if(role==='manager'){
+    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`];
+  } else {
+    ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`));
+    pages.push('總部','帳號管理','系統設定');
+  }
+  main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
+}
+
+function 切換頁面(page){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('page-'+page);
+  if(el)el.classList.add('active');
+  document.querySelectorAll(`.nav-item[data-page="${page}"]`).forEach(el=>el.classList.add('active'));
+  const br=page.split('-').pop();
+  if(page.startsWith('上傳-'))渲染上傳頁(br);
+  else if(page.startsWith('確認-'))渲染確認頁(br);
+  else if(page.startsWith('每日-'))渲染每日表單(br);
+  else if(page.startsWith('歷史-'))渲染歷史記錄(br);
+  else if(page.startsWith('月報-'))渲染月報選擇(br);
+  else if(page.startsWith('薪資-'))渲染薪資頁(br);
+  else if(page==='總部')渲染總部選擇();
+  else if(page==='帳號管理')渲染帳號管理();
+  else if(page==='系統設定')渲染系統設定();
+}
+
+// ===== 每日輸入（店長/老闆）=====
+function 渲染每日表單(br){
+  const el=document.getElementById(`page-每日-${br}`);
+  const s=品牌設定[br]||{lp_rate:3,uber_rate:31};
+  const 今天=new Date().toISOString().slice(0,10);
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">每日結帳單輸入</span></div>
+  <div class="apikey-bar">
+    <label>Claude API 金鑰</label>
+    <input type="password" id="akey" placeholder="sk-ant-..." value="${取得ApiKey()}" onchange="設定ApiKey(this.value)">
+    <button class="btn btn-outline btn-sm" onclick="設定ApiKey(document.getElementById('akey').value);提示('✓ 已儲存')">儲存</button>
+  </div>
+  <div class="card">
+    <div class="card-title">📷 上傳結帳單自動辨識 <span class="ai-badge">AI</span></div>
+    <div class="scan-zone" ondragover="event.preventDefault()" ondrop="event.preventDefault();處理檔案('${br}',event.dataTransfer.files[0])">
+      <input type="file" id="sc-${br}" accept="image/*" capture="environment" onchange="處理檔案('${br}',this.files[0])">
+      <div style="font-size:36px;margin-bottom:8px">📄</div>
+      <div style="font-size:15px;font-weight:600;color:#555">點擊拍照或上傳結帳單</div>
+      <div style="font-size:13px;color:#aaa;margin-top:4px">手機可直接開啟相機拍照</div>
+      <img id="pv-${br}" class="scan-preview" style="display:none">
+    </div>
+    <div id="ast-${br}" class="ai-status"></div>
+    <button id="scbtn-${br}" class="btn btn-dark btn-full" onclick="執行AI辨識('${br}')" disabled>AI 辨識並自動填入</button>
+    <div style="font-size:12px;color:#aaa;text-align:center;margin-top:8px">辨識後請確認欄位數值，再按儲存</div>
+  </div>
+  <div class="card"><div class="card-title">基本資訊</div>
+    <div class="g3">
+      <div class="field"><label>日期</label><input type="date" id="d${br}-date" value="${今天}"></div>
+      <div class="field"><label>天氣</label><select id="d${br}-weather"><option value="">— 選擇 —</option><option>晴天</option><option>陰天</option><option>雨天</option><option>颱風</option></select></div>
+      <div class="field"><label>總工時（小時）</label><input type="number" id="d${br}-hours" placeholder="例：32"></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">收入 <span class="ai-badge">AI 自動填入</span></div>
+    <div class="g3">
+      <div class="field"><label>來客數（交易筆數）</label><input type="number" id="d${br}-guests" placeholder="0" oninput="計算表單('${br}')"><span class="hint">POS 內用＋外帶，不含平台</span></div>
+      <div class="field"><label>現金收入</label><input type="number" id="d${br}-cash" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>LINE Pay</label><input type="number" id="d${br}-lp" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>台灣 PAY</label><input type="number" id="d${br}-tw" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>Uber Eats（門市實收）</label><input type="number" id="d${br}-uber" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field" style="background:#f5f4f0;border-radius:8px;padding:8px 10px;justify-content:center">
+        <label>總營收（自動計算）</label>
+        <div id="d${br}-total" style="font-size:20px;font-weight:600;color:#27ae60">$0</div>
+        <div id="d${br}-aov" style="font-size:12px;color:#888">客單價：—</div>
+      </div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">平台手續費</div>
+    <div class="g3">
+      <div class="field"><label>LINE Pay 費率 %</label><input type="number" id="d${br}-lprate" value="${s.lp_rate||3}" step="0.1" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>Uber Eats 費率 %</label><input type="number" id="d${br}-uberrate" value="${s.uber_rate||31}" step="0.1" oninput="計算表單('${br}')"></div>
+      <div class="field" style="background:#fef9e7;border-radius:8px;padding:8px 10px;justify-content:center">
+        <label>平台費合計</label>
+        <div id="d${br}-pfee" style="font-size:18px;font-weight:600;color:#c8a96e">$0</div>
+      </div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">結帳單數據 <span class="ai-badge">AI 自動填入</span></div>
+    <div class="g3">
+      <div class="field"><label>錢櫃應收現金</label><input type="number" id="d${br}-cashShould" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>錢櫃實點現金</label><input type="number" id="d${br}-cashActual" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field" style="background:#f5f4f0;border-radius:8px;padding:8px 10px;justify-content:center">
+        <label>現金短溢（自動計算）</label>
+        <div id="d${br}-shortover" style="font-size:18px;font-weight:600;color:#888">—</div>
+      </div>
+      <div class="field"><label>作廢金額</label><input type="number" id="d${br}-void" placeholder="0"></div>
+      <div class="field"><label>銷售數量</label><input type="number" id="d${br}-txItems" placeholder="0"></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">直接成本（食材 F）</div>
+    <div class="g3">
+      <div class="field"><label>現場進貨</label><input type="number" id="d${br}-market" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>央廚進貨</label><input type="number" id="d${br}-central" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>餐具／包材</label><input type="number" id="d${br}-pack" placeholder="0" oninput="計算表單('${br}')"></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">當日營運費用</div>
+    <div class="g3">
+      <div class="field"><label>員工餐費</label><input type="number" id="d${br}-meal" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>瓦斯</label><input type="number" id="d${br}-gas" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>其他當日雜支</label><input type="number" id="d${br}-misc" placeholder="0" oninput="計算表單('${br}')"></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">現金結餘核對</div>
+    <div class="g3">
+      <div class="field"><label>每日留貨款</label><input type="number" id="d${br}-reserve" placeholder="5000" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>現金支出貨款</label><input type="number" id="d${br}-cashpay" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>結帳單結餘</label><input type="number" id="d${br}-posbal" placeholder="0" oninput="計算表單('${br}')"></div>
+    </div>
+    <hr class="divider">
+    <div class="g3">
+      <div class="metric"><div class="metric-label">系統計算結餘</div><div class="metric-value" id="d${br}-calcbal">$0</div></div>
+      <div class="metric"><div class="metric-label">驗算差異</div><div class="metric-value" id="d${br}-diff" style="color:#aaa">—</div></div>
+      <div class="field"><label>備註</label><input type="text" id="d${br}-note" placeholder="例：設備故障、外帶較多"></div>
+    </div>
+  </div>
+  <button class="btn btn-${br} btn-full" onclick="儲存每日記錄('${br}')">儲存今日結帳單</button>`;
+}
+
+function 處理檔案(br,file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{const p=document.getElementById(`pv-${br}`);p.src=e.target.result;p.style.display='block';};
+  r.readAsDataURL(file);
+  const btn=document.getElementById(`scbtn-${br}`);if(btn)btn.disabled=false;
+}
+
+function 計算表單(br){
+  const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`);
+  const total=cash+lp+tw+uber,guests=數值(`d${br}-guests`);
+  const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100;
+  const pFee=lp*lpRate+uber*uberRate;
+  const reserve=數值(`d${br}-reserve`)||5000,cashpay=數值(`d${br}-cashpay`);
+  const calcBal=cash-reserve-cashpay,posbal=數值(`d${br}-posbal`);
+  const cashShould=數值(`d${br}-cashShould`),cashActual=數值(`d${br}-cashActual`);
+  const 設定元素=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  設定元素(`d${br}-total`,'$'+格式化金額(total));
+  設定元素(`d${br}-aov`,guests?'客單價：$'+格式化金額(total/guests):'客單價：—');
+  設定元素(`d${br}-pfee`,'$'+格式化金額(pFee));
+  設定元素(`d${br}-calcbal`,'$'+格式化金額(calcBal));
+  const soEl=document.getElementById(`d${br}-shortover`);
+  if(soEl){
+    if(cashShould&&cashActual){const so=cashActual-cashShould;soEl.textContent=(so>=0?'+':'')+格式化金額(so);soEl.style.color=so===0?'#27ae60':so>0?'#2980b9':'#c0392b';}
+    else soEl.textContent='—';
+  }
+  const diffEl=document.getElementById(`d${br}-diff`);
+  if(diffEl){
+    if(posbal){const d=posbal-calcBal;diffEl.textContent=(d>=0?'+':'')+格式化金額(d);diffEl.style.color=d===0?'#27ae60':d>0?'#2980b9':'#c0392b';}
+    else{diffEl.textContent='—';diffEl.style.color='#aaa';}
+  }
+}
+
+async function 執行AI辨識(br){
+  const apiKey=取得ApiKey();
+  if(!apiKey){提示('請先輸入 Claude API 金鑰');return}
+  const file=document.getElementById(`sc-${br}`)?.files[0];
+  if(!file){提示('請先上傳照片');return}
+  const statusEl=document.getElementById(`ast-${br}`);
+  statusEl.className='ai-status loading';
+  statusEl.innerHTML='<div class="ai-spinner"></div><span>AI 辨識中，請稍候...</span>';
+  try{
+    const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:base64}},
+        {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：cash(現金收入),linepay(LINE Pay),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
+      ]}]})
+    });
+    if(!resp.ok)throw new Error('API 呼叫失敗');
+    const data=await resp.json();
+    const match=data.content[0].text.match(/\{[\s\S]*\}/);
+    if(!match)throw new Error('無法解析回應');
+    const r=JSON.parse(match[0]);
+    const 欄位對應={cash:`d${br}-cash`,linepay:`d${br}-lp`,twpay:`d${br}-tw`,uber:`d${br}-uber`,guests:`d${br}-guests`,cashShould:`d${br}-cashShould`,cashActual:`d${br}-cashActual`,voidAmt:`d${br}-void`,txItems:`d${br}-txItems`};
+    let 填入數量=0;
+    Object.entries(欄位對應).forEach(([k,fid])=>{
+      const el=document.getElementById(fid);
+      if(el&&r[k]){el.value=r[k];el.classList.add('ai-filled');填入數量++;}
+    });
+    計算表單(br);
+    statusEl.className='ai-status success';
+    statusEl.innerHTML=`<span>✓ 成功辨識並填入 ${填入數量} 個欄位！帶橘色框線的為自動填入，請確認後儲存。</span>`;
+    提示(`✓ 已自動填入 ${填入數量} 個欄位`);
+  }catch(err){
+    statusEl.className='ai-status error';
+    statusEl.innerHTML=`<span>✗ 辨識失敗：${err.message}，請重新拍攝清晰照片或手動輸入。</span>`;
+  }
+}
+
+async function 儲存每日記錄(br){
+  const date=文字(`d${br}-date`);if(!date){提示('請選擇日期');return}
+  const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`);
+  const total=cash+lp+tw+uber;
+  const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100;
+  const pFee=lp*lpRate+uber*uberRate;
+  const market=數值(`d${br}-market`),central=數值(`d${br}-central`),pack=數值(`d${br}-pack`);
+  const reserve=數值(`d${br}-reserve`)||5000,cashpay=數值(`d${br}-cashpay`),posbal=數值(`d${br}-posbal`);
+  const cashShould=數值(`d${br}-cashShould`),cashActual=數值(`d${br}-cashActual`);
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'saveRecord',record:{
+    brand:br,date,weather:文字(`d${br}-weather`),hours:數值(`d${br}-hours`),guests:數值(`d${br}-guests`),
+    cash,lp,tw,uber,total,lp_rate:數值(`d${br}-lprate`),uber_rate:數值(`d${br}-uberrate`),p_fee:pFee,
+    market,central,pack,food_cost:market+central,meal:數值(`d${br}-meal`),gas:數值(`d${br}-gas`),misc:數值(`d${br}-misc`),
+    cash_should:cashShould,cash_actual:cashActual,cash_short_over:cashActual-cashShould,
+    void_amt:數值(`d${br}-void`),tx_items:數值(`d${br}-txItems`),
+    reserve,cashpay,calc_bal:cash-reserve-cashpay,posbal,diff:posbal?posbal-(cash-reserve-cashpay):0,
+    note:文字(`d${br}-note`),uploaded_by:目前使用者?.email
+  }});
+  載入中(false);
+  if(!res.ok){提示('儲存失敗：'+res.error);return}
+  提示('✓ 已儲存 '+date);
+  渲染每日表單(br);
+}
+
+// ===== 員工上傳頁 =====
+function 渲染上傳頁(br){
+  const el=document.getElementById(`page-上傳-${br}`);
+  const 今天=new Date().toISOString().slice(0,10);
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">上傳結帳單</span></div>
+  <div class="apikey-bar">
+    <label>Claude API 金鑰</label>
+    <input type="password" id="akey-u" placeholder="sk-ant-..." value="${取得ApiKey()}" onchange="設定ApiKey(this.value)">
+    <button class="btn btn-outline btn-sm" onclick="設定ApiKey(document.getElementById('akey-u').value);提示('✓ 已儲存')">儲存</button>
+  </div>
+  <div class="card">
+    <div class="card-title">📷 拍照上傳 <span class="ai-badge">AI 自動辨識</span></div>
+    <div class="scan-zone" ondragover="event.preventDefault()" ondrop="event.preventDefault();處理上傳檔案('${br}',event.dataTransfer.files[0])">
+      <input type="file" id="sc-u${br}" accept="image/*" capture="environment" onchange="處理上傳檔案('${br}',this.files[0])">
+      <div style="font-size:40px;margin-bottom:10px">📄</div>
+      <div style="font-size:15px;font-weight:600;color:#555">點擊拍照或上傳結帳單</div>
+      <div style="font-size:13px;color:#aaa;margin-top:6px">手機直接拍照上傳</div>
+      <img id="pv-u${br}" class="scan-preview" style="display:none">
+    </div>
+    <div id="ast-u${br}" class="ai-status"></div>
+    <button id="scbtn-u${br}" class="btn btn-dark btn-full" onclick="執行員工AI辨識('${br}')" disabled>AI 辨識並自動填入</button>
+  </div>
+  <div class="card"><div class="card-title">基本資訊</div>
+    <div class="g2">
+      <div class="field"><label>日期</label><input type="date" id="u${br}-date" value="${今天}"></div>
+      <div class="field"><label>天氣</label><select id="u${br}-weather"><option value="">— 選擇 —</option><option>晴天</option><option>陰天</option><option>雨天</option><option>颱風</option></select></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">收入明細 <span class="ai-badge">AI 自動填入</span></div>
+    <div class="g2">
+      <div class="field"><label>來客數（交易筆數）</label><input type="number" id="u${br}-guests" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>現金收入</label><input type="number" id="u${br}-cash" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>LINE Pay</label><input type="number" id="u${br}-lp" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>台灣 PAY</label><input type="number" id="u${br}-tw" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>Uber Eats（門市實收）</label><input type="number" id="u${br}-uber" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field" style="background:#f5f4f0;border-radius:8px;padding:8px 10px;justify-content:center">
+        <label>總營收（自動計算）</label>
+        <div id="u${br}-total" style="font-size:20px;font-weight:600;color:#27ae60">$0</div>
+        <div id="u${br}-aov" style="font-size:12px;color:#888">客單價：—</div>
+      </div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">現金核對 <span class="ai-badge">AI 自動填入</span></div>
+    <div class="g2">
+      <div class="field"><label>錢櫃應收現金</label><input type="number" id="u${br}-cashShould" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>錢櫃實點現金</label><input type="number" id="u${br}-cashActual" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>作廢金額</label><input type="number" id="u${br}-void" placeholder="0"></div>
+      <div class="field" style="background:#f5f4f0;border-radius:8px;padding:8px 10px;justify-content:center">
+        <label>現金短溢</label>
+        <div id="u${br}-shortover" style="font-size:18px;font-weight:600;color:#888">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">備註</div>
+    <div class="field"><input type="text" id="u${br}-note" placeholder="例：今日外帶較多、設備故障等"></div>
+  </div>
+  <button class="btn btn-${br} btn-full" onclick="送出上傳('${br}')">確認送出</button>`;
+}
+
+function 處理上傳檔案(br,file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{const p=document.getElementById(`pv-u${br}`);p.src=e.target.result;p.style.display='block';};
+  r.readAsDataURL(file);
+  const btn=document.getElementById(`scbtn-u${br}`);if(btn)btn.disabled=false;
+}
+
+function 計算上傳(br){
+  const cash=數值(`u${br}-cash`),lp=數值(`u${br}-lp`),tw=數值(`u${br}-tw`),uber=數值(`u${br}-uber`);
+  const total=cash+lp+tw+uber,guests=數值(`u${br}-guests`);
+  const cashShould=數值(`u${br}-cashShould`),cashActual=數值(`u${br}-cashActual`);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set(`u${br}-total`,'$'+格式化金額(total));
+  set(`u${br}-aov`,guests?'客單價：$'+格式化金額(total/guests):'客單價：—');
+  const soEl=document.getElementById(`u${br}-shortover`);
+  if(soEl&&cashShould&&cashActual){const so=cashActual-cashShould;soEl.textContent=(so>=0?'+':'')+格式化金額(so);soEl.style.color=so===0?'#27ae60':so>0?'#2980b9':'#c0392b';}
+}
+
+async function 執行員工AI辨識(br){
+  const apiKey=取得ApiKey();
+  if(!apiKey){提示('請先輸入 Claude API 金鑰');return}
+  const file=document.getElementById(`sc-u${br}`)?.files[0];
+  if(!file){提示('請先上傳照片');return}
+  const statusEl=document.getElementById(`ast-u${br}`);
+  statusEl.className='ai-status loading';
+  statusEl.innerHTML='<div class="ai-spinner"></div><span>AI 辨識中，請稍候...</span>';
+  try{
+    const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:base64}},
+        {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON。欄位：cash,linepay,twpay,uber,guests,cashShould,cashActual,voidAmt,txItems。找不到設0。'}
+      ]}]})
+    });
+    if(!resp.ok)throw new Error('API 呼叫失敗');
+    const data=await resp.json();
+    const match=data.content[0].text.match(/\{[\s\S]*\}/);
+    if(!match)throw new Error('無法解析');
+    const r=JSON.parse(match[0]);
+    const map={cash:`u${br}-cash`,linepay:`u${br}-lp`,twpay:`u${br}-tw`,uber:`u${br}-uber`,guests:`u${br}-guests`,cashShould:`u${br}-cashShould`,cashActual:`u${br}-cashActual`,voidAmt:`u${br}-void`};
+    let count=0;
+    Object.entries(map).forEach(([k,fid])=>{const el=document.getElementById(fid);if(el&&r[k]){el.value=r[k];el.classList.add('ai-filled');count++;}});
+    計算上傳(br);
+    statusEl.className='ai-status success';
+    statusEl.innerHTML=`<span>✓ 成功填入 ${count} 個欄位！請確認後送出。</span>`;
+  }catch(err){statusEl.className='ai-status error';statusEl.innerHTML=`<span>✗ 辨識失敗：${err.message}</span>`;}
+}
+
+async function 送出上傳(br){
+  const date=文字(`u${br}-date`);if(!date){提示('請選擇日期');return}
+  const cash=數值(`u${br}-cash`),lp=數值(`u${br}-lp`),tw=數值(`u${br}-tw`),uber=數值(`u${br}-uber`);
+  const total=cash+lp+tw+uber;
+  const s=品牌設定[br]||{lp_rate:3,uber_rate:31};
+  const pFee=lp*(s.lp_rate/100)+uber*(s.uber_rate/100);
+  const cashShould=數值(`u${br}-cashShould`),cashActual=數值(`u${br}-cashActual`);
+  載入中(true,'送出中...');
+  const res=await 呼叫API({action:'saveRecord',record:{
+    brand:br,date,weather:文字(`u${br}-weather`),guests:數值(`u${br}-guests`),
+    cash,lp,tw,uber,total,lp_rate:s.lp_rate,uber_rate:s.uber_rate,p_fee:pFee,
+    cash_should:cashShould,cash_actual:cashActual,cash_short_over:cashActual-cashShould,
+    void_amt:數值(`u${br}-void`),note:文字(`u${br}-note`),uploaded_by:目前使用者?.email
+  }});
+  載入中(false);
+  if(!res.ok){提示('送出失敗：'+res.error);return}
+  提示('✓ 結帳單已成功送出！');
+  切換頁面('確認-'+br);
+}
+
+async function 渲染確認頁(br){
+  const el=document.getElementById(`page-確認-${br}`);
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">今日確認</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  const today=new Date().toISOString().slice(0,10);
+  載入中(true);
+  const res=await 呼叫API({action:'getRecords',brand:br,date:today,role:'staff'});
+  載入中(false);
+  const data=res.data?.find(r=>r.date===today);
+  if(!data){el.querySelector('div:last-child').textContent='今日尚未上傳結帳單';return}
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">今日確認</span></div>
+  <div style="font-size:13px;color:#888;margin-bottom:1rem">日期：${data.date}</div>
+  <div class="confirm-card">
+    <div style="font-size:11px;font-weight:600;color:#999;margin-bottom:12px;text-transform:uppercase">收入明細</div>
+    ${[['總營收','$'+格式化金額(data.total)],['現金收入','$'+格式化金額(data.cash)],['LINE Pay','$'+格式化金額(data.lp)],['台灣 PAY','$'+格式化金額(data.tw)],['Uber Eats（門市實收）','$'+格式化金額(data.uber)],['來客數（交易筆數）',(data.guests||0)+'人'],['平均客單價',data.guests?'$'+格式化金額(data.total/data.guests):'—']].map(([l,v])=>`<div class="confirm-row"><span class="confirm-label">${l}</span><span style="font-weight:500">${v}</span></div>`).join('')}
+  </div>
+  <div class="confirm-card">
+    <div style="font-size:11px;font-weight:600;color:#999;margin-bottom:12px;text-transform:uppercase">現金核對</div>
+    ${[['錢櫃應收現金','$'+格式化金額(data.cash_should)],['錢櫃實點現金','$'+格式化金額(data.cash_actual)],['現金短溢',(data.cash_short_over>=0?'+':'')+格式化金額(data.cash_short_over)],['作廢金額','$'+格式化金額(data.void_amt)]].map(([l,v])=>`<div class="confirm-row"><span class="confirm-label">${l}</span><span style="font-weight:500">${v}</span></div>`).join('')}
+  </div>
+  ${data.note?`<div class="card"><div class="card-title">備註</div><div style="font-size:14px">${data.note}</div></div>`:''}
+  <div style="text-align:center;color:#27ae60;font-size:15px;font-weight:600;padding:1.5rem 0">✓ 資料已成功送出，謝謝！</div>`;
+}
+
+// ===== 歷史記錄 =====
+async function 渲染歷史記錄(br){
+  const el=document.getElementById(`page-歷史-${br}`);
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">歷史記錄</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  載入中(true);
+  const res=await 呼叫API({action:'getRecords',brand:br,role:目前使用者?.role});
+  載入中(false);
+  const recs=res.data||[];
+  if(!recs.length){el.querySelector('div:last-child').textContent='尚無記錄';return}
+  recs.sort((a,b)=>b.date.localeCompare(a.date));
+  const tRev=recs.reduce((s,r)=>s+(+r.total||0),0);
+  const tFood=recs.reduce((s,r)=>s+(+r.food_cost||0),0);
+  const tGuests=recs.reduce((s,r)=>s+(+r.guests||0),0);
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">歷史記錄</span></div>
+  <div class="metric-grid">
+    <div class="metric"><div class="metric-label">總營收</div><div class="metric-value">$${格式化金額(tRev)}</div></div>
+    <div class="metric"><div class="metric-label">食材成本率</div><div class="metric-value">${百分比(tFood,tRev)}</div></div>
+    <div class="metric"><div class="metric-label">總來客數</div><div class="metric-value">${格式化金額(tGuests)}</div></div>
+    <div class="metric"><div class="metric-label">平均客單價</div><div class="metric-value">$${tGuests?格式化金額(tRev/tGuests):'—'}</div></div>
+    <div class="metric"><div class="metric-label">記錄天數</div><div class="metric-value">${recs.length} 天</div></div>
+  </div>
+  <div class="card"><div class="table-wrap"><table>
+    <thead><tr><th>日期</th><th>天氣</th><th>來客數</th><th>客單價</th><th>總營收</th><th>現金</th><th>LINE Pay</th><th>台灣PAY</th><th>Uber</th><th>平台費</th><th>食材率</th><th>現金短溢</th><th>備註</th>${目前使用者?.role==='owner'?'<th>操作</th>':''}</tr></thead>
+    <tbody>${recs.map(r=>{
+      const fr=+r.total?(+r.food_cost||0)/(+r.total)*100:0;
+      const so=+r.cash_short_over||0;
+      return`<tr>
+        <td>${r.date}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
+        <td>$${r.guests?格式化金額((+r.total||0)/(+r.guests)):'—'}</td>
+        <td>$${格式化金額(r.total)}</td><td>$${格式化金額(r.cash)}</td>
+        <td>$${格式化金額(r.lp)}</td><td>$${格式化金額(r.tw)}</td><td>$${格式化金額(r.uber)}</td>
+        <td style="color:#c8a96e">$${格式化金額(r.p_fee)}</td>
+        <td style="color:${fr>38?'#c0392b':fr>35?'#e67e22':'#27ae60'};font-weight:600">${+r.total?fr.toFixed(1)+'%':'—'}</td>
+        <td style="color:${so<-50?'#c0392b':so>50?'#2980b9':'#27ae60'}">${(r.cash_should||r.cash_actual)?(so>=0?'+':'')+格式化金額(so):'—'}</td>
+        <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.note||'—'}</td>
+        ${目前使用者?.role==='owner'?`<td><button class="btn btn-danger btn-sm" onclick="刪除記錄('${r.id}','${br}')">刪除</button></td>`:''}
+      </tr>`;}).join('')}
+    </tbody>
+  </table></div></div>`;
+}
+
+async function 刪除記錄(id,br){
+  if(!confirm('確定要刪除這筆記錄嗎？'))return;
+  載入中(true);
+  await 呼叫API({action:'deleteRecord',id});
+  載入中(false);
+  渲染歷史記錄(br);提示('已刪除');
+}
+
+// ===== 月報表 =====
+async function 渲染月報選擇(br){
+  const el=document.getElementById(`page-月報-${br}`);
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">月報表</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  載入中(true);
+  const res=await 呼叫API({action:'getRecords',brand:br,role:目前使用者?.role});
+  載入中(false);
+  const recs=res.data||[];
+  const months=[...new Set(recs.map(r=>r.date?.slice(0,7)))].filter(Boolean).sort().reverse();
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">月報表</span></div>
+  <select id="mpick-${br}" onchange="渲染月報資料('${br}',this.value)" style="margin-bottom:1rem;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-family:inherit;font-size:14px">
+    ${months.length?months.map(m=>`<option value="${m}">${m}</option>`).join(''):'<option value="">尚無記錄</option>'}
+  </select>
+  <div id="mbody-${br}"></div>`;
+  window[`_recs_${br}`]=recs;
+  if(months.length)渲染月報資料(br,months[0]);
+}
+
+async function 渲染月報資料(br,ym){
+  const allRecs=window[`_recs_${br}`]||[];
+  const recs=allRecs.filter(r=>r.date?.startsWith(ym));
+  const s=品牌設定[br]||{};
+  載入中(true);
+  const payRes=await 呼叫API({action:'getPayroll',brand:br,month:ym});
+  載入中(false);
+  const emps=payRes.data||[];
+  const pl={
+    salary:emps.reduce((a,e)=>a+((+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0)),0),
+    nhi_co:emps.reduce((a,e)=>a+(+e.nhi_co||0),0)
+  };
+  pl.total=pl.salary+pl.nhi_co;
+  document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,s,pl);
+}
+
+function 建立月報HTML(recs,s,pl){
+  if(!recs.length)return'<div style="color:#aaa;padding:1rem;text-align:center">該月尚無記錄</div>';
+  const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
+  const tRev=n('total'),tCash=n('cash'),tLP=n('lp'),tTW=n('tw'),tUber=n('uber'),tPFee=n('p_fee');
+  const tFood=n('food_cost'),tPack=n('pack'),tMeal=n('meal'),tGas=n('gas'),tMisc=n('misc');
+  const tGuests=n('guests'),tHours=n('hours'),laborTotal=pl.total;
+  const fxC=固定成本(s),tCost=fxC+tFood+tPack+tMeal+tGas+tMisc+tPFee+laborTotal,netProfit=tRev-tCost;
+  const aov=tGuests?tRev/tGuests:0,productivity=tHours?tRev/tHours:0;
+  const foodRate=tRev?tFood/tRev*100:0,laborRate=tRev?laborTotal/tRev*100:0;
+  const rentRate=tRev?(s.rent||0)/tRev*100:0,profitRate=tRev?netProfit/tRev*100:0;
+  const fRate=foodRate||32,breakeven=tCost/(1-fRate/100),progress=Math.min(tRev/breakeven*100,100);
+  const flr=[
+    {code:'F',name:'食材成本率',val:foodRate,ok:'30%~35%',warn:'> 38%',good:foodRate<=35,danger:foodRate>38},
+    {code:'L',name:'人事成本率',val:laborRate,ok:'20%~25%',warn:'> 30%',good:laborRate<=25,danger:laborRate>30},
+    {code:'R',name:'房租占比',val:rentRate,ok:'15%~20%',warn:'> 25%',good:rentRate<=20,danger:rentRate>25},
+    {code:'P',name:'淨利率',val:profitRate,ok:'15%~20%',warn:'< 10%',good:profitRate>=15,danger:profitRate<10}
+  ];
+  return`
+  <div class="metric-grid">
+    <div class="metric ${netProfit>=0?'green':'red'}"><div class="metric-label">月淨利</div><div class="metric-value">$${格式化金額(netProfit)}</div></div>
+    <div class="metric"><div class="metric-label">月營收</div><div class="metric-value">$${格式化金額(tRev)}</div></div>
+    <div class="metric"><div class="metric-label">月來客數</div><div class="metric-value">${格式化金額(tGuests)}</div></div>
+    <div class="metric ${aov>=120?'green':'red'}"><div class="metric-label">平均客單價</div><div class="metric-value">$${格式化金額(aov)}</div><div class="metric-sub">目標 > $120</div></div>
+    <div class="metric ${productivity>=800&&productivity<=1200?'green':productivity<800?'red':''}"><div class="metric-label">人均產值（元/工時）</div><div class="metric-value">$${格式化金額(productivity)}</div><div class="metric-sub">目標 $800~$1,200</div></div>
+    <div class="metric amber"><div class="metric-label">人事費用合計</div><div class="metric-value">$${格式化金額(laborTotal)}</div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-title">收入結構</div>
+      ${[['現金收入',tCash],['LINE Pay',tLP],['台灣 PAY',tTW],['Uber Eats（門市）',tUber]].map(([l,v])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
+      <div class="sum-row"><span class="sum-label">平台手續費（支出）</span><span style="color:#c0392b">-$${格式化金額(tPFee)}</span></div>
+      <div class="sum-row"><span>實收淨額</span><span>$${格式化金額(tRev-tPFee)}</span></div>
+    </div>
+    <div class="card"><div class="card-title">FLR 成本率燈號</div>
+      ${flr.map(f=>`<div class="light-row">
+        <div><div style="font-size:12px;font-weight:600;color:#888">${f.code} ${f.name}</div>
+        <div style="font-size:11px;color:#bbb">目標 ${f.ok} ／ 警戒 ${f.warn}</div></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-size:15px;font-weight:600;color:${f.danger?'#c0392b':f.good?'#27ae60':'#e67e22'}">${isNaN(f.val)?'—':f.val.toFixed(1)+'%'}</div>
+          <div class="light-dot ${f.danger?'dot-red':f.good?'dot-green':'dot-yellow'}"></div>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="card"><div class="card-title">損益總結</div>
+    ${[['月營收',tRev,false],['食材進貨',tFood,true],['包材／餐具',tPack,true],['員工餐費',tMeal,true],['瓦斯',tGas,true],['平台手續費',tPFee,true],['其他當日雜支',tMisc,true],['薪資實發合計',pl.salary,true],['勞健退（公司負擔）',pl.nhi_co,true],['房租',s.rent||0,true],['其他固定費用',(s.platform||0)+(s.pos||0)+(s.phone||0)+(s.ads||0)+(s.other||0),true]]
+      .map(([l,v,isE])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>${isE?'-':''}$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
+    <div class="sum-row"><span>月淨利</span><span style="color:${netProfit>=0?'#27ae60':'#c0392b'}">${netProfit>=0?'+':'-'}$${格式化金額(Math.abs(netProfit))} (${profitRate.toFixed(1)}%)</span></div>
+    <div class="progress-wrap">
+      <div style="font-size:12px;color:#888;margin-bottom:6px">損益兩平進度：$${格式化金額(tRev)} / $${格式化金額(breakeven)}</div>
+      <div class="progress-bar"><div class="progress-fill ${tRev<breakeven?'danger':''}" style="width:${progress.toFixed(1)}%"></div></div>
+      <div class="progress-label"><span>$0</span><span>${progress.toFixed(0)}%</span><span>損益兩平</span></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">每日明細</div><div class="table-wrap"><table>
+    <thead><tr><th>日期</th><th>天氣</th><th>來客數</th><th>客單價</th><th>總營收</th><th>食材率</th><th>現金短溢</th><th>作廢金額</th></tr></thead>
+    <tbody>${recs.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>{
+      const fr=+r.total?(+r.food_cost||0)/(+r.total)*100:0;
+      const so=+r.cash_short_over||0;
+      return`<tr><td>${r.date}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
+        <td>$${r.guests?格式化金額((+r.total||0)/(+r.guests)):'—'}</td>
+        <td>$${格式化金額(r.total)}</td>
+        <td style="color:${fr>38?'#c0392b':fr>35?'#e67e22':'#27ae60'}">${+r.total?fr.toFixed(1)+'%':'—'}</td>
+        <td style="color:${so<0?'#c0392b':so>0?'#2980b9':'#27ae60'}">${(r.cash_should||r.cash_actual)?(so>=0?'+':'')+格式化金額(so):'—'}</td>
+        <td>${r.void_amt?'$'+格式化金額(r.void_amt):'—'}</td>
+      </tr>`;}).join('')}</tbody>
+  </table></div></div>`;
+}
+
+// ===== 薪資 =====
+async function 渲染薪資頁(br){
+  const el=document.getElementById(`page-薪資-${br}`);
+  const now=new Date().toISOString().slice(0,7);
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">員工薪資管理</span></div>
+  <div class="btn-row">
+    <select id="pmon-${br}" onchange="載入薪資('${br}')" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-family:inherit;font-size:14px">
+      <option value="${now}">${now}</option>
+    </select>
+    <button class="btn btn-${br}" onclick="顯示新增員工('${br}')">＋ 新增員工薪資</button>
+    <button class="btn btn-outline" onclick="列印全員薪資條('${br}')">列印全員薪資條</button>
+  </div>
+  <div id="addEmp-${br}" style="display:none"></div>
+  <div id="plist-${br}"></div>
+  <div id="psum-${br}"></div>`;
+  載入薪資(br);
+}
+
+function 顯示新增員工(br){
+  const el=document.getElementById(`addEmp-${br}`);
+  el.style.display=el.style.display==='none'?'block':'none';
+  if(el.style.display==='none'){el.innerHTML='';return}
+  el.innerHTML=`<div class="card"><div class="card-title">新增員工薪資</div>
+    <div class="g3">
+      <div class="field"><label>員工姓名</label><input type="text" id="pn-${br}-name" placeholder="王秀珍"></div>
+      <div class="field"><label>職位</label><select id="pn-${br}-role"><option>正職</option><option>PT 兼職</option><option>CEO</option><option>主管</option></select></div>
+      <div class="field"><label>本薪</label><input type="number" id="pn-${br}-base" placeholder="29500"></div>
+      <div class="field"><label>加班費</label><input type="number" id="pn-${br}-ot" placeholder="0"></div>
+      <div class="field"><label>夏日／績效獎金</label><input type="number" id="pn-${br}-bonus" placeholder="0"></div>
+      <div class="field"><label>缺勤扣款</label><input type="number" id="pn-${br}-absent" placeholder="0"></div>
+      <div class="field"><label>勞健保自付（扣除）</label><input type="number" id="pn-${br}-nhi_emp" placeholder="1196"></div>
+      <div class="field"><label>公司負擔勞健退</label><input type="number" id="pn-${br}-nhi_co" placeholder="5842"></div>
+      <div class="field full"><label>備註</label><input type="text" id="pn-${br}-note" placeholder="感謝你本月的辛勞！"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:.5rem">
+      <button class="btn btn-${br}" onclick="新增員工('${br}')">確認加入</button>
+      <button class="btn btn-outline" onclick="顯示新增員工('${br}')">取消</button>
+    </div>
+  </div>`;
+}
+
+async function 新增員工(br){
+  const month=文字(`pmon-${br}`)||new Date().toISOString().slice(0,7);
+  const name=文字(`pn-${br}-name`);if(!name){提示('請輸入員工姓名');return}
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'savePayroll',record:{
+    brand:br,month,employee_name:name,role:文字(`pn-${br}-role`),
+    base:數值(`pn-${br}-base`),overtime:數值(`pn-${br}-ot`),bonus:數值(`pn-${br}-bonus`),
+    absent:數值(`pn-${br}-absent`),nhi_emp:數值(`pn-${br}-nhi_emp`),nhi_co:數值(`pn-${br}-nhi_co`),
+    note:文字(`pn-${br}-note`)
+  }});
+  載入中(false);
+  if(!res.ok){提示('儲存失敗：'+res.error);return}
+  document.getElementById(`addEmp-${br}`).style.display='none';
+  提示('✓ 已新增 '+name);載入薪資(br);
+}
+
+async function 載入薪資(br){
+  const month=文字(`pmon-${br}`)||new Date().toISOString().slice(0,7);
+  載入中(true);
+  const res=await 呼叫API({action:'getPayroll',brand:br,month});
+  載入中(false);
+  const emps=res.data||[];
+  const listEl=document.getElementById(`plist-${br}`);
+  const sumEl=document.getElementById(`psum-${br}`);
+  window[`_emps_${br}`]={br,month,emps};
+  if(!emps.length){listEl.innerHTML='<div class="card" style="color:#aaa;text-align:center;padding:2rem">本月尚無薪資記錄，請點「新增員工薪資」</div>';sumEl.innerHTML='';return}
+  listEl.innerHTML=emps.map(e=>{
+    const net=(+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0);
+    return`<div class="emp-card">
+      <div class="emp-card-header">
+        <div>
+          <div class="emp-name">${e.employee_name} <span style="font-size:12px;color:#aaa;font-weight:400">${e.role}</span></div>
+          <div style="font-size:12px;color:#aaa">${month}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="emp-net">$${格式化金額(net)}</div>
+          <div style="font-size:11px;color:#aaa">實發金額</div>
+        </div>
+      </div>
+      <div class="g4" style="font-size:13px;gap:8px">
+        <div><div style="color:#888;font-size:11px">本薪</div><div>$${格式化金額(e.base)}</div></div>
+        <div><div style="color:#888;font-size:11px">加班費</div><div>$${格式化金額(e.overtime)}</div></div>
+        <div><div style="color:#888;font-size:11px">獎金</div><div>$${格式化金額(e.bonus)}</div></div>
+        <div><div style="color:#888;font-size:11px">缺勤扣款</div><div style="color:#c0392b">-$${格式化金額(e.absent)}</div></div>
+        <div><div style="color:#888;font-size:11px">勞健保自付</div><div style="color:#c0392b">-$${格式化金額(e.nhi_emp)}</div></div>
+        <div><div style="color:#888;font-size:11px">勞健退（公司）</div><div style="color:#888">$${格式化金額(e.nhi_co)}</div></div>
+        <div><div style="color:#888;font-size:11px">公司總人事成本</div><div style="font-weight:600">$${格式化金額(net+(+e.nhi_co||0))}</div></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" onclick="列印單人薪資條('${br}','${month}','${e.id}')">列印薪資條</button>
+        <button class="btn btn-danger btn-sm" onclick="刪除員工('${e.id}','${br}')">刪除</button>
+      </div>
+    </div>`}).join('');
+  const tNet=emps.reduce((a,e)=>a+((+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0)),0);
+  const tNhiCo=emps.reduce((a,e)=>a+(+e.nhi_co||0),0);
+  sumEl.innerHTML=`<div class="card"><div class="card-title">本月薪資總覽（${month}）</div><div class="metric-grid">
+    <div class="metric"><div class="metric-label">員工實發合計</div><div class="metric-value">$${格式化金額(tNet)}</div></div>
+    <div class="metric amber"><div class="metric-label">公司負擔勞健退</div><div class="metric-value">$${格式化金額(tNhiCo)}</div></div>
+    <div class="metric red"><div class="metric-label">公司總人事成本</div><div class="metric-value">$${格式化金額(tNet+tNhiCo)}</div></div>
+    <div class="metric"><div class="metric-label">員工人數</div><div class="metric-value">${emps.length} 人</div></div>
+  </div></div>`;
+}
+
+async function 刪除員工(id,br){
+  if(!confirm('確定要刪除這筆薪資記錄嗎？'))return;
+  載入中(true);await 呼叫API({action:'deletePayroll',id});載入中(false);
+  載入薪資(br);提示('已刪除');
+}
+
+function 建立薪資條(e,ym,品牌,isCompanyCopy){
+  const net=(+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0);
+  const issue=(+e.base||0)+(+e.overtime||0)+(+e.bonus||0),deduct=(+e.absent||0)+(+e.nhi_emp||0);
+  const[yy,mm]=ym.split('-');
+  return`<div class="slip">
+    <div class="slip-header">
+      <div><div class="slip-co">${品牌}（富郁霖企業社）</div>
+      <div class="slip-title">員工薪資明細表｜薪資月份：${yy} 年 ${parseInt(mm)} 月</div></div>
+      <span class="slip-tag">${isCompanyCopy?'公司留存聯':'員工收執聯'}</span>
+    </div>
+    <div class="slip-info">
+      <div><span style="color:#888">員工姓名：</span>${e.employee_name||e.name}</div>
+      <div><span style="color:#888">職位：</span>${e.role}</div>
+      <div><span style="color:#888">發放日期：</span>${yy} 年 ${parseInt(mm)} 月</div>
+    </div>
+    <table class="slip-table">
+      <tr><th>項目（加項）</th><th>金額</th><th>項目（減項）</th><th>金額</th></tr>
+      <tr><td>本薪</td><td>$${格式化金額(e.base)}</td><td>缺勤扣款</td><td>$${格式化金額(e.absent)}</td></tr>
+      <tr><td>加班費</td><td>$${格式化金額(e.overtime)}</td><td>勞健保自付</td><td>$${格式化金額(e.nhi_emp)}</td></tr>
+      <tr><td>獎金</td><td>$${格式化金額(e.bonus)}</td><td></td><td></td></tr>
+      <tr><td style="font-weight:600">應發合計</td><td style="font-weight:600">$${格式化金額(issue)}</td><td style="font-weight:600">應扣合計</td><td style="font-weight:600">$${格式化金額(deduct)}</td></tr>
+    </table>
+    <div class="slip-total"><span>實發金額</span><span>$${格式化金額(net)}</span></div>
+    <div style="font-size:12px;padding:6px 0;border-top:1px solid #eee">公司負擔勞健退：$${格式化金額(e.nhi_co)}　　公司總人事成本：$${格式化金額(net+(+e.nhi_co||0))}</div>
+    ${e.note?`<div class="slip-footer">備註：${e.note}</div>`:''}
+    <div class="slip-footer">「本人已確認上述薪資計算明細及工時紀錄無誤，並已收訖款項。」</div>
+    ${isCompanyCopy?`<div class="slip-sign">
+      <div><div style="color:#888">員工簽名確認</div><div class="slip-sign-line"></div></div>
+      <div><div style="color:#888">主管核准</div><div class="slip-sign-line"></div></div>
+    </div>`:``}
+  </div>`;
+}
+
+function 列印單人薪資條(br,month,id){
+  const d=window[`_emps_${br}`];
+  const e=d?.emps?.find(x=>x.id===id);if(!e)return;
+  const area=document.getElementById('print-area');
+  area.style.display='block';
+  area.innerHTML=`<div>${建立薪資條(e,month,品牌名稱[br],false)}${建立薪資條(e,month,品牌名稱[br],true)}</div>`;
+  setTimeout(()=>{window.print();area.style.display='none'},200);
+}
+
+function 列印全員薪資條(br){
+  const d=window[`_emps_${br}`];
+  if(!d?.emps?.length){提示('本月無薪資資料');return}
+  const area=document.getElementById('print-area');
+  area.style.display='block';
+  area.innerHTML=d.emps.map(e=>`<div style="page-break-after:always">${建立薪資條(e,d.month,品牌名稱[d.br],false)}${建立薪資條(e,d.month,品牌名稱[d.br],true)}</div>`).join('');
+  setTimeout(()=>{window.print();area.style.display='none'},200);
+}
+
+// ===== 總部報表 =====
+async function 渲染總部選擇(){
+  const el=document.getElementById('page-總部');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">總部月報表</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  載入中(true);
+  const [resA,resB]=await Promise.all([
+    呼叫API({action:'getRecords',brand:'a',role:'owner'}),
+    呼叫API({action:'getRecords',brand:'b',role:'owner'})
+  ]);
+  載入中(false);
+  const allRecs=[...(resA.data||[]),...(resB.data||[])];
+  const months=[...new Set(allRecs.map(r=>r.date?.slice(0,7)))].filter(Boolean).sort().reverse();
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">總部月報表</span></div>
+  <select id="hqmon" onchange="渲染總部報表(this.value)" style="margin-bottom:1.25rem;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-family:inherit;font-size:14px">
+    ${months.length?months.map(m=>`<option value="${m}">${m}</option>`).join(''):'<option value="">尚無記錄</option>'}
+  </select>
+  <div id="hqbody"></div>`;
+  window._allHQRecs={a:resA.data||[],b:resB.data||[]};
+  if(months.length)渲染總部報表(months[0]);
+}
+
+async function 渲染總部報表(ym){
+  const recsA=(window._allHQRecs?.a||[]).filter(r=>r.date?.startsWith(ym));
+  const recsB=(window._allHQRecs?.b||[]).filter(r=>r.date?.startsWith(ym));
+  載入中(true);
+  const [payResA,payResB]=await Promise.all([
+    呼叫API({action:'getPayroll',brand:'a',month:ym}),
+    呼叫API({action:'getPayroll',brand:'b',month:ym})
+  ]);
+  載入中(false);
+  const sA=品牌設定['a']||{},sB=品牌設定['b']||{};
+
+  function 計算品牌(recs,s,emps){
+    const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
+    const tRev=n('total'),tFood=n('food_cost'),tPack=n('pack'),tMeal=n('meal'),tGas=n('gas'),tMisc=n('misc'),tPFee=n('p_fee');
+    const tGuests=n('guests'),tHours=n('hours');
+    const nhiCo=emps.reduce((a,e)=>a+(+e.nhi_co||0),0);
+    const salary=emps.reduce((a,e)=>a+((+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0)),0);
+    const laborTotal=salary+nhiCo;
+    const fxC=固定成本(s),tCost=fxC+tFood+tPack+tMeal+tGas+tMisc+tPFee+laborTotal,netProfit=tRev-tCost;
+    const foodRate=tRev?tFood/tRev*100:0,laborRate=tRev?laborTotal/tRev*100:0;
+    const rentRate=tRev?(s.rent||0)/tRev*100:0,profitRate=tRev?netProfit/tRev*100:0;
+    return{tRev,tFood,tPack,tMeal,tGas,tMisc,tPFee,tGuests,tHours,laborTotal,nhiCo,salary,fxC,tCost,netProfit,
+      aov:tGuests?tRev/tGuests:0,productivity:tHours?tRev/tHours:0,
+      foodRate,laborRate,rentRate,profitRate,days:recs.length,rent:s.rent||0,fixedOther:fxC-(s.rent||0)};
+  }
+
+  const A=計算品牌(recsA,sA,payResA.data||[]),B=計算品牌(recsB,sB,payResB.data||[]);
+  const tRev=A.tRev+B.tRev,tCost=A.tCost+B.tCost,tProfit=A.netProfit+B.netProfit;
+  const tGuests=A.tGuests+B.tGuests,tFood=A.tFood+B.tFood,tPFee=A.tPFee+B.tPFee;
+  const tLabor=A.laborTotal+B.laborTotal,tRent=A.rent+B.rent;
+  const cfoodRate=tRev?tFood/tRev*100:0,claborRate=tRev?tLabor/tRev*100:0;
+  const crentRate=tRev?tRent/tRev*100:0,cprofitRate=tRev?tProfit/tRev*100:0;
+  const aShareRev=tRev?A.tRev/tRev*100:0;
+  const allRecs=[...recsA.map(r=>({...r,brand:'a'})),...recsB.map(r=>({...r,brand:'b'}))].sort((a,b)=>b.total-a.total);
+  const bestDay=allRecs[0],worstDay=[...allRecs].reverse()[0];
+
+  document.getElementById('hqbody').innerHTML=`
+  <div class="metric-grid">
+    <div class="metric ${tProfit>=0?'green':'red'}"><div class="metric-label">集團月淨利</div><div class="metric-value">$${格式化金額(tProfit)}</div><div class="metric-sub">${cprofitRate.toFixed(1)}% 淨利率</div></div>
+    <div class="metric"><div class="metric-label">集團月營收</div><div class="metric-value">$${格式化金額(tRev)}</div></div>
+    <div class="metric"><div class="metric-label">集團月成本</div><div class="metric-value">$${格式化金額(tCost)}</div></div>
+    <div class="metric"><div class="metric-label">集團總來客數</div><div class="metric-value">${格式化金額(tGuests)}</div></div>
+    <div class="metric amber"><div class="metric-label">平台費合計</div><div class="metric-value">$${格式化金額(tPFee)}</div></div>
+    <div class="metric"><div class="metric-label">人事費合計</div><div class="metric-value">$${格式化金額(tLabor)}</div></div>
+  </div>
+  <div class="hq-brand-split">
+    <div class="hq-brand-card brand-a">
+      <div style="font-size:12px;font-weight:600;color:#8a6a2a;margin-bottom:10px">林家涼麵</div>
+      ${[['月營收','$'+格式化金額(A.tRev)],['月淨利',(A.netProfit>=0?'+':'')+'$'+格式化金額(A.netProfit)],['來客數',格式化金額(A.tGuests)+'人'],['平均客單價','$'+格式化金額(A.aov)],['食材成本率',A.foodRate.toFixed(1)+'%'],['人事費用','$'+格式化金額(A.laborTotal)],['人均產值','$'+格式化金額(A.productivity)],['日均營收','$'+格式化金額(A.days?A.tRev/A.days:0)],['營業天數',A.days+' 天']].map(([l,v])=>`<div class="sum-row"><span class="sum-label" style="font-size:12px">${l}</span><span style="font-size:13px;font-weight:500">${v}</span></div>`).join('')}
+    </div>
+    <div class="hq-brand-card brand-b">
+      <div style="font-size:12px;font-weight:600;color:#2a6b58;margin-bottom:10px">木谷食麵所</div>
+      ${[['月營收','$'+格式化金額(B.tRev)],['月淨利',(B.netProfit>=0?'+':'')+'$'+格式化金額(B.netProfit)],['來客數',格式化金額(B.tGuests)+'人'],['平均客單價','$'+格式化金額(B.aov)],['食材成本率',B.foodRate.toFixed(1)+'%'],['人事費用','$'+格式化金額(B.laborTotal)],['人均產值','$'+格式化金額(B.productivity)],['日均營收','$'+格式化金額(B.days?B.tRev/B.days:0)],['營業天數',B.days+' 天']].map(([l,v])=>`<div class="sum-row"><span class="sum-label" style="font-size:12px">${l}</span><span style="font-size:13px;font-weight:500">${v}</span></div>`).join('')}
+    </div>
+  </div>
+  <div class="card"><div class="card-title">品牌競效比較</div>
+    ${[['月營收',A.tRev,B.tRev],['月淨利',A.netProfit,B.netProfit],['平均客單價',A.aov,B.aov],['人均產值',A.productivity,B.productivity],['食材成本',A.tFood,B.tFood],['人事費用',A.laborTotal,B.laborTotal],['平台費用',A.tPFee,B.tPFee]].map(([label,va,vb])=>{
+      const max=Math.max(Math.abs(va),Math.abs(vb),1);
+      return`<div class="compare-row">
+        <div class="compare-label">${label}</div>
+        <div class="compare-bar-wrap">
+          <div class="compare-bar-item"><span style="font-size:11px;color:#8a6a2a;width:60px">林家</span><div class="compare-bar"><div class="compare-bar-fill fill-a" style="width:${Math.abs(va)/max*100}%"></div></div><span class="compare-val" style="color:#8a6a2a">$${格式化金額(va)}</span></div>
+          <div class="compare-bar-item"><span style="font-size:11px;color:#2a6b58;width:60px">木谷</span><div class="compare-bar"><div class="compare-bar-fill fill-b" style="width:${Math.abs(vb)/max*100}%"></div></div><span class="compare-val" style="color:#2a6b58">$${格式化金額(vb)}</span></div>
+        </div>
+      </div>`}).join('')}
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-title">集團合併損益</div>
+      ${[['集團總營收',tRev,false],['食材進貨合計',tFood,true],['包材／餐具',A.tPack+B.tPack,true],['員工餐費',A.tMeal+B.tMeal,true],['瓦斯',A.tGas+B.tGas,true],['平台手續費',tPFee,true],['其他當日雜支',A.tMisc+B.tMisc,true],['薪資實發合計',A.salary+B.salary,true],['勞健退（公司）',A.nhiCo+B.nhiCo,true],['房租合計',tRent,true],['其他固定費用',A.fixedOther+B.fixedOther,true]]
+        .map(([l,v,isE])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>${isE?'-':''}$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
+      <div class="sum-row"><span>集團月淨利</span><span style="color:${tProfit>=0?'#27ae60':'#c0392b'}">${tProfit>=0?'+':'-'}$${格式化金額(Math.abs(tProfit))} (${cprofitRate.toFixed(1)}%)</span></div>
+    </div>
+    <div class="card"><div class="card-title">集團 FLR 成本率</div>
+      ${[{code:'F',name:'食材成本率',val:cfoodRate,ok:'30%~35%',warn:'> 38%',good:cfoodRate<=35,danger:cfoodRate>38},{code:'L',name:'人事成本率',val:claborRate,ok:'20%~25%',warn:'> 30%',good:claborRate<=25,danger:claborRate>30},{code:'R',name:'房租占比',val:crentRate,ok:'15%~20%',warn:'> 25%',good:crentRate<=20,danger:crentRate>25},{code:'P',name:'淨利率',val:cprofitRate,ok:'15%~20%',warn:'< 10%',good:cprofitRate>=15,danger:cprofitRate<10}]
+        .map(f=>`<div class="light-row"><div><div style="font-size:12px;font-weight:600;color:#888">${f.code} ${f.name}</div><div style="font-size:11px;color:#bbb">目標 ${f.ok} ／ 警戒 ${f.warn}</div></div><div style="display:flex;align-items:center;gap:8px"><div style="font-size:15px;font-weight:600;color:${f.danger?'#c0392b':f.good?'#27ae60':'#e67e22'}">${isNaN(f.val)?'—':f.val.toFixed(1)+'%'}</div><div class="light-dot ${f.danger?'dot-red':f.good?'dot-green':'dot-yellow'}"></div></div></div>`).join('')}
+    </div>
+  </div>
+  <div class="card"><div class="card-title">品牌貢獻度分析</div>
+    <div class="g2">
+      <div>
+        <div style="font-size:12px;color:#888;margin-bottom:8px">營收貢獻比例</div>
+        <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;gap:2px">
+          <div style="width:${aShareRev.toFixed(1)}%;background:#c8a96e;border-radius:7px 0 0 7px"></div>
+          <div style="flex:1;background:#7bb5a0;border-radius:0 7px 7px 0"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:6px">
+          <span style="color:#8a6a2a">林家 ${aShareRev.toFixed(1)}%</span>
+          <span style="color:#2a6b58">木谷 ${(100-aShareRev).toFixed(1)}%</span>
+        </div>
+      </div>
+      <div>
+        ${[['平均客單價','$'+格式化金額(A.aov),'$'+格式化金額(B.aov)],['人均產值','$'+格式化金額(A.productivity),'$'+格式化金額(B.productivity)],['食材成本率',A.foodRate.toFixed(1)+'%',B.foodRate.toFixed(1)+'%'],['淨利率',A.profitRate.toFixed(1)+'%',B.profitRate.toFixed(1)+'%'],['人事費用','$'+格式化金額(A.laborTotal),'$'+格式化金額(B.laborTotal)]].map(([l,va,vb])=>`
+          <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f2f1ed">
+            <span style="color:#888">${l}</span>
+            <span><span style="color:#8a6a2a">${va}</span> <span style="color:#ccc">對比</span> <span style="color:#2a6b58">${vb}</span></span>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>
+  ${bestDay?`<div class="card"><div class="card-title">本月營運亮點</div><div class="g2">
+    <div class="sub-sec"><div class="sub-sec-title">最佳營業日</div><div style="font-size:16px;font-weight:600">${bestDay.date}</div><div style="font-size:13px;color:#888">${品牌名稱[bestDay.brand]}</div><div style="font-size:22px;font-weight:600;color:#27ae60;margin-top:4px">$${格式化金額(bestDay.total)}</div></div>
+    ${worstDay&&worstDay.date!==bestDay.date?`<div class="sub-sec"><div class="sub-sec-title">最低營業日</div><div style="font-size:16px;font-weight:600">${worstDay.date}</div><div style="font-size:13px;color:#888">${品牌名稱[worstDay.brand]}</div><div style="font-size:22px;font-weight:600;color:#c0392b;margin-top:4px">$${格式化金額(worstDay.total)}</div></div>`:''}
+  </div></div>`:''}`;
+}
+
+// ===== 帳號管理 =====
+async function 渲染帳號管理(){
+  const el=document.getElementById('page-帳號管理');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">帳號管理</span></div>
+  <div class="card"><div class="card-title">新增帳號</div>
+    <div class="g2">
+      <div class="field"><label>電子郵件</label><input type="email" id="nu-email" placeholder="staff@example.com"></div>
+      <div class="field"><label>姓名</label><input type="text" id="nu-name" placeholder="王秀珍"></div>
+      <div class="field"><label>登入密碼</label><input type="password" id="nu-pass" placeholder="設定初始密碼"></div>
+      <div class="field"><label>角色</label><select id="nu-role"><option value="staff">員工</option><option value="manager">店長</option><option value="owner">老闆</option></select></div>
+      <div class="field"><label>所屬品牌</label><select id="nu-brand"><option value="a">林家涼麵</option><option value="b">木谷食麵所</option><option value="both">兩店（老闆用）</option></select></div>
+    </div>
+    <button class="btn btn-hq btn-full" onclick="新增帳號()">建立帳號</button>
+  </div>
+  <div class="card"><div class="card-title">現有帳號列表</div><div id="user-list"><div style="color:#aaa;text-align:center;padding:1rem">載入中...</div></div></div>`;
+  載入中(true);
+  const res=await 呼叫API({action:'getUsers'});
+  載入中(false);
+  const users=res.data||[];
+  document.getElementById('user-list').innerHTML=users.length?
+    `<table><thead><tr><th>姓名</th><th>電子郵件</th><th>角色</th><th>所屬品牌</th></tr></thead>
+    <tbody>${users.map(u=>`<tr><td>${u.name}</td><td>${u.email}</td><td>${角色名稱[u.role]||u.role}</td><td>${品牌標籤[u.brand]||u.brand}</td></tr>`).join('')}</tbody></table>`:
+    '<div style="color:#aaa;text-align:center;padding:1rem">尚無帳號記錄</div>';
+}
+
+async function 新增帳號(){
+  const email=文字('nu-email'),name=文字('nu-name'),pass=文字('nu-pass'),role=文字('nu-role'),brand=文字('nu-brand');
+  if(!email||!name||!pass){提示('請填入所有欄位');return}
+  載入中(true,'建立中...');
+  const res=await 呼叫API({action:'saveUser',email,name,password:pass,role,brand});
+  載入中(false);
+  if(!res.ok){提示('建立失敗：'+res.error);return}
+  提示('✓ 帳號已建立：'+email);渲染帳號管理();
+}
+
+// ===== 系統設定 =====
+function 渲染系統設定(){
+  const el=document.getElementById('page-系統設定');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">固定成本設定</span></div>
+  <div class="inner-tabs">
+    <button class="inner-tab active" onclick="切換設定頁籤('a',this)">林家涼麵</button>
+    <button class="inner-tab" onclick="切換設定頁籤('b',this)">木谷食麵所</button>
+  </div>
+  <div id="stab-a">${建立設定表單('a')}</div>
+  <div id="stab-b" style="display:none">${建立設定表單('b')}</div>`;
+  ['a','b'].forEach(br=>{
+    const s=品牌設定[br]||{};
+    const 對應={rent:'rent',pos_fee:'pos',platform_fee:'platform',phone:'phone',ads:'ads',other:'other',lp_rate:'lprate',uber_rate:'uberrate'};
+    Object.entries(對應).forEach(([sk,fk])=>{
+      const el2=document.getElementById(`s${br}-${fk}`);
+      if(el2)el2.value=s[sk]||'';
+    });
+  });
+}
+
+function 建立設定表單(br){
+  return`<div class="card"><div class="card-title">每月固定費用</div>
+    <div class="g2">
+      <div class="field"><label>房租</label><input type="number" id="s${br}-rent" placeholder="0"></div>
+      <div class="field"><label>POS 費用</label><input type="number" id="s${br}-pos" placeholder="0"></div>
+      <div class="field"><label>平台月費</label><input type="number" id="s${br}-platform" placeholder="500"></div>
+      <div class="field"><label>電話費／網路費</label><input type="number" id="s${br}-phone" placeholder="0"></div>
+      <div class="field"><label>廣告／文宣費</label><input type="number" id="s${br}-ads" placeholder="0"></div>
+      <div class="field"><label>其他固定雜支</label><input type="number" id="s${br}-other" placeholder="0"></div>
+    </div></div>
+  <div class="card"><div class="card-title">平台手續費率</div>
+    <div class="g2">
+      <div class="field"><label>LINE Pay 費率 %</label><input type="number" id="s${br}-lprate" value="3" step="0.1"></div>
+      <div class="field"><label>Uber Eats 費率 %</label><input type="number" id="s${br}-uberrate" value="31" step="0.1"></div>
+    </div></div>
+  <button class="btn btn-${br} btn-full" onclick="儲存設定('${br}')">儲存設定</button>`;
+}
+
+function 切換設定頁籤(br,btn){
+  ['a','b'].forEach(x=>document.getElementById(`stab-${x}`).style.display=x===br?'':'none');
+  document.querySelectorAll('.inner-tab').forEach(el=>el.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function 儲存設定(br){
+  const s={brand:br,rent:數值(`s${br}-rent`),pos_fee:數值(`s${br}-pos`),platform_fee:數值(`s${br}-platform`),phone:數值(`s${br}-phone`),ads:數值(`s${br}-ads`),other:數值(`s${br}-other`),lp_rate:數值(`s${br}-lprate`),uber_rate:數值(`s${br}-uberrate`)};
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'saveSettings',brand:br,settings:s});
+  載入中(false);
+  if(!res.ok){提示('儲存失敗：'+res.error);return}
+  品牌設定[br]={rent:s.rent,pos:s.pos_fee,platform:s.platform_fee,phone:s.phone,ads:s.ads,other:s.other,lp_rate:s.lp_rate,uber_rate:s.uber_rate};
+  提示('✓ '+品牌名稱[br]+' 設定已儲存');
+}
+
+// ===== 啟動 =====
+初始化();
+</script>
+</body>
+</html>
