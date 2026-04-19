@@ -228,13 +228,14 @@ let 品牌設定 = {
   a:{rent:23000,pos:0,platform:500,phone:0,ads:0,other:0,lp_rate:3,uber_rate:31},
   b:{rent:0,pos:0,platform:500,phone:0,ads:0,other:0,lp_rate:3,uber_rate:31}
 };
+let claudeApiKey = '';
 
 function 格式化金額(v){return Math.round(v||0).toLocaleString('zh-TW')}
 function 百分比(v,t){return t?((v/t)*100).toFixed(1)+'%':'—'}
 function 數值(id){return parseFloat(document.getElementById(id)?.value)||0}
 function 文字(id){return document.getElementById(id)?.value||''}
 function 固定成本(s){return(s.rent||0)+(s.platform||0)+(s.pos||0)+(s.phone||0)+(s.ads||0)+(s.other||0)}
-function 取得ApiKey(){return localStorage.getItem('hm_claude_key')||''}
+function 取得ApiKey(){return claudeApiKey||localStorage.getItem('hm_claude_key')||''}
 function 設定ApiKey(k){localStorage.setItem('hm_claude_key',k.trim())}
 
 function 提示(訊息){
@@ -295,6 +296,7 @@ async function 載入品牌設定(){
   const res=await 呼叫API({action:'getSettings'});
   if(res.ok&&res.data){
     Object.entries(res.data).forEach(([br,s])=>{品牌設定[br]=s;});
+    if(res.data?.a?.claude_api_key){claudeApiKey=res.data.a.claude_api_key;localStorage.setItem('hm_claude_key',claudeApiKey);}
   }
 }
 
@@ -390,11 +392,6 @@ function 渲染每日表單(br){
   const 今天=new Date().toISOString().slice(0,10);
   el.innerHTML=`
   <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">每日結帳單輸入</span></div>
-  <div class="apikey-bar">
-    <label>Claude API 金鑰</label>
-    <input type="password" id="akey" placeholder="sk-ant-..." value="${取得ApiKey()}" onchange="設定ApiKey(this.value)">
-    <button class="btn btn-outline btn-sm" onclick="設定ApiKey(document.getElementById('akey').value);提示('✓ 已儲存')">儲存</button>
-  </div>
   <div class="card">
     <div class="card-title">📷 上傳結帳單自動辨識 <span class="ai-badge">AI</span></div>
     <div class="scan-zone" ondragover="event.preventDefault()" ondrop="event.preventDefault();處理檔案('${br}',event.dataTransfer.files[0])">
@@ -584,11 +581,6 @@ function 渲染上傳頁(br){
   const 今天=new Date().toISOString().slice(0,10);
   el.innerHTML=`
   <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">上傳結帳單</span></div>
-  <div class="apikey-bar">
-    <label>Claude API 金鑰</label>
-    <input type="password" id="akey-u" placeholder="sk-ant-..." value="${取得ApiKey()}" onchange="設定ApiKey(this.value)">
-    <button class="btn btn-outline btn-sm" onclick="設定ApiKey(document.getElementById('akey-u').value);提示('✓ 已儲存')">儲存</button>
-  </div>
   <div class="card">
     <div class="card-title">📷 拍照上傳 <span class="ai-badge">AI 自動辨識</span></div>
     <div class="scan-zone" ondragover="event.preventDefault()" ondrop="event.preventDefault();處理上傳檔案('${br}',event.dataTransfer.files[0])">
@@ -1213,6 +1205,14 @@ async function 新增帳號(){
 function 渲染系統設定(){
   const el=document.getElementById('page-系統設定');
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">固定成本設定</span></div>
+  <div class="card"><div class="card-title">AI 辨識設定</div>
+    <div class="field">
+      <label>Claude API 金鑰（員工登入後自動生效，無需自行輸入）</label>
+      <input type="password" id="s-apikey" placeholder="sk-ant-..." value="${取得ApiKey()}">
+      <span class="hint">在此設定一次，所有員工自動使用，無需各自輸入</span>
+    </div>
+    <button class="btn btn-hq btn-sm" style="margin-top:10px" onclick="儲存ApiKey()">儲存 API 金鑰</button>
+  </div>
   <div class="inner-tabs">
     <button class="inner-tab active" onclick="切換設定頁籤('a',this)">林家涼麵</button>
     <button class="inner-tab" onclick="切換設定頁籤('b',this)">木谷食麵所</button>
@@ -1251,6 +1251,17 @@ function 切換設定頁籤(br,btn){
   ['a','b'].forEach(x=>document.getElementById(`stab-${x}`).style.display=x===br?'':'none');
   document.querySelectorAll('.inner-tab').forEach(el=>el.classList.remove('active'));
   btn.classList.add('active');
+}
+
+async function 儲存ApiKey(){
+  const key=document.getElementById('s-apikey')?.value?.trim();
+  if(!key){提示('請輸入 API 金鑰');return}
+  claudeApiKey=key;localStorage.setItem('hm_claude_key',key);
+  const s=品牌設定['a']||{};
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'saveSettings',brand:'a',settings:{...s,claude_api_key:key,rent:s.rent,pos_fee:s.pos,platform_fee:s.platform,phone:s.phone,ads:s.ads,other:s.other,lp_rate:s.lp_rate,uber_rate:s.uber_rate}});
+  載入中(false);
+  提示(res.ok?'✓ API 金鑰已儲存':'✓ 金鑰已暫存（重新整理前有效）');
 }
 
 async function 儲存設定(br){
