@@ -521,17 +521,17 @@ async function 執行AI辨識(br){
   statusEl.innerHTML='<div class="ai-spinner"></div><span>AI 辨識中，請稍候...</span>';
   try{
     const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:base64}},
-        {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：cash(現金收入),linepay(LINE Pay),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[
+        {inline_data:{mime_type:file.type||'image/jpeg',data:base64}},
+        {text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：cash(現金收入),linepay(LINE Pay),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
       ]}]})
     });
     if(!resp.ok){const errBody=await resp.json().catch(()=>({}));throw new Error(`API錯誤 ${resp.status}：${errBody?.error?.message||JSON.stringify(errBody)}`);}
     const data=await resp.json();
-    const match=data.content[0].text.match(/\{[\s\S]*\}/);
+    const match=data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
     if(!match)throw new Error('無法解析回應');
     const r=JSON.parse(match[0]);
     const 欄位對應={cash:`d${br}-cash`,linepay:`d${br}-lp`,twpay:`d${br}-tw`,uber:`d${br}-uber`,guests:`d${br}-guests`,cashShould:`d${br}-cashShould`,cashActual:`d${br}-cashActual`,voidAmt:`d${br}-void`,txItems:`d${br}-txItems`};
@@ -659,17 +659,17 @@ async function 執行員工AI辨識(br){
   statusEl.innerHTML='<div class="ai-spinner"></div><span>AI 辨識中，請稍候...</span>';
   try{
     const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:base64}},
-        {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON。欄位：cash,linepay,twpay,uber,guests,cashShould,cashActual,voidAmt,txItems。找不到設0。'}
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[
+        {inline_data:{mime_type:file.type||'image/jpeg',data:base64}},
+        {text:'從這張台灣餐廳結帳單提取數據，只回傳JSON。欄位：cash,linepay,twpay,uber,guests,cashShould,cashActual,voidAmt,txItems。找不到設0。'}
       ]}]})
     });
     if(!resp.ok){const errBody=await resp.json().catch(()=>({}));throw new Error(`API錯誤 ${resp.status}：${errBody?.error?.message||JSON.stringify(errBody)}`);}
     const data=await resp.json();
-    const match=data.content[0].text.match(/\{[\s\S]*\}/);
+    const match=data.candidates[0].content.parts[0].text.match(/\{[\s\S]*\}/);
     if(!match)throw new Error('無法解析');
     const r=JSON.parse(match[0]);
     const map={cash:`u${br}-cash`,linepay:`u${br}-lp`,twpay:`u${br}-tw`,uber:`u${br}-uber`,guests:`u${br}-guests`,cashShould:`u${br}-cashShould`,cashActual:`u${br}-cashActual`,voidAmt:`u${br}-void`};
@@ -1207,8 +1207,8 @@ function 渲染系統設定(){
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">固定成本設定</span></div>
   <div class="card"><div class="card-title">AI 辨識設定</div>
     <div class="field">
-      <label>Claude API 金鑰（員工登入後自動生效，無需自行輸入）</label>
-      <input type="password" id="s-apikey" placeholder="sk-ant-..." value="${取得ApiKey()}">
+      <label>Gemini API 金鑰（員工登入後自動生效，無需自行輸入）</label>
+      <input type="password" id="s-apikey" placeholder="AIzaSy..." value="${取得ApiKey()}">
       <span class="hint">在此設定一次，所有員工自動使用，無需各自輸入</span>
     </div>
     <button class="btn btn-hq btn-sm" style="margin-top:10px" onclick="儲存ApiKey()">儲存 API 金鑰</button>
