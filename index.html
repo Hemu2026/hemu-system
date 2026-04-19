@@ -521,7 +521,7 @@ async function 執行AI辨識(br){
   statusEl.innerHTML='<div class="ai-spinner"></div><span>AI 辨識中，請稍候...</span>';
   try{
     const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
-    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,{
+    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({contents:[{parts:[
@@ -659,7 +659,7 @@ async function 執行員工AI辨識(br){
   statusEl.innerHTML='<div class="ai-spinner"></div><span>AI 辨識中，請稍候...</span>';
   try{
     const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
-    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,{
+    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({contents:[{parts:[
