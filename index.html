@@ -519,7 +519,8 @@ function 計算表單(br){
 }
 
 async function 執行AI辨識(br){
-  const apiKey=取得ApiKey();
+  let apiKey=取得ApiKey();
+  if(!apiKey){await 載入品牌設定();apiKey=取得ApiKey();}
   if(!apiKey){提示('請先輸入 Claude API 金鑰');return}
   const file=document.getElementById(`sc-${br}`)?.files[0]||document.getElementById(`sc-${br}-lib`)?.files[0];
   if(!file){提示('請先上傳照片');return}
@@ -663,7 +664,8 @@ function 計算上傳(br){
 }
 
 async function 執行員工AI辨識(br){
-  const apiKey=取得ApiKey();
+  let apiKey=取得ApiKey();
+  if(!apiKey){await 載入品牌設定();apiKey=取得ApiKey();}
   if(!apiKey){提示('請先輸入 Claude API 金鑰');return}
   const file=document.getElementById(`sc-u${br}`)?.files[0]||document.getElementById(`sc-u${br}-lib`)?.files[0];
   if(!file){提示('請先上傳照片');return}
