@@ -329,7 +329,8 @@ function 顯示主介面(){
   建立導覽列(role,brand);
   建立頁面(role,brand);
   const 預設頁面=role==='staff'?`上傳-${brand}`:role==='manager'?`每日-${brand}`:`每日-a`;
-  切換頁面(預設頁面);
+  const 上次頁面=localStorage.getItem('hm_last_page');
+  切換頁面(上次頁面&&document.getElementById('page-'+上次頁面)?上次頁面:預設頁面);
 }
 
 // ===== 導覽列 =====
@@ -389,6 +390,7 @@ function 建立頁面(role,brand){
 }
 
 function 切換頁面(page){
+  localStorage.setItem('hm_last_page',page);
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('page-'+page);
@@ -627,6 +629,7 @@ function 渲染上傳頁(br){
       <div class="field"><label>LINE Pay</label><input type="number" inputmode="decimal" id="u${br}-lp" placeholder="0" oninput="計算上傳('${br}')"></div>
       <div class="field"><label>台灣 PAY</label><input type="number" inputmode="decimal" id="u${br}-tw" placeholder="0" oninput="計算上傳('${br}')"></div>
       <div class="field"><label>Uber Eats（門市實收）</label><input type="number" inputmode="decimal" id="u${br}-uber" placeholder="0" oninput="計算上傳('${br}')"></div>
+      ${br==='b'?`<div class="field"><label>熊貓（門市實收）</label><input type="number" inputmode="decimal" id="u${br}-panda" placeholder="0" oninput="計算上傳('${br}')"></div>`:''}
       <div class="field" style="background:#f5f4f0;border-radius:8px;padding:8px 10px;justify-content:center">
         <label>總營收（自動計算）</label>
         <div id="u${br}-total" style="font-size:20px;font-weight:600;color:#27ae60">$0</div>
@@ -677,8 +680,8 @@ function 處理上傳檔案(br,file){
 }
 
 function 計算上傳(br){
-  const cash=數值(`u${br}-cash`),lp=數值(`u${br}-lp`),tw=數值(`u${br}-tw`),uber=數值(`u${br}-uber`);
-  const total=cash+lp+tw+uber,guests=數值(`u${br}-guests`);
+  const cash=數值(`u${br}-cash`),lp=數值(`u${br}-lp`),tw=數值(`u${br}-tw`),uber=數值(`u${br}-uber`),panda=數值(`u${br}-panda`);
+  const total=cash+lp+tw+uber+panda,guests=數值(`u${br}-guests`);
   const cashShould=數值(`u${br}-cashShould`),cashActual=數值(`u${br}-cashActual`);
   const market=數值(`u${br}-market`);
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
@@ -741,8 +744,8 @@ async function 壓縮照片(file){
 
 async function 送出上傳(br){
   const date=文字(`u${br}-date`);if(!date){提示('請選擇日期');return}
-  const cash=數值(`u${br}-cash`),lp=數值(`u${br}-lp`),tw=數值(`u${br}-tw`),uber=數值(`u${br}-uber`);
-  const total=cash+lp+tw+uber;
+  const cash=數值(`u${br}-cash`),lp=數值(`u${br}-lp`),tw=數值(`u${br}-tw`),uber=數值(`u${br}-uber`),panda=數值(`u${br}-panda`);
+  const total=cash+lp+tw+uber+panda;
   const s=品牌設定[br]||{lp_rate:3,uber_rate:31};
   const pFee=lp*(s.lp_rate/100)+uber*(s.uber_rate/100);
   const cashShould=數值(`u${br}-cashShould`),cashActual=數值(`u${br}-cashActual`);
@@ -753,7 +756,7 @@ async function 送出上傳(br){
   if(photoData) sessionStorage.setItem(`receipt-${br}-${date}`,photoData);
   const res=await 呼叫API({action:'saveRecord',record:{
     brand:br,date,weather:文字(`u${br}-weather`),guests:數值(`u${br}-guests`),
-    cash,lp,tw,uber,total,lp_rate:s.lp_rate,uber_rate:s.uber_rate,p_fee:pFee,
+    cash,lp,tw,uber,panda,total,lp_rate:s.lp_rate,uber_rate:s.uber_rate,p_fee:pFee,
     cash_should:cashShould,cash_actual:cashActual,cash_short_over:cashActual-cashShould,
     void_amt:數值(`u${br}-void`),
     market:數值(`u${br}-market`),central:數值(`u${br}-central`),
@@ -1538,7 +1541,7 @@ async function 渲染資金管理(){
       <label>備註（買什麼、哪家店）</label>
       <input type="text" id="fr-note" placeholder="例：菜市場買豆乾" style="font-size:15px;padding:10px 12px">
     </div>
-    <input type="date" id="fr-date" value="${new Date().toISOString().slice(0,10)}" style="display:none">
+    <input type="hidden" id="fr-date" value="${new Date().toISOString().slice(0,10)}">
     <input type="hidden" id="fr-type" value="支出">
     <button class="btn btn-hq btn-full" onclick="儲存資金記錄()" style="padding:16px;font-size:17px">記錄</button>
   </div>
