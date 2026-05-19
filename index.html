@@ -1592,9 +1592,10 @@ async function 儲存資金記錄(){
 
 async function 刪除資金記錄(id){
   載入中(true);
-  await 呼叫API({action:'deleteFundRecord',id});
+  const res=await 呼叫API({action:'deleteFundRecord',id});
   載入中(false);
-  渲染資金管理();提示('已刪除');
+  if(!res.ok){提示('刪除失敗：'+(res.error||JSON.stringify(res)));return;}
+  渲染資金管理();提示('✓ 已刪除');
 }
 
 // ===== 批發管理 =====
