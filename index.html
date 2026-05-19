@@ -1473,7 +1473,7 @@ async function 渲染資金管理(){
   載入中(true);
   const res=await 呼叫API({action:'getFundRecords'});
   載入中(false);
-  const records=(res.data||[]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const records=(res.records||res.data||[]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   // 從流水反推各帳戶餘額
   const 帳戶=['富郁霖卡','南閩卡','林家涼麵現金','木谷食麵所現金'];
