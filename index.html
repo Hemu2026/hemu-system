@@ -1584,7 +1584,7 @@ async function 儲存資金記錄(){
   if(!date||!amount){提示('請填寫日期與金額');return}
   const to_account=type==='轉帳'?文字('fr-to-account'):'';
   載入中(true,'儲存中...');
-  const res=await 呼叫API({action:'saveFundRecord',record:{date,type,account,to_account,amount,note,created_by:目前使用者?.email}});
+  const res=await 呼叫API({action:'saveFundRecord',date,type,account,toAccount:to_account,amount,note,created_by:目前使用者?.email});
   載入中(false);
   if(!res.ok){提示('儲存失敗：'+res.error);return}
   提示('✓ 已記錄');渲染資金管理();
