@@ -862,6 +862,7 @@ async function 渲染歷史記錄(br){
         <td style="color:${so<-50?'#c0392b':so>50?'#2980b9':'#27ae60'}">${(r.cash_should||r.cash_actual)?(so>=0?'+':'')+格式化金額(so):'—'}</td>
         <td style="display:flex;gap:6px">
           <button class="btn btn-sm" style="background:#c8a96e;color:#fff;border:none" onclick="查看詳細(${JSON.stringify(r).replace(/"/g,'&quot;')})">查看</button>
+          ${目前使用者?.role==='owner'?`<button class="btn btn-sm" style="background:#5b8dd9;color:#fff;border:none" onclick="直接編輯(${JSON.stringify(r).replace(/"/g,'&quot;')})">編輯</button>`:''}
           ${目前使用者?.role==='owner'?`<button class="btn btn-danger btn-sm" onclick="刪除記錄('${r.id}','${br}')">刪除</button>`:''}
         </td>
       </tr>`;}).join('')}
@@ -913,11 +914,18 @@ function 查看詳細(r){
     `<button class="btn" style="flex:1;background:#c8a96e;color:#fff;border:none" onclick="編輯記錄(${JSON.stringify(r).replace(/"/g,'&quot;')})">編輯</button>
      <button class="btn" style="flex:1;background:#eee;color:#555;border:none" onclick="關閉詳細()">關閉</button>`;
 }
+function 直接編輯(r){
+  document.getElementById('detail-title').textContent=格式化日期(r.date)+' 編輯記錄';
+  編輯記錄(r);
+  document.getElementById('detail-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
 function 編輯記錄(r){
   const f=(id,label,val,type='number')=>`<div class="field"><label>${label}</label><input type="${type}" id="edit-${id}" value="${val||''}" placeholder="0"></div>`;
+  const dateVal=(r.date||'').slice(0,10);
   document.getElementById('detail-content').innerHTML=`
   <div class="g2">
-    <div class="field"><label>日期</label><input type="date" id="edit-date" value="${r.date||''}"></div>
+    <div class="field"><label>日期</label><input type="date" id="edit-date" value="${dateVal}"></div>
     <div class="field"><label>天氣</label><select id="edit-weather"><option value="">— 選擇 —</option>${['晴天','陰天','雨天','颱風'].map(w=>`<option${r.weather===w?' selected':''}>${w}</option>`).join('')}</select></div>
   </div>
   <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">收入明細</div>
@@ -929,12 +937,6 @@ function 編輯記錄(r){
     ${f('uber','Uber Eats',r.uber)}
     ${r.brand==='b'?f('panda','熊貓',r.panda):''}
   </div>
-  <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">現金核對</div>
-  <div class="g2">
-    ${f('cash_should','錢櫃應收',r.cash_should)}
-    ${f('cash_actual','錢櫃實點',r.cash_actual)}
-    ${f('void_amt','作廢金額',r.void_amt)}
-  </div>
   <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">每日支出</div>
   <div class="g2">
     ${f('market','現場進貨',r.market)}
@@ -943,6 +945,7 @@ function 編輯記錄(r){
     ${f('meal','員工餐費',r.meal)}
     ${f('gas','瓦斯',r.gas)}
     ${f('misc','其他雜支',r.misc)}
+    ${f('reserve','每日留貨款',r.reserve)}
   </div>
   <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">備註</div>
   <div class="field"><input type="text" id="edit-note" value="${r.note||''}" placeholder="備註"></div>
@@ -959,7 +962,10 @@ async function 儲存修改(id,br,existingPhoto=''){
   const cash=n('cash'),lp=n('lp'),tw=n('tw'),uber=n('uber'),panda=n('panda');
   const total=cash+lp+tw+uber+panda;
   const s=品牌設定[br]||{lp_rate:3,uber_rate:31};
-  const cashActual=n('cash_actual'),cashShould=n('cash_should');
+  const market=n('market'),pack=n('pack'),meal=n('meal'),gas=n('gas');
+  const totalExpense=market+pack+meal+gas;
+  const handover=cash-totalExpense;
+  const calc_bal=n('reserve')-totalExpense;
   let photo=existingPhoto;
   const photoFile=g('photo')?.files[0];
   if(photoFile){try{photo=await 壓縮照片(photoFile);}catch(e){}}
@@ -969,12 +975,9 @@ async function 儲存修改(id,br,existingPhoto=''){
     date:g('date')?.value,weather:g('weather')?.value,
     guests:n('guests'),cash,lp,tw,uber,panda,total,
     p_fee:lp*(s.lp_rate/100)+uber*(s.uber_rate/100),
-    cash_should:cashShould,cash_actual:cashActual,
-    cash_short_over:cashActual-cashShould,
-    void_amt:n('void_amt'),
-    market:n('market'),central:n('central'),pack:n('pack'),
-    meal:n('meal'),gas:n('gas'),misc:n('misc'),
-    handover:cash-n('market'),
+    market,central:n('central'),pack,meal,gas,misc:n('misc'),
+    food_cost:market+n('central'),
+    reserve:n('reserve'),calc_bal,handover,
     note:g('note')?.value,photo
   }});
   載入中(false);
