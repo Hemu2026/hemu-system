@@ -464,18 +464,6 @@ function 渲染每日表單(br){
       </div>
     </div>
   </div>
-  <div class="card"><div class="card-title">結帳單數據 <span class="ai-badge">AI 自動填入</span></div>
-    <div class="g3">
-      <div class="field"><label>錢櫃應收現金</label><input type="number" id="d${br}-cashShould" placeholder="0" oninput="計算表單('${br}')"></div>
-      <div class="field"><label>錢櫃實點現金</label><input type="number" id="d${br}-cashActual" placeholder="0" oninput="計算表單('${br}')"></div>
-      <div class="field" style="background:#f5f4f0;border-radius:8px;padding:8px 10px;justify-content:center">
-        <label>現金短溢（自動計算）</label>
-        <div id="d${br}-shortover" style="font-size:18px;font-weight:600;color:#888">—</div>
-      </div>
-      <div class="field"><label>作廢金額</label><input type="number" id="d${br}-void" placeholder="0"></div>
-      <div class="field"><label>銷售數量</label><input type="number" id="d${br}-txItems" placeholder="0"></div>
-    </div>
-  </div>
   <div class="card"><div class="card-title">直接成本（食材 F）</div>
     <div class="g3">
       <div class="field"><label>現場進貨</label><input type="number" id="d${br}-market" placeholder="0" oninput="計算表單('${br}')"></div>
