@@ -974,9 +974,8 @@ async function 儲存修改(){
   let photo=existingPhoto;
   const photoFile=g('photo')?.files[0];
   if(photoFile){try{photo=await 壓縮照片(photoFile);}catch(e){}}
-  載入中(true,'儲存中...');
-  const res=await 呼叫API({action:'updateRecord',record:{
-    id,brand:br,
+  const record={
+    brand:br,
     date:g('date')?.value,weather:g('weather')?.value,
     guests:n('guests'),cash,lp,tw,uber,panda,total,
     p_fee:lp*(s.lp_rate/100)+uber*(s.uber_rate/100),
@@ -984,9 +983,14 @@ async function 儲存修改(){
     food_cost:market+n('central'),
     reserve:n('reserve'),calc_bal,handover,
     note:g('note')?.value,photo
-  }});
+  };
+  載入中(true,'儲存中...');
+  // 先刪除舊記錄，再新增，確保所有欄位都能正確更新
+  const delRes=await 呼叫API({action:'deleteRecord',id});
+  if(!delRes.ok){載入中(false);提示('修改失敗：'+(delRes.error||'刪除舊記錄失敗'));return}
+  const addRes=await 呼叫API({action:'saveRecord',record});
   載入中(false);
-  if(!res.ok){提示('儲存失敗：'+(res.error||'未知錯誤'));return}
+  if(!addRes.ok){提示('修改失敗：'+(addRes.error||'新增記錄失敗'));return}
   提示('✓ 已成功修改');
   關閉詳細();
   渲染歷史記錄(br);
