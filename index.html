@@ -490,18 +490,23 @@ function 渲染每日表單(br){
       <div class="field"><label>其他當日雜支</label><input type="number" id="d${br}-misc" placeholder="0" oninput="計算表單('${br}')"></div>
     </div>
   </div>
-  <div class="card"><div class="card-title">現金結餘核對</div>
-    <div class="g3">
-      <div class="field"><label>每日留貨款</label><input type="number" id="d${br}-reserve" placeholder="5000" oninput="計算表單('${br}')"></div>
-      <div class="field"><label>現金支出貨款</label><input type="number" id="d${br}-cashpay" placeholder="0" oninput="計算表單('${br}')"></div>
-      <div class="field"><label>結帳單結餘</label><input type="number" id="d${br}-posbal" placeholder="0" oninput="計算表單('${br}')"></div>
+  <div class="card"><div class="card-title">貨款核對</div>
+    <div class="g2">
+      <div class="field"><label>每日留貨款</label><input type="number" id="d${br}-reserve" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="metric" style="align-self:flex-end">
+        <div class="metric-label">貨款剩餘（應與員工核對）</div>
+        <div class="metric-value" id="d${br}-calcbal" style="color:#2980b9">$0</div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px">留貨款 − 現場進貨 − 餐具/包材 − 餐費 − 瓦斯</div>
+      </div>
     </div>
-    <hr class="divider">
-    <div class="g3">
-      <div class="metric"><div class="metric-label">系統計算結餘</div><div class="metric-value" id="d${br}-calcbal">$0</div></div>
-      <div class="metric"><div class="metric-label">驗算差異</div><div class="metric-value" id="d${br}-diff" style="color:#aaa">—</div></div>
-      <div class="field"><label>備註</label><input type="text" id="d${br}-note" placeholder="例：設備故障、外帶較多"></div>
-    </div>
+  </div>
+  <div class="card" style="border:2px solid #e67e22">
+    <div class="card-title" style="color:#e67e22">應交現金</div>
+    <div style="font-size:28px;font-weight:700;color:#e67e22" id="d${br}-handover">$0</div>
+    <div style="font-size:12px;color:#aaa;margin-top:4px">現金收入 − 現場進貨 − 餐具/包材 − 餐費 − 瓦斯</div>
+  </div>
+  <div class="card"><div class="card-title">備註</div>
+    <div class="field"><input type="text" id="d${br}-note" placeholder="例：設備故障、外帶較多"></div>
   </div>
   <button class="btn btn-${br} btn-full" onclick="儲存每日記錄('${br}')">儲存今日結帳單</button>`;
 }
@@ -519,23 +524,23 @@ function 計算表單(br){
   const total=cash+lp+tw+uber+panda,guests=數值(`d${br}-guests`);
   const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100;
   const pFee=lp*lpRate+uber*uberRate;
-  const reserve=數值(`d${br}-reserve`)||5000,cashpay=數值(`d${br}-cashpay`);
-  const calcBal=cash-reserve-cashpay,posbal=數值(`d${br}-posbal`);
+  const market=數值(`d${br}-market`),pack=數值(`d${br}-pack`),meal=數值(`d${br}-meal`),gas=數值(`d${br}-gas`);
+  const totalExpense=market+pack+meal+gas;
+  const reserve=數值(`d${br}-reserve`);
+  const calcBal=reserve-totalExpense;
+  const handover=cash-totalExpense;
   const cashShould=數值(`d${br}-cashShould`),cashActual=數值(`d${br}-cashActual`);
   const 設定元素=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   設定元素(`d${br}-total`,'$'+格式化金額(total));
   設定元素(`d${br}-aov`,guests?'客單價：$'+格式化金額(total/guests):'客單價：—');
   設定元素(`d${br}-pfee`,'$'+格式化金額(pFee));
   設定元素(`d${br}-calcbal`,'$'+格式化金額(calcBal));
+  const hoEl=document.getElementById(`d${br}-handover`);
+  if(hoEl){hoEl.textContent='$'+格式化金額(handover);hoEl.style.color=handover<0?'#c0392b':'#e67e22';}
   const soEl=document.getElementById(`d${br}-shortover`);
   if(soEl){
     if(cashShould&&cashActual){const so=cashActual-cashShould;soEl.textContent=(so>=0?'+':'')+格式化金額(so);soEl.style.color=so===0?'#27ae60':so>0?'#2980b9':'#c0392b';}
     else soEl.textContent='—';
-  }
-  const diffEl=document.getElementById(`d${br}-diff`);
-  if(diffEl){
-    if(posbal){const d=posbal-calcBal;diffEl.textContent=(d>=0?'+':'')+格式化金額(d);diffEl.style.color=d===0?'#27ae60':d>0?'#2980b9':'#c0392b';}
-    else{diffEl.textContent='—';diffEl.style.color='#aaa';}
   }
 }
 
@@ -585,7 +590,11 @@ async function 儲存每日記錄(br){
   const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100;
   const pFee=lp*lpRate+uber*uberRate;
   const market=數值(`d${br}-market`),central=數值(`d${br}-central`),pack=數值(`d${br}-pack`);
-  const reserve=數值(`d${br}-reserve`)||5000,cashpay=數值(`d${br}-cashpay`),posbal=數值(`d${br}-posbal`);
+  const meal=數值(`d${br}-meal`),gas=數值(`d${br}-gas`);
+  const totalExpense=market+pack+meal+gas;
+  const reserve=數值(`d${br}-reserve`);
+  const handover=cash-totalExpense;
+  const calc_bal=reserve-totalExpense;
   const cashShould=數值(`d${br}-cashShould`),cashActual=數值(`d${br}-cashActual`);
   let photoData='';
   const photoFile=document.getElementById(`sc-${br}`)?.files[0];
@@ -595,10 +604,10 @@ async function 儲存每日記錄(br){
   const res=await 呼叫API({action:'saveRecord',record:{
     brand:br,date,weather:文字(`d${br}-weather`),hours:數值(`d${br}-hours`),guests:數值(`d${br}-guests`),
     cash,lp,tw,uber,panda,total,lp_rate:數值(`d${br}-lprate`),uber_rate:數值(`d${br}-uberrate`),p_fee:pFee,
-    market,central,pack,food_cost:market+central,meal:數值(`d${br}-meal`),gas:數值(`d${br}-gas`),misc:數值(`d${br}-misc`),
+    market,central,pack,food_cost:market+central,meal,gas,misc:數值(`d${br}-misc`),
     cash_should:cashShould,cash_actual:cashActual,cash_short_over:cashActual-cashShould,
     void_amt:數值(`d${br}-void`),tx_items:數值(`d${br}-txItems`),
-    reserve,cashpay,calc_bal:cash-reserve-cashpay,posbal,diff:posbal?posbal-(cash-reserve-cashpay):0,
+    reserve,calc_bal,handover,
     note:文字(`d${br}-note`),uploaded_by:目前使用者?.email,photo:photoData
   }});
   載入中(false);
