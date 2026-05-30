@@ -155,7 +155,9 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
 @media(max-width:800px){
   .app{flex-direction:column}
   .sidebar{width:100%;flex-direction:row;flex-wrap:wrap;padding:.5rem}
-  .sidebar-logo,.sidebar-user,.sidebar-bottom{display:none}
+  .sidebar-logo,.sidebar-user{display:none}
+  .sidebar-bottom{display:block;margin:0;padding:0 .5rem;border:none;align-self:center}
+  .btn-logout{width:auto;padding:4px 12px;font-size:12px;border-radius:6px}
   .nav-group-label{display:none}
   .nav-group{display:flex;flex-wrap:wrap;padding:0}
   .nav-item{padding:6px 10px;font-size:11px}
@@ -163,7 +165,14 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
   .hq-brand-split{grid-template-columns:1fr}
   .page{padding:1rem}
 }
-</style>
+.detail-modal{display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.6);overflow-y:auto;padding:1rem}
+.detail-modal.open{display:flex;align-items:flex-start;justify-content:center}
+.detail-box{background:#f5f4f0;border-radius:16px;width:100%;max-width:520px;padding:1.5rem;margin:auto}
+.detail-box h3{font-size:15px;font-weight:600;margin-bottom:1rem}
+.detail-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e5df;font-size:14px}
+.detail-row:last-child{border:none}
+.detail-section{font-size:11px;font-weight:600;color:#999;margin:1rem 0 4px;text-transform:uppercase}</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -180,16 +189,8 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
         <p>富郁霖企業社｜營運管理系統</p>
       </div>
       <div class="login-error" id="login-error"></div>
-      <div class="field" style="margin-bottom:1rem">
-        <label>電子郵件</label>
-        <input type="email" id="login-email" placeholder="您的電子郵件" autocomplete="email">
-      </div>
-      <div class="field" style="margin-bottom:1.5rem">
-        <label>密碼</label>
-        <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <button class="btn btn-dark btn-full" onclick="doLogin()">登入</button>
-      <div style="font-size:12px;color:#aaa;text-align:center;margin-top:1rem">帳號由管理員建立，如有問題請聯繫老闆</div>
+      <div id="google-signin-btn" style="display:flex;justify-content:center;margin:1.5rem 0"></div>
+      <div style="font-size:12px;color:#aaa;text-align:center">使用公司 Google 帳號登入，帳號需由管理員授權</div>
     </div>
   </div>
 </div>
@@ -219,7 +220,8 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
 <div class="toast" id="toast"></div>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbxdL2zfP0RuO7x7Rxs8Okijv8FfyVKfpIV6y9t932K2ZvpcxXZoDy0UJcTbbhizzBR2/exec';
+const API = 'https://script.google.com/macros/s/AKfycbw-G6nMGsOQeqCTM9GgMWkzNk4bwB5ABBAEiF9ynzdQgqWWmxfe0ulgdxUnuFaK523m/exec';
+const GOOGLE_CLIENT_ID = '356556784698-cprpmi8ht0r2qn4fuprrptls4ffubfuc.apps.googleusercontent.com';
 const 品牌名稱 = {a:'林家涼麵', b:'木谷食麵所'};
 const 角色名稱 = {staff:'員工', manager:'店長', owner:'老闆'};
 const 品牌標籤 = {a:'林家涼麵', b:'木谷食麵所', both:'兩店'};
@@ -264,15 +266,29 @@ async function 初始化(){
   } else {
     載入中(false);
     document.getElementById('login-screen').style.display='block';
+    if(window.google?.accounts?.id) 初始化Google登入();
+    else window.onGoogleLibraryLoad=初始化Google登入;
   }
 }
 
-async function doLogin(){
-  const email=文字('login-email'),pass=文字('login-password');
-  if(!email||!pass){顯示登入錯誤('請輸入帳號和密碼');return}
-  載入中(true,'登入中...');
-  const res=await 呼叫API({action:'login',email,password:pass});
-  if(!res.ok){載入中(false);顯示登入錯誤(res.error||'帳號或密碼錯誤');return}
+function 初始化Google登入(){
+  google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:handleGoogleCredential,auto_select:false});
+  google.accounts.id.renderButton(
+    document.getElementById('google-signin-btn'),
+    {type:'standard',size:'large',theme:'outline',text:'signin_with',shape:'rectangular',logo_alignment:'left',width:320}
+  );
+}
+
+async function handleGoogleCredential(resp){
+  載入中(true,'驗證中...');
+  const res=await 呼叫API({action:'googleLogin',token:resp.credential});
+  if(!res.ok){
+    載入中(false);
+    const el=document.getElementById('login-error');
+    el.textContent=res.error||'此 Google 帳號尚未授權，請聯繫老闆';
+    el.style.display='block';
+    return;
+  }
   目前使用者=res.user;
   localStorage.setItem('hm_user',JSON.stringify(目前使用者));
   await 載入品牌設定();
@@ -282,9 +298,12 @@ async function doLogin(){
 function doLogout(){
   localStorage.removeItem('hm_user');
   目前使用者=null;
+  if(window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
   document.getElementById('app-screen').style.display='none';
   document.getElementById('login-screen').style.display='block';
-  document.getElementById('login-password').value='';
+  document.getElementById('login-error').style.display='none';
+  if(window.google?.accounts?.id) 初始化Google登入();
+  else window.onGoogleLibraryLoad=初始化Google登入;
 }
 
 function 顯示登入錯誤(訊息){
@@ -310,7 +329,8 @@ function 顯示主介面(){
   建立導覽列(role,brand);
   建立頁面(role,brand);
   const 預設頁面=role==='staff'?`上傳-${brand}`:role==='manager'?`每日-${brand}`:`每日-a`;
-  切換頁面(預設頁面);
+  const 上次頁面=localStorage.getItem('hm_last_page');
+  切換頁面(上次頁面&&document.getElementById('page-'+上次頁面)?上次頁面:預設頁面);
 }
 
 // ===== 導覽列 =====
@@ -343,8 +363,11 @@ function 建立導覽列(role,brand){
     html+=`<div class="nav-group">
       <div class="nav-group-label">總公司</div>
       <div class="nav-item" data-page="總部"><span class="nav-dot dot-hq"></span>總部月報表</div>
+      <div class="nav-item" data-page="資金管理"><span class="nav-dot dot-hq"></span>資金管理</div>
       <div class="nav-item" data-page="帳號管理"><span class="nav-dot dot-hq"></span>帳號管理</div>
       <div class="nav-item" data-page="系統設定"><span class="nav-dot dot-hq"></span>成本設定</div>
+      <div class="nav-item" data-page="批發管理"><span class="nav-dot dot-hq"></span>批發管理</div>
+      <div class="nav-item" data-page="批次上傳"><span class="nav-dot dot-hq"></span>批次上傳結帳單</div>
     </div>`;
   }
   nav.innerHTML=html;
@@ -362,12 +385,13 @@ function 建立頁面(role,brand){
     pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`];
   } else {
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`));
-    pages.push('總部','帳號管理','系統設定');
+    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
 
 function 切換頁面(page){
+  localStorage.setItem('hm_last_page',page);
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('page-'+page);
@@ -381,8 +405,11 @@ function 切換頁面(page){
   else if(page.startsWith('月報-'))渲染月報選擇(br);
   else if(page.startsWith('薪資-'))渲染薪資頁(br);
   else if(page==='總部')渲染總部選擇();
+  else if(page==='資金管理')渲染資金管理();
   else if(page==='帳號管理')渲染帳號管理();
   else if(page==='系統設定')渲染系統設定();
+  else if(page==='批發管理')渲染批發管理();
+  else if(page==='批次上傳')渲染批次上傳();
 }
 
 // ===== 每日輸入（店長/老闆）=====
@@ -419,6 +446,7 @@ function 渲染每日表單(br){
       <div class="field"><label>LINE Pay</label><input type="number" id="d${br}-lp" placeholder="0" oninput="計算表單('${br}')"></div>
       <div class="field"><label>台灣 PAY</label><input type="number" id="d${br}-tw" placeholder="0" oninput="計算表單('${br}')"></div>
       <div class="field"><label>Uber Eats（門市實收）</label><input type="number" id="d${br}-uber" placeholder="0" oninput="計算表單('${br}')"></div>
+      ${br==='b'?`<div class="field"><label>熊貓（門市實收）</label><input type="number" inputmode="decimal" id="d${br}-panda" placeholder="0" oninput="計算表單('${br}')"></div>`:''}
       <div class="field" style="background:#f5f4f0;border-radius:8px;padding:8px 10px;justify-content:center">
         <label>總營收（自動計算）</label>
         <div id="d${br}-total" style="font-size:20px;font-weight:600;color:#27ae60">$0</div>
@@ -487,8 +515,8 @@ function 處理檔案(br,file){
 }
 
 function 計算表單(br){
-  const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`);
-  const total=cash+lp+tw+uber,guests=數值(`d${br}-guests`);
+  const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`),panda=數值(`d${br}-panda`);
+  const total=cash+lp+tw+uber+panda,guests=數值(`d${br}-guests`);
   const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100;
   const pFee=lp*lpRate+uber*uberRate;
   const reserve=數值(`d${br}-reserve`)||5000,cashpay=數值(`d${br}-cashpay`);
@@ -520,13 +548,13 @@ async function 執行AI辨識(br){
   statusEl.className='ai-status loading';
   statusEl.innerHTML='<div class="ai-spinner"></div><span>AI 辨識中，請稍候...</span>';
   try{
-    const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
+    const base64=await 壓縮照片(file);
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:base64}},
-        {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：cash(現金收入),linepay(LINE Pay),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
+        {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：cash(現金收入),linepay(LINE Pay 與線上點餐金流的金額加總),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
       ]}]})
     });
     if(!resp.ok){const errBody=await resp.json().catch(()=>({}));throw new Error(`API錯誤 ${resp.status}：${errBody?.error?.message||JSON.stringify(errBody)}`);}
@@ -552,22 +580,26 @@ async function 執行AI辨識(br){
 
 async function 儲存每日記錄(br){
   const date=文字(`d${br}-date`);if(!date){提示('請選擇日期');return}
-  const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`);
-  const total=cash+lp+tw+uber;
+  const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`),panda=數值(`d${br}-panda`);
+  const total=cash+lp+tw+uber+panda;
   const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100;
   const pFee=lp*lpRate+uber*uberRate;
   const market=數值(`d${br}-market`),central=數值(`d${br}-central`),pack=數值(`d${br}-pack`);
   const reserve=數值(`d${br}-reserve`)||5000,cashpay=數值(`d${br}-cashpay`),posbal=數值(`d${br}-posbal`);
   const cashShould=數值(`d${br}-cashShould`),cashActual=數值(`d${br}-cashActual`);
+  let photoData='';
+  const photoFile=document.getElementById(`sc-${br}`)?.files[0];
+  if(photoFile){try{photoData=await 壓縮照片(photoFile);}catch(e){}}
+  if(photoData) sessionStorage.setItem(`receipt-${br}-${date}`,photoData);
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveRecord',record:{
     brand:br,date,weather:文字(`d${br}-weather`),hours:數值(`d${br}-hours`),guests:數值(`d${br}-guests`),
-    cash,lp,tw,uber,total,lp_rate:數值(`d${br}-lprate`),uber_rate:數值(`d${br}-uberrate`),p_fee:pFee,
+    cash,lp,tw,uber,panda,total,lp_rate:數值(`d${br}-lprate`),uber_rate:數值(`d${br}-uberrate`),p_fee:pFee,
     market,central,pack,food_cost:market+central,meal:數值(`d${br}-meal`),gas:數值(`d${br}-gas`),misc:數值(`d${br}-misc`),
     cash_should:cashShould,cash_actual:cashActual,cash_short_over:cashActual-cashShould,
     void_amt:數值(`d${br}-void`),tx_items:數值(`d${br}-txItems`),
     reserve,cashpay,calc_bal:cash-reserve-cashpay,posbal,diff:posbal?posbal-(cash-reserve-cashpay):0,
-    note:文字(`d${br}-note`),uploaded_by:目前使用者?.email
+    note:文字(`d${br}-note`),uploaded_by:目前使用者?.email,photo:photoData
   }});
   載入中(false);
   if(!res.ok){提示('儲存失敗：'+res.error);return}
@@ -582,16 +614,14 @@ function 渲染上傳頁(br){
   el.innerHTML=`
   <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">上傳結帳單</span></div>
   <div class="card">
-    <div class="card-title">📷 拍照上傳 <span class="ai-badge">AI 自動辨識</span></div>
+    <div class="card-title">📷 拍照上傳結帳單</div>
     <div class="scan-zone" ondragover="event.preventDefault()" ondrop="event.preventDefault();處理上傳檔案('${br}',event.dataTransfer.files[0])">
-      <input type="file" id="sc-u${br}" accept="image/*" capture="environment" onchange="處理上傳檔案('${br}',this.files[0])">
+      <input type="file" id="sc-u${br}" accept="image/*" onchange="處理上傳檔案('${br}',this.files[0])">
       <div style="font-size:40px;margin-bottom:10px">📄</div>
       <div style="font-size:15px;font-weight:600;color:#555">點擊拍照或上傳結帳單</div>
-      <div style="font-size:13px;color:#aaa;margin-top:6px">手機直接拍照上傳</div>
-      <img id="pv-u${br}" class="scan-preview" style="display:none">
+      <div style="font-size:13px;color:#aaa;margin-top:6px">核對使用</div>
+      <img id="pv-u${br}" class="scan-preview" style="display:none;max-width:100%;border-radius:8px;margin-top:10px">
     </div>
-    <div id="ast-u${br}" class="ai-status"></div>
-    <button id="scbtn-u${br}" class="btn btn-dark btn-full" onclick="執行員工AI辨識('${br}')" disabled>AI 辨識並自動填入</button>
   </div>
   <div class="card"><div class="card-title">基本資訊</div>
     <div class="g2">
@@ -599,13 +629,14 @@ function 渲染上傳頁(br){
       <div class="field"><label>天氣</label><select id="u${br}-weather"><option value="">— 選擇 —</option><option>晴天</option><option>陰天</option><option>雨天</option><option>颱風</option></select></div>
     </div>
   </div>
-  <div class="card"><div class="card-title">收入明細 <span class="ai-badge">AI 自動填入</span></div>
+  <div class="card"><div class="card-title">收入明細（請對照結帳單手動填入）</div>
     <div class="g2">
-      <div class="field"><label>來客數（交易筆數）</label><input type="number" id="u${br}-guests" placeholder="0" oninput="計算上傳('${br}')"></div>
-      <div class="field"><label>現金收入</label><input type="number" id="u${br}-cash" placeholder="0" oninput="計算上傳('${br}')"></div>
-      <div class="field"><label>LINE Pay</label><input type="number" id="u${br}-lp" placeholder="0" oninput="計算上傳('${br}')"></div>
-      <div class="field"><label>台灣 PAY</label><input type="number" id="u${br}-tw" placeholder="0" oninput="計算上傳('${br}')"></div>
-      <div class="field"><label>Uber Eats（門市實收）</label><input type="number" id="u${br}-uber" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>來客數（交易筆數）</label><input type="number" inputmode="numeric" id="u${br}-guests" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>現金收入</label><input type="number" inputmode="decimal" id="u${br}-cash" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>LINE Pay</label><input type="number" inputmode="decimal" id="u${br}-lp" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>台灣 PAY</label><input type="number" inputmode="decimal" id="u${br}-tw" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>Uber Eats（門市實收）</label><input type="number" inputmode="decimal" id="u${br}-uber" placeholder="0" oninput="計算上傳('${br}')"></div>
+      ${br==='b'?`<div class="field"><label>熊貓（門市實收）</label><input type="number" inputmode="decimal" id="u${br}-panda" placeholder="0" oninput="計算上傳('${br}')"></div>`:''}
       <div class="field" style="background:#f5f4f0;border-radius:8px;padding:8px 10px;justify-content:center">
         <label>總營收（自動計算）</label>
         <div id="u${br}-total" style="font-size:20px;font-weight:600;color:#27ae60">$0</div>
@@ -613,15 +644,32 @@ function 渲染上傳頁(br){
       </div>
     </div>
   </div>
-  <div class="card"><div class="card-title">現金核對 <span class="ai-badge">AI 自動填入</span></div>
+  <div class="card" style="border:2px solid #e67e22">
+    <div class="card-title" style="color:#e67e22">💰 應交現金</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
+      <div style="font-size:13px;color:#888">現金收入 − 貨款留存(7,000) − 找零留存(2,300)</div>
+    </div>
+    <div id="u${br}-handover" style="font-size:28px;font-weight:700;color:#e67e22;margin-top:4px">$0</div>
+  </div>
+  <div class="card"><div class="card-title">現金核對</div>
     <div class="g2">
-      <div class="field"><label>錢櫃應收現金</label><input type="number" id="u${br}-cashShould" placeholder="0" oninput="計算上傳('${br}')"></div>
-      <div class="field"><label>錢櫃實點現金</label><input type="number" id="u${br}-cashActual" placeholder="0" oninput="計算上傳('${br}')"></div>
-      <div class="field"><label>作廢金額</label><input type="number" id="u${br}-void" placeholder="0"></div>
+      <div class="field"><label>錢櫃應收現金（結帳單上的數字）</label><input type="number" inputmode="decimal" id="u${br}-cashShould" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>錢櫃實點現金（實際數出來）</label><input type="number" inputmode="decimal" id="u${br}-cashActual" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>作廢金額</label><input type="number" inputmode="decimal" id="u${br}-void" placeholder="0"></div>
       <div class="field" style="background:#f5f4f0;border-radius:8px;padding:8px 10px;justify-content:center">
         <label>現金短溢</label>
         <div id="u${br}-shortover" style="font-size:18px;font-weight:600;color:#888">—</div>
       </div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">每日支出</div>
+    <div class="g2">
+      <div class="field"><label>現場進貨</label><input type="number" inputmode="decimal" id="u${br}-market" placeholder="0" oninput="計算上傳('${br}')"></div>
+      <div class="field"><label>央廚進貨</label><input type="number" inputmode="decimal" id="u${br}-central" placeholder="0"></div>
+      <div class="field"><label>餐具／包材</label><input type="number" inputmode="decimal" id="u${br}-pack" placeholder="0"></div>
+      <div class="field"><label>員工餐費</label><input type="number" inputmode="decimal" id="u${br}-meal" placeholder="0"></div>
+      <div class="field"><label>瓦斯</label><input type="number" inputmode="decimal" id="u${br}-gas" placeholder="0"></div>
+      <div class="field"><label>其他雜支</label><input type="number" inputmode="decimal" id="u${br}-misc" placeholder="0"></div>
     </div>
   </div>
   <div class="card"><div class="card-title">備註</div>
@@ -639,12 +687,16 @@ function 處理上傳檔案(br,file){
 }
 
 function 計算上傳(br){
-  const cash=數值(`u${br}-cash`),lp=數值(`u${br}-lp`),tw=數值(`u${br}-tw`),uber=數值(`u${br}-uber`);
-  const total=cash+lp+tw+uber,guests=數值(`u${br}-guests`);
+  const cash=數值(`u${br}-cash`),lp=數值(`u${br}-lp`),tw=數值(`u${br}-tw`),uber=數值(`u${br}-uber`),panda=數值(`u${br}-panda`);
+  const total=cash+lp+tw+uber+panda,guests=數值(`u${br}-guests`);
   const cashShould=數值(`u${br}-cashShould`),cashActual=數值(`u${br}-cashActual`);
+  const market=數值(`u${br}-market`);
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   set(`u${br}-total`,'$'+格式化金額(total));
   set(`u${br}-aov`,guests?'客單價：$'+格式化金額(total/guests):'客單價：—');
+  const handover=cash-market;
+  const hoEl=document.getElementById(`u${br}-handover`);
+  if(hoEl){hoEl.textContent='$'+格式化金額(handover);hoEl.style.color=handover<0?'#c0392b':'#e67e22';}
   const soEl=document.getElementById(`u${br}-shortover`);
   if(soEl&&cashShould&&cashActual){const so=cashActual-cashShould;soEl.textContent=(so>=0?'+':'')+格式化金額(so);soEl.style.color=so===0?'#27ae60':so>0?'#2980b9':'#c0392b';}
 }
@@ -658,12 +710,12 @@ async function 執行員工AI辨識(br){
   statusEl.className='ai-status loading';
   statusEl.innerHTML='<div class="ai-spinner"></div><span>AI 辨識中，請稍候...</span>';
   try{
-    const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
+    const base64=await 壓縮照片(file);
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:base64}},
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
         {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON。欄位：cash,linepay,twpay,uber,guests,cashShould,cashActual,voidAmt,txItems。找不到設0。'}
       ]}]})
     });
@@ -681,19 +733,44 @@ async function 執行員工AI辨識(br){
   }catch(err){statusEl.className='ai-status error';statusEl.innerHTML=`<span>✗ 辨識失敗：${err.message}</span>`;}
 }
 
+async function 壓縮照片(file){
+  return new Promise(resolve=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const maxW=400,scale=Math.min(1,maxW/img.width);
+      const c=document.createElement('canvas');
+      c.width=img.width*scale;c.height=img.height*scale;
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg',0.4).split(',')[1]);
+    };
+    img.src=url;
+  });
+}
+
 async function 送出上傳(br){
   const date=文字(`u${br}-date`);if(!date){提示('請選擇日期');return}
-  const cash=數值(`u${br}-cash`),lp=數值(`u${br}-lp`),tw=數值(`u${br}-tw`),uber=數值(`u${br}-uber`);
-  const total=cash+lp+tw+uber;
+  const cash=數值(`u${br}-cash`),lp=數值(`u${br}-lp`),tw=數值(`u${br}-tw`),uber=數值(`u${br}-uber`),panda=數值(`u${br}-panda`);
+  const total=cash+lp+tw+uber+panda;
   const s=品牌設定[br]||{lp_rate:3,uber_rate:31};
   const pFee=lp*(s.lp_rate/100)+uber*(s.uber_rate/100);
   const cashShould=數值(`u${br}-cashShould`),cashActual=數值(`u${br}-cashActual`);
   載入中(true,'送出中...');
+  let photoData='';
+  const photoFile=document.getElementById(`sc-u${br}`)?.files[0];
+  if(photoFile){try{photoData=await 壓縮照片(photoFile);}catch(e){}}
+  if(photoData) sessionStorage.setItem(`receipt-${br}-${date}`,photoData);
   const res=await 呼叫API({action:'saveRecord',record:{
     brand:br,date,weather:文字(`u${br}-weather`),guests:數值(`u${br}-guests`),
-    cash,lp,tw,uber,total,lp_rate:s.lp_rate,uber_rate:s.uber_rate,p_fee:pFee,
+    cash,lp,tw,uber,panda,total,lp_rate:s.lp_rate,uber_rate:s.uber_rate,p_fee:pFee,
     cash_should:cashShould,cash_actual:cashActual,cash_short_over:cashActual-cashShould,
-    void_amt:數值(`u${br}-void`),note:文字(`u${br}-note`),uploaded_by:目前使用者?.email
+    void_amt:數值(`u${br}-void`),
+    market:數值(`u${br}-market`),central:數值(`u${br}-central`),
+    pack:數值(`u${br}-pack`),meal:數值(`u${br}-meal`),
+    gas:數值(`u${br}-gas`),misc:數值(`u${br}-misc`),
+    note:文字(`u${br}-note`),uploaded_by:目前使用者?.email,
+    handover:cash-數值(`u${br}-market`),photo:photoData
   }});
   載入中(false);
   if(!res.ok){提示('送出失敗：'+res.error);return}
@@ -710,9 +787,16 @@ async function 渲染確認頁(br){
   載入中(false);
   const data=res.data?.find(r=>r.date===today);
   if(!data){el.querySelector('div:last-child').textContent='今日尚未上傳結帳單';return}
+  const cachedPhoto=data.photo||sessionStorage.getItem(`receipt-${br}-${data.date}`)||'';
   el.innerHTML=`
   <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">今日確認</span></div>
   <div style="font-size:13px;color:#888;margin-bottom:1rem">日期：${data.date}</div>
+  ${cachedPhoto?`<div class="card"><div class="card-title">📷 結帳單照片</div><img src="data:image/jpeg;base64,${cachedPhoto}" style="width:100%;border-radius:8px;cursor:pointer" onclick="this.style.transform=this.style.transform?'':'scale(1.5)';this.style.transition='0.2s'"></div>`:''}
+  <div class="confirm-card" style="border-left:4px solid #e67e22">
+    <div style="font-size:11px;font-weight:600;color:#e67e22;margin-bottom:8px">💰 應交現金</div>
+    <div style="font-size:24px;font-weight:700;color:#e67e22">$${格式化金額(data.handover||Math.max(0,(data.cash||0)-9300))}</div>
+    <div style="font-size:12px;color:#aaa;margin-top:4px">現金收入 $${格式化金額(data.cash||0)} − 現場進貨 $${格式化金額(data.market||0)}</div>
+  </div>
   <div class="confirm-card">
     <div style="font-size:11px;font-weight:600;color:#999;margin-bottom:12px;text-transform:uppercase">收入明細</div>
     ${[['總營收','$'+格式化金額(data.total)],['現金收入','$'+格式化金額(data.cash)],['LINE Pay','$'+格式化金額(data.lp)],['台灣 PAY','$'+格式化金額(data.tw)],['Uber Eats（門市實收）','$'+格式化金額(data.uber)],['來客數（交易筆數）',(data.guests||0)+'人'],['平均客單價',data.guests?'$'+格式化金額(data.total/data.guests):'—']].map(([l,v])=>`<div class="confirm-row"><span class="confirm-label">${l}</span><span style="font-weight:500">${v}</span></div>`).join('')}
@@ -721,6 +805,11 @@ async function 渲染確認頁(br){
     <div style="font-size:11px;font-weight:600;color:#999;margin-bottom:12px;text-transform:uppercase">現金核對</div>
     ${[['錢櫃應收現金','$'+格式化金額(data.cash_should)],['錢櫃實點現金','$'+格式化金額(data.cash_actual)],['現金短溢',(data.cash_short_over>=0?'+':'')+格式化金額(data.cash_short_over)],['作廢金額','$'+格式化金額(data.void_amt)]].map(([l,v])=>`<div class="confirm-row"><span class="confirm-label">${l}</span><span style="font-weight:500">${v}</span></div>`).join('')}
   </div>
+  ${(data.market||data.central||data.pack||data.meal||data.gas||data.misc)?`
+  <div class="confirm-card">
+    <div style="font-size:11px;font-weight:600;color:#999;margin-bottom:12px;text-transform:uppercase">每日支出</div>
+    ${[['現場進貨',data.market],['央廚進貨',data.central],['餐具／包材',data.pack],['員工餐費',data.meal],['瓦斯',data.gas],['其他雜支',data.misc]].filter(([,v])=>v).map(([l,v])=>`<div class="confirm-row"><span class="confirm-label">${l}</span><span style="font-weight:500">$${格式化金額(v)}</span></div>`).join('')}
+  </div>`:''}
   ${data.note?`<div class="card"><div class="card-title">備註</div><div style="font-size:14px">${data.note}</div></div>`:''}
   <div style="text-align:center;color:#27ae60;font-size:15px;font-weight:600;padding:1.5rem 0">✓ 資料已成功送出，謝謝！</div>`;
 }
@@ -748,25 +837,140 @@ async function 渲染歷史記錄(br){
     <div class="metric"><div class="metric-label">記錄天數</div><div class="metric-value">${recs.length} 天</div></div>
   </div>
   <div class="card"><div class="table-wrap"><table>
-    <thead><tr><th>日期</th><th>天氣</th><th>來客數</th><th>客單價</th><th>總營收</th><th>現金</th><th>LINE Pay</th><th>台灣PAY</th><th>Uber</th><th>平台費</th><th>食材率</th><th>現金短溢</th><th>備註</th>${目前使用者?.role==='owner'?'<th>操作</th>':''}</tr></thead>
+    <thead><tr><th>日期</th><th>天氣</th><th>來客數</th><th>總營收</th><th>現金短溢</th><th>操作</th></tr></thead>
     <tbody>${recs.map(r=>{
-      const fr=+r.total?(+r.food_cost||0)/(+r.total)*100:0;
       const so=+r.cash_short_over||0;
       return`<tr>
         <td>${r.date}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
-        <td>$${r.guests?格式化金額((+r.total||0)/(+r.guests)):'—'}</td>
-        <td>$${格式化金額(r.total)}</td><td>$${格式化金額(r.cash)}</td>
-        <td>$${格式化金額(r.lp)}</td><td>$${格式化金額(r.tw)}</td><td>$${格式化金額(r.uber)}</td>
-        <td style="color:#c8a96e">$${格式化金額(r.p_fee)}</td>
-        <td style="color:${fr>38?'#c0392b':fr>35?'#e67e22':'#27ae60'};font-weight:600">${+r.total?fr.toFixed(1)+'%':'—'}</td>
+        <td>$${格式化金額(r.total)}</td>
         <td style="color:${so<-50?'#c0392b':so>50?'#2980b9':'#27ae60'}">${(r.cash_should||r.cash_actual)?(so>=0?'+':'')+格式化金額(so):'—'}</td>
-        <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.note||'—'}</td>
-        ${目前使用者?.role==='owner'?`<td><button class="btn btn-danger btn-sm" onclick="刪除記錄('${r.id}','${br}')">刪除</button></td>`:''}
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-sm" style="background:#c8a96e;color:#fff;border:none" onclick="查看詳細(${JSON.stringify(r).replace(/"/g,'&quot;')})">查看</button>
+          ${目前使用者?.role==='owner'?`<button class="btn btn-danger btn-sm" onclick="刪除記錄('${r.id}','${br}')">刪除</button>`:''}
+        </td>
       </tr>`;}).join('')}
     </tbody>
   </table></div></div>`;
 }
 
+function 查看詳細(r){
+  document.getElementById('detail-title').textContent=r.date+' 詳細記錄';
+  const photo=r.photo||sessionStorage.getItem(`receipt-${r.brand}-${r.date}`)||'';
+  const so=+r.cash_short_over||0;
+  const handover=r.handover!=null?+r.handover:(+r.cash||0)-(+r.market||0);
+  const rows=(label,val)=>`<div class="detail-row"><span style="color:#888">${label}</span><span style="font-weight:500">${val}</span></div>`;
+  document.getElementById('detail-content').innerHTML=`
+    ${photo?`<img src="data:image/jpeg;base64,${photo}" style="width:100%;border-radius:10px;margin-bottom:1rem;cursor:pointer" onclick="this.style.transform=this.style.transform?'':'scale(1.4)';this.style.transition='0.2s'">`:'<div style="text-align:center;color:#aaa;padding:1rem;background:#fff;border-radius:10px;margin-bottom:1rem">無上傳照片</div>'}
+    <div style="background:#fff8f0;border:2px solid #e67e22;border-radius:10px;padding:1rem;margin-bottom:1rem;text-align:center">
+      <div style="font-size:11px;color:#e67e22;font-weight:600">💰 應交現金</div>
+      <div style="font-size:28px;font-weight:700;color:${handover<0?'#c0392b':'#e67e22'};margin-top:4px">$${格式化金額(handover)}</div>
+      <div style="font-size:12px;color:#aaa;margin-top:2px">現金 $${格式化金額(r.cash)} − 現場進貨 $${格式化金額(r.market||0)}</div>
+    </div>
+    <div class="detail-section">收入明細</div>
+    ${rows('總營收','$'+格式化金額(r.total))}
+    ${rows('現金收入','$'+格式化金額(r.cash))}
+    ${rows('LINE Pay','$'+格式化金額(r.lp))}
+    ${rows('台灣 PAY','$'+格式化金額(r.tw))}
+    ${rows('Uber Eats','$'+格式化金額(r.uber))}
+    ${r.brand==='b'?rows('熊貓','$'+格式化金額(+r.panda||0)):''}
+    ${rows('來客數',r.guests+'人')}
+    ${rows('平均客單價',r.guests?'$'+格式化金額((+r.total)/(+r.guests)):'—')}
+    <div class="detail-section">現金核對</div>
+    ${rows('錢櫃應收','$'+格式化金額(r.cash_should))}
+    ${rows('錢櫃實點','$'+格式化金額(r.cash_actual))}
+    ${rows('現金短溢',(so>=0?'+':'')+格式化金額(so))}
+    ${(r.market||r.central||r.pack||r.meal||r.gas||r.misc)?`
+    <div class="detail-section">每日支出</div>
+    ${r.market?rows('現場進貨','$'+格式化金額(r.market)):''}
+    ${r.central?rows('央廚進貨','$'+格式化金額(r.central)):''}
+    ${r.pack?rows('餐具／包材','$'+格式化金額(r.pack)):''}
+    ${r.meal?rows('員工餐費','$'+格式化金額(r.meal)):''}
+    ${r.gas?rows('瓦斯','$'+格式化金額(r.gas)):''}
+    ${r.misc?rows('其他雜支','$'+格式化金額(r.misc)):''}
+    `:''}
+    ${r.note?`<div class="detail-section">備註</div><div style="font-size:14px;padding:6px 0">${r.note}</div>`:''}
+    ${r.uploaded_by?`<div style="font-size:12px;color:#aaa;margin-top:1rem;text-align:right">上傳：${r.uploaded_by}</div>`:''}
+  `;
+  document.getElementById('detail-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+  document.getElementById('detail-actions').innerHTML=
+    `<button class="btn" style="flex:1;background:#c8a96e;color:#fff;border:none" onclick="編輯記錄(${JSON.stringify(r).replace(/"/g,'&quot;')})">編輯</button>
+     <button class="btn" style="flex:1;background:#eee;color:#555;border:none" onclick="關閉詳細()">關閉</button>`;
+}
+function 編輯記錄(r){
+  const f=(id,label,val,type='number')=>`<div class="field"><label>${label}</label><input type="${type}" id="edit-${id}" value="${val||''}" placeholder="0"></div>`;
+  document.getElementById('detail-content').innerHTML=`
+  <div class="g2">
+    <div class="field"><label>日期</label><input type="date" id="edit-date" value="${r.date||''}"></div>
+    <div class="field"><label>天氣</label><select id="edit-weather"><option value="">— 選擇 —</option>${['晴天','陰天','雨天','颱風'].map(w=>`<option${r.weather===w?' selected':''}>${w}</option>`).join('')}</select></div>
+  </div>
+  <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">收入明細</div>
+  <div class="g2">
+    ${f('guests','來客數',r.guests)}
+    ${f('cash','現金收入',r.cash)}
+    ${f('lp','LINE Pay',r.lp)}
+    ${f('tw','台灣 PAY',r.tw)}
+    ${f('uber','Uber Eats',r.uber)}
+    ${r.brand==='b'?f('panda','熊貓',r.panda):''}
+  </div>
+  <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">現金核對</div>
+  <div class="g2">
+    ${f('cash_should','錢櫃應收',r.cash_should)}
+    ${f('cash_actual','錢櫃實點',r.cash_actual)}
+    ${f('void_amt','作廢金額',r.void_amt)}
+  </div>
+  <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">每日支出</div>
+  <div class="g2">
+    ${f('market','現場進貨',r.market)}
+    ${f('central','央廚進貨',r.central)}
+    ${f('pack','餐具／包材',r.pack)}
+    ${f('meal','員工餐費',r.meal)}
+    ${f('gas','瓦斯',r.gas)}
+    ${f('misc','其他雜支',r.misc)}
+  </div>
+  <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">備註</div>
+  <div class="field"><input type="text" id="edit-note" value="${r.note||''}" placeholder="備註"></div>
+  <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">結帳單照片</div>
+  ${r.photo?`<img src="data:image/jpeg;base64,${r.photo}" style="width:100%;border-radius:8px;margin-bottom:8px">`:''}
+  <div class="field"><label>${r.photo?'重新上傳照片':'上傳照片'}</label><input type="file" id="edit-photo" accept="image/*" capture="environment"></div>`;
+  document.getElementById('detail-actions').innerHTML=
+    `<button class="btn" style="flex:1;background:#27ae60;color:#fff;border:none" onclick="儲存修改('${r.id}','${r.brand}','${r.photo||''}')">儲存</button>
+     <button class="btn" style="flex:1;background:#eee;color:#555;border:none" onclick="關閉詳細()">取消</button>`;
+}
+async function 儲存修改(id,br,existingPhoto=''){
+  const g=k=>document.getElementById('edit-'+k);
+  const n=k=>+(g(k)?.value)||0;
+  const cash=n('cash'),lp=n('lp'),tw=n('tw'),uber=n('uber'),panda=n('panda');
+  const total=cash+lp+tw+uber+panda;
+  const s=品牌設定[br]||{lp_rate:3,uber_rate:31};
+  const cashActual=n('cash_actual'),cashShould=n('cash_should');
+  let photo=existingPhoto;
+  const photoFile=g('photo')?.files[0];
+  if(photoFile){try{photo=await 壓縮照片(photoFile);}catch(e){}}
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'updateRecord',record:{
+    id,brand:br,
+    date:g('date')?.value,weather:g('weather')?.value,
+    guests:n('guests'),cash,lp,tw,uber,panda,total,
+    p_fee:lp*(s.lp_rate/100)+uber*(s.uber_rate/100),
+    cash_should:cashShould,cash_actual:cashActual,
+    cash_short_over:cashActual-cashShould,
+    void_amt:n('void_amt'),
+    market:n('market'),central:n('central'),pack:n('pack'),
+    meal:n('meal'),gas:n('gas'),misc:n('misc'),
+    handover:cash-n('market'),
+    note:g('note')?.value,photo
+  }});
+  載入中(false);
+  if(!res.ok){提示('儲存失敗：'+(res.error||'未知錯誤'));return}
+  提示('✓ 已成功修改');
+  關閉詳細();
+  渲染歷史記錄(br);
+}
+function 關閉詳細(){
+  document.getElementById('detail-modal').classList.remove('open');
+  document.body.style.overflow='';
+}
 async function 刪除記錄(id,br){
   if(!confirm('確定要刪除這筆記錄嗎？'))return;
   載入中(true);
@@ -1193,7 +1397,7 @@ async function 渲染帳號管理(){
 
 async function 新增帳號(){
   const email=文字('nu-email'),name=文字('nu-name'),pass=文字('nu-pass'),role=文字('nu-role'),brand=文字('nu-brand');
-  if(!email||!name||!pass){提示('請填入所有欄位');return}
+  if(!email||!name){提示('請填入電子郵件和姓名');return}
   載入中(true,'建立中...');
   const res=await 呼叫API({action:'saveUser',email,name,password:pass,role,brand});
   載入中(false);
@@ -1277,8 +1481,377 @@ async function 儲存設定(br){
   提示('✓ '+品牌名稱[br]+' 設定已儲存');
 }
 
+// ===== 資金管理 =====
+async function 渲染資金管理(){
+  const el=document.getElementById('page-資金管理');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">資金管理</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  載入中(true);
+  const res=await 呼叫API({action:'getFundRecords'});
+  載入中(false);
+  const records=(res.records||res.data||[]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+  // 從流水反推各帳戶餘額
+  const 帳戶=['富郁霖卡','南閩卡','林家涼麵現金','木谷食麵所現金'];
+  const 餘額={};帳戶.forEach(a=>餘額[a]=0);
+  [...records].reverse().forEach(r=>{
+    if(!r.account||!(r.account in 餘額))return;
+    if(r.type==='支出') 餘額[r.account]-=(+r.amount||0);
+    else if(r.type==='轉帳'){
+      餘額[r.account]-=(+r.amount||0);
+      if(r.to_account&&r.to_account in 餘額) 餘額[r.to_account]+=(+r.amount||0);
+    } else 餘額[r.account]+=(+r.amount||0);
+  });
+  const 銀行合計=餘額['富郁霖卡']+餘額['南閩卡'];
+  const 現金合計=餘額['林家涼麵現金']+餘額['木谷食麵所現金'];
+  const 總資金=銀行合計+現金合計;
+
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">資金管理</span></div>
+  <div class="metric-grid">
+    <div class="metric green"><div class="metric-label">公司總資金</div><div class="metric-value">$${格式化金額(總資金)}</div></div>
+    <div class="metric"><div class="metric-label">銀行帳戶合計</div><div class="metric-value">$${格式化金額(銀行合計)}</div></div>
+    <div class="metric amber"><div class="metric-label">店面現金合計</div><div class="metric-value">$${格式化金額(現金合計)}</div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-title">銀行帳戶</div>
+      ${[['富郁霖卡','富郁霖卡'],['南閩卡','南閩卡']].map(([n,k])=>`
+      <div class="sum-row"><span class="sum-label">${n}</span><span style="font-weight:600;font-size:16px">$${格式化金額(餘額[k])}</span></div>`).join('')}
+    </div>
+    <div class="card"><div class="card-title">店面現金</div>
+      ${[['林家涼麵','林家涼麵現金'],['木谷食麵所','木谷食麵所現金']].map(([n,k])=>`
+      <div class="sum-row"><span class="sum-label">${n}</span><span style="font-weight:600;font-size:16px">$${格式化金額(餘額[k])}</span></div>`).join('')}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">⚡ 快速記帳</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <button id="qtype-支出" class="btn btn-sm qtype-btn qtype-active" onclick="選擇類型('支出')" style="flex:1;min-width:72px;background:#fef0f0;color:#c0392b;border:2px solid #c0392b">支出</button>
+      <button id="qtype-收入" class="btn btn-sm qtype-btn" onclick="選擇類型('收入')" style="flex:1;min-width:72px;background:#f5f5f5;color:#555;border:2px solid #ddd">收入</button>
+      <button id="qtype-週收款" class="btn btn-sm qtype-btn" onclick="選擇類型('週收款')" style="flex:1;min-width:72px;background:#f5f5f5;color:#555;border:2px solid #ddd">週收款</button>
+      <button id="qtype-轉帳" class="btn btn-sm qtype-btn" onclick="選擇類型('轉帳')" style="flex:1;min-width:72px;background:#f5f5f5;color:#555;border:2px solid #ddd">轉帳</button>
+    </div>
+    <div class="g2" style="margin-bottom:10px">
+      <div class="field"><label>帳戶</label>
+        <select id="fr-account" style="font-size:15px;padding:10px 12px">
+          <option value="林家涼麵現金">林家涼麵現金</option>
+          <option value="木谷食麵所現金">木谷食麵所現金</option>
+          <option value="富郁霖卡">富郁霖卡</option>
+          <option value="南閩卡">南閩卡</option>
+        </select>
+      </div>
+      <div class="field" id="fr-to-wrap" style="display:none"><label>轉入帳戶</label>
+        <select id="fr-to-account" style="font-size:15px;padding:10px 12px">
+          <option value="富郁霖卡">富郁霖卡</option>
+          <option value="南閩卡">南閩卡</option>
+          <option value="林家涼麵現金">林家涼麵現金</option>
+          <option value="木谷食麵所現金">木谷食麵所現金</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>金額</label>
+      <input type="number" inputmode="decimal" id="fr-amount" placeholder="0" style="font-size:28px;font-weight:700;padding:12px 14px;text-align:right">
+    </div>
+    <div class="field" style="margin-bottom:14px">
+      <label>備註（買什麼、哪家店）</label>
+      <input type="text" id="fr-note" placeholder="例：菜市場買豆乾" style="font-size:15px;padding:10px 12px">
+    </div>
+    <input type="hidden" id="fr-date" value="${new Date().toISOString().slice(0,10)}">
+    <input type="hidden" id="fr-type" value="支出">
+    <button class="btn btn-hq btn-full" onclick="儲存資金記錄()" style="padding:16px;font-size:17px">記錄</button>
+  </div>
+  <div class="card"><div class="card-title">資金流水記錄</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>日期</th><th>類型</th><th>帳戶</th><th>金額</th><th>備註</th><th>操作</th></tr></thead>
+      <tbody>${records.length?records.map(r=>{
+        const 顏色map={週收款:'#d9ede8',收入:'#f5ead8',支出:'#fef0f0',轉帳:'#e8e4f5',設定:'#f0f0f5'};
+        const 文字map={週收款:'#2a6b58',收入:'#8a6a2a',支出:'#c0392b',轉帳:'#4a3a8a',設定:'#666'};
+        return`<tr>
+          <td>${r.date}</td>
+          <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${顏色map[r.type]||'#eee'};color:${文字map[r.type]||'#555'}">${r.type}</span></td>
+          <td>${r.account}${r.to_account?'→'+r.to_account:''}</td>
+          <td style="font-weight:600;color:${r.type==='支出'?'#c0392b':'#1a1a1a'}">${r.type==='支出'?'-':''}$${格式化金額(r.amount)}</td>
+          <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;color:#666">${r.note||'—'}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="刪除資金記錄('${r.id}')">刪除</button></td>
+        </tr>`;}).join(''):'<tr><td colspan="6" style="text-align:center;color:#aaa;padding:2rem">尚無記錄，請先設定各帳戶初始餘額</td></tr>'}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
+function 選擇類型(type){
+  document.getElementById('fr-type').value=type;
+  const colors={支出:{bg:'#fef0f0',color:'#c0392b',border:'#c0392b'},收入:{bg:'#f0fdf4',color:'#2a6b58',border:'#22c55e'},週收款:{bg:'#d9ede8',color:'#2a6b58',border:'#2a6b58'},轉帳:{bg:'#e8e4f5',color:'#4a3a8a',border:'#9b8ec4'}};
+  document.querySelectorAll('.qtype-btn').forEach(b=>{b.style.background='#f5f5f5';b.style.color='#555';b.style.borderColor='#ddd';});
+  const active=document.getElementById('qtype-'+type);
+  if(active&&colors[type]){active.style.background=colors[type].bg;active.style.color=colors[type].color;active.style.borderColor=colors[type].border;}
+  const w=document.getElementById('fr-to-wrap');
+  if(w) w.style.display=type==='轉帳'?'':'none';
+}
+function 切換資金類型(){
+  const type=document.getElementById('fr-type')?.value;
+  const w=document.getElementById('fr-to-wrap');
+  if(w) w.style.display=type==='轉帳'?'':'none';
+}
+
+async function 儲存資金記錄(){
+  const date=文字('fr-date'),type=文字('fr-type'),account=文字('fr-account'),amount=數值('fr-amount'),note=文字('fr-note');
+  if(!date||!amount){提示('請填寫日期與金額');return}
+  const to_account=type==='轉帳'?文字('fr-to-account'):'';
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'saveFundRecord',date,type,account,toAccount:to_account,amount,note,created_by:目前使用者?.email});
+  載入中(false);
+  if(!res.ok){提示('儲存失敗：'+res.error);return}
+  提示('✓ 已記錄');渲染資金管理();
+}
+
+async function 刪除資金記錄(id){
+  載入中(true);
+  const res=await 呼叫API({action:'deleteFundRecord',id});
+  載入中(false);
+  if(!res.ok){提示('刪除失敗：'+(res.error||JSON.stringify(res)));return;}
+  渲染資金管理();提示('✓ 已刪除');
+}
+
+// ===== 批次上傳結帳單 =====
+let _批次佇列=[];
+
+function 渲染批次上傳(){
+  const el=document.getElementById('page-批次上傳');
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">批次上傳結帳單</span></div>
+  <div class="card">
+    <div class="card-title">步驟 1：選擇品牌與照片</div>
+    <div class="g2" style="margin-bottom:14px">
+      <div class="field"><label>品牌</label>
+        <select id="batch-brand" style="font-size:15px;padding:10px 12px">
+          <option value="a">林家涼麵</option>
+          <option value="b">木谷食麵所</option>
+        </select>
+      </div>
+    </div>
+    <div class="scan-zone" style="margin-bottom:0" ondragover="event.preventDefault()" ondrop="event.preventDefault();批次加入檔案(event.dataTransfer.files)">
+      <input type="file" id="batch-files" accept="image/*" multiple onchange="批次加入檔案(this.files)">
+      <div style="font-size:36px;margin-bottom:8px">📂</div>
+      <div style="font-size:15px;font-weight:600;color:#555">點擊一次選取多張結帳單照片</div>
+      <div style="font-size:13px;color:#aaa;margin-top:4px">可同時選多張，或分批加入</div>
+    </div>
+  </div>
+  <div id="batch-queue"></div>
+  <div id="batch-actions" style="display:none">
+    <button class="btn btn-dark btn-full" style="margin-bottom:10px" onclick="批次執行AI()">▶ 全部 AI 辨識</button>
+    <button class="btn btn-outline btn-full" onclick="批次全部儲存()">✓ 全部儲存至系統</button>
+  </div>`;
+  _批次佇列=[];
+}
+
+function 批次加入檔案(files){
+  Array.from(files).forEach(file=>{
+    const id='bq-'+Date.now()+Math.random().toString(36).slice(2,6);
+    _批次佇列.push({id,file,status:'待辨識',data:{}});
+  });
+  渲染批次佇列();
+  document.getElementById('batch-files').value='';
+}
+
+function 渲染批次佇列(){
+  const el=document.getElementById('batch-queue');
+  const actEl=document.getElementById('batch-actions');
+  if(!_批次佇列.length){el.innerHTML='';if(actEl)actEl.style.display='none';return;}
+  if(actEl)actEl.style.display='block';
+  el.innerHTML=_批次佇列.map((item,idx)=>{
+    const statusColor={待辨識:'#aaa',辨識中:'#c8a96e',已辨識:'#27ae60',辨識失敗:'#c0392b',已儲存:'#888'}[item.status]||'#aaa';
+    const d=item.data;
+    return`<div class="card" id="bq-card-${item.id}" style="border-left:4px solid ${statusColor}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-size:13px;font-weight:600">${item.file.name}</div>
+          <div style="font-size:12px;color:${statusColor};margin-top:2px">${item.status}</div>
+        </div>
+        <button onclick="_批次佇列.splice(${idx},1);渲染批次佇列()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#ccc">✕</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <img id="bq-thumb-${item.id}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#eee">
+        ${item.status==='已辨識'||item.status==='已儲存'?`
+        <div class="g2" style="flex:1;gap:6px">
+          <div class="field"><label>日期</label><input type="date" id="bq-date-${item.id}" value="${d.date||new Date().toISOString().slice(0,10)}"></div>
+          <div class="field"><label>現金</label><input type="number" id="bq-cash-${item.id}" value="${d.cash||0}"></div>
+          <div class="field"><label>LINE Pay</label><input type="number" id="bq-lp-${item.id}" value="${d.lp||0}"></div>
+          <div class="field"><label>台灣 PAY</label><input type="number" id="bq-tw-${item.id}" value="${d.tw||0}"></div>
+          <div class="field"><label>Uber Eats</label><input type="number" id="bq-uber-${item.id}" value="${d.uber||0}"></div>
+          <div class="field"><label>來客數</label><input type="number" id="bq-guests-${item.id}" value="${d.guests||0}"></div>
+          <div class="field"><label>應收現金</label><input type="number" id="bq-cashShould-${item.id}" value="${d.cashShould||0}"></div>
+          <div class="field"><label>實點現金</label><input type="number" id="bq-cashActual-${item.id}" value="${d.cashActual||0}"></div>
+        </div>`:`<div style="flex:1;font-size:13px;color:#aaa;padding-top:8px">${item.status==='辨識中'?'AI 辨識中...':item.status==='辨識失敗'?'辨識失敗，請手動輸入或重試':'等待辨識'}</div>`}
+      </div>
+      ${item.status==='辨識失敗'?`<button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="單張AI辨識('${item.id}')">重新辨識</button>`:''}
+      ${item.status==='已儲存'?`<div style="margin-top:8px;font-size:13px;color:#27ae60">✓ 已儲存至系統</div>`:''}
+    </div>`;
+  }).join('');
+  // 載入縮圖
+  _批次佇列.forEach(item=>{
+    const img=document.getElementById('bq-thumb-'+item.id);
+    if(!img||img.src)return;
+    const r=new FileReader();r.onload=e=>img.src=e.target.result;r.readAsDataURL(item.file);
+  });
+}
+
+async function 單張AI辨識(id){
+  const apiKey=取得ApiKey();
+  if(!apiKey){提示('請先在系統設定輸入 Claude API 金鑰');return}
+  const item=_批次佇列.find(x=>x.id===id);
+  if(!item)return;
+  item.status='辨識中';渲染批次佇列();
+  try{
+    const base64=await 壓縮照片(item.file);
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
+        {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：date(日期,格式YYYY-MM-DD,找不到用今天),cash(現金收入),linepay(LINE Pay 與線上點餐金流的金額加總),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
+      ]}]})
+    });
+    if(!resp.ok)throw new Error('API '+resp.status);
+    const json=await resp.json();
+    const match=json.content[0].text.match(/\{[\s\S]*\}/);
+    if(!match)throw new Error('無法解析');
+    const r=JSON.parse(match[0]);
+    item.data={date:r.date||new Date().toISOString().slice(0,10),cash:r.cash||0,lp:r.linepay||0,tw:r.twpay||0,uber:r.uber||0,guests:r.guests||0,cashShould:r.cashShould||0,cashActual:r.cashActual||0,voidAmt:r.voidAmt||0,txItems:r.txItems||0};
+    item.status='已辨識';
+  }catch(e){item.status='辨識失敗';item.error=e.message;}
+  渲染批次佇列();
+}
+
+async function 批次執行AI(){
+  const 待辨識=_批次佇列.filter(x=>x.status==='待辨識'||x.status==='辨識失敗');
+  if(!待辨識.length){提示('沒有待辨識的照片');return}
+  for(const item of 待辨識){
+    await 單張AI辨識(item.id);
+  }
+  提示(`✓ 辨識完成，共 ${_批次佇列.filter(x=>x.status==='已辨識').length} 筆`);
+}
+
+async function 批次全部儲存(){
+  const br=document.getElementById('batch-brand')?.value||'a';
+  const 待儲存=_批次佇列.filter(x=>x.status==='已辨識');
+  if(!待儲存.length){提示('請先執行 AI 辨識');return}
+  const s=品牌設定[br]||{lp_rate:3,uber_rate:31};
+  載入中(true,'批次儲存中...');
+  let 成功=0,失敗=0;
+  for(const item of 待儲存){
+    const date=document.getElementById(`bq-date-${item.id}`)?.value||item.data.date;
+    const cash=+(document.getElementById(`bq-cash-${item.id}`)?.value||item.data.cash||0);
+    const lp=+(document.getElementById(`bq-lp-${item.id}`)?.value||item.data.lp||0);
+    const tw=+(document.getElementById(`bq-tw-${item.id}`)?.value||item.data.tw||0);
+    const uber=+(document.getElementById(`bq-uber-${item.id}`)?.value||item.data.uber||0);
+    const guests=+(document.getElementById(`bq-guests-${item.id}`)?.value||item.data.guests||0);
+    const cashShould=+(document.getElementById(`bq-cashShould-${item.id}`)?.value||item.data.cashShould||0);
+    const cashActual=+(document.getElementById(`bq-cashActual-${item.id}`)?.value||item.data.cashActual||0);
+    const total=cash+lp+tw+uber;
+    const pFee=lp*(s.lp_rate/100)+uber*(s.uber_rate/100);
+    let photo='';
+    try{photo=await 壓縮照片(item.file);}catch(e){}
+    const res=await 呼叫API({action:'saveRecord',record:{
+      brand:br,date,guests,cash,lp,tw,uber,total,
+      lp_rate:s.lp_rate,uber_rate:s.uber_rate,p_fee:pFee,
+      cash_should:cashShould,cash_actual:cashActual,
+      cash_short_over:cashActual-cashShould,
+      void_amt:item.data.voidAmt||0,tx_items:item.data.txItems||0,
+      uploaded_by:目前使用者?.email,photo
+    }});
+    if(res.ok){item.status='已儲存';成功++;}else{item.status='辨識失敗';item.error=res.error;失敗++;}
+    渲染批次佇列();
+  }
+  載入中(false);
+  提示(`✓ 已儲存 ${成功} 筆${失敗?'，失敗 '+失敗+' 筆':''}`);
+}
+
+// ===== 批發管理 =====
+let b2bTab='apply';
+async function 渲染批發管理(){
+  const el=document.getElementById('page-批發管理');
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-hq">醬醬人</span><span class="page-title">批發管理</span></div>
+  <div class="inner-tabs">
+    <button id="btab-apply" class="inner-tab ${b2bTab==='apply'?'active':''}" onclick="切換批發頁籤('apply')">申請審核</button>
+    <button id="btab-order" class="inner-tab ${b2bTab==='order'?'active':''}" onclick="切換批發頁籤('order')">訂單管理</button>
+  </div>
+  <div id="b2b-panel"></div>`;
+  載入批發資料();
+}
+function 切換批發頁籤(tab){
+  b2bTab=tab;
+  document.querySelectorAll('.inner-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('btab-'+tab)?.classList.add('active');
+  載入批發資料();
+}
+async function 載入批發資料(){
+  const panel=document.getElementById('b2b-panel');
+  if(!panel)return;
+  panel.innerHTML=`<div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  if(b2bTab==='apply'){
+    const res=await 呼叫API({action:'b2bGetApplications'});
+    const list=res.data||[];
+    if(!list.length){panel.innerHTML=`<div class="card"><div style="color:#aaa;text-align:center;padding:1.5rem">尚無申請記錄</div></div>`;return;}
+    panel.innerHTML=`<div class="card"><div class="card-title">申請列表（${list.length} 筆）</div>
+    ${list.map(r=>`
+    <div style="border:1px solid #e5e5df;border-radius:10px;padding:1rem;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-weight:600">${r.shopName||'—'}</span>
+        <span class="badge badge-${r.status==='審核通過'?'approved':r.status==='拒絕'?'rejected':'pending'}">${r.status||'待審核'}</span>
+      </div>
+      <div style="font-size:13px;color:#666;display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
+        <span>業態：${r.industry||'—'}</span><span>聯絡人：${r.contact||'—'}</span>
+        <span>電話：${r.phone||'—'}</span><span>Email：${r.email||'—'}</span>
+        <span style="grid-column:1/-1">地址：${r.address||'—'}</span>
+        ${r.code?`<span style="grid-column:1/-1;color:#2a6b58;font-weight:600">客戶代碼：${r.code}</span>`:''}
+        ${r.note?`<span style="grid-column:1/-1">備註：${r.note}</span>`:''}
+      </div>
+      ${!r.status||r.status==='待審核'?`
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-hq btn-sm" onclick="審核批發('${r.id}','approve')">核准</button>
+        <button class="btn btn-outline btn-sm" onclick="審核批發('${r.id}','reject')">拒絕</button>
+      </div>`:''}
+    </div>`).join('')}
+    </div>`;
+  } else {
+    const res=await 呼叫API({action:'b2bGetOrders'});
+    const list=res.data||[];
+    if(!list.length){panel.innerHTML=`<div class="card"><div style="color:#aaa;text-align:center;padding:1.5rem">尚無訂單記錄</div></div>`;return;}
+    panel.innerHTML=`<div class="card"><div class="card-title">訂單列表（${list.length} 筆）</div>
+    <table><thead><tr><th>日期</th><th>客戶代碼</th><th>店家</th><th>金額</th><th>備註</th></tr></thead>
+    <tbody>${list.map(r=>`<tr>
+      <td>${(r.date||'').slice(0,10)}</td>
+      <td>${r.code||'—'}</td>
+      <td>${r.shopName||'—'}</td>
+      <td>$${格式化金額(+r.total||0)}</td>
+      <td>${r.note||'—'}</td>
+    </tr>`).join('')}</tbody></table>
+    </div>`;
+  }
+}
+async function 審核批發(id,action){
+  載入中(true,'處理中...');
+  const res=await 呼叫API({action:'b2bApprove',id,approve:action==='approve'});
+  載入中(false);
+  if(!res.ok){提示('操作失敗：'+(res.error||''));return;}
+  提示(action==='approve'?'✓ 已核准，客戶代碼已發送':'✓ 已拒絕');
+  載入批發資料();
+}
+
 // ===== 啟動 =====
 初始化();
 </script>
+<div id="detail-modal" class="detail-modal" onclick="if(event.target===this)關閉詳細()">
+  <div class="detail-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h3 id="detail-title">詳細記錄</h3>
+      <button onclick="關閉詳細()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">✕</button>
+    </div>
+    <div id="detail-content"></div>
+    <div id="detail-actions" style="display:flex;gap:8px;margin-top:1rem"></div>
+  </div>
+</div>
 </body>
 </html>
