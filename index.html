@@ -233,6 +233,7 @@ let 品牌設定 = {
 let claudeApiKey = '';
 
 function 格式化金額(v){return Math.round(v||0).toLocaleString('zh-TW')}
+function 格式化日期(d){return d?d.slice(0,10):''}
 function 百分比(v,t){return t?((v/t)*100).toFixed(1)+'%':'—'}
 function 數值(id){return parseFloat(document.getElementById(id)?.value)||0}
 function 文字(id){return document.getElementById(id)?.value||''}
@@ -856,7 +857,7 @@ async function 渲染歷史記錄(br){
     <tbody>${recs.map(r=>{
       const so=+r.cash_short_over||0;
       return`<tr>
-        <td>${r.date}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
+        <td>${格式化日期(r.date)}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
         <td>$${格式化金額(r.total)}</td>
         <td style="color:${so<-50?'#c0392b':so>50?'#2980b9':'#27ae60'}">${(r.cash_should||r.cash_actual)?(so>=0?'+':'')+格式化金額(so):'—'}</td>
         <td style="display:flex;gap:6px">
@@ -869,7 +870,7 @@ async function 渲染歷史記錄(br){
 }
 
 function 查看詳細(r){
-  document.getElementById('detail-title').textContent=r.date+' 詳細記錄';
+  document.getElementById('detail-title').textContent=格式化日期(r.date)+' 詳細記錄';
   const photo=r.photo||sessionStorage.getItem(`receipt-${r.brand}-${r.date}`)||'';
   const so=+r.cash_short_over||0;
   const handover=r.handover!=null?+r.handover:(+r.cash||0)-(+r.market||0);
@@ -1087,7 +1088,7 @@ function 建立月報HTML(recs,s,pl){
     <tbody>${recs.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>{
       const fr=+r.total?(+r.food_cost||0)/(+r.total)*100:0;
       const so=+r.cash_short_over||0;
-      return`<tr><td>${r.date}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
+      return`<tr><td>${格式化日期(r.date)}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
         <td>$${r.guests?格式化金額((+r.total||0)/(+r.guests)):'—'}</td>
         <td>$${格式化金額(r.total)}</td>
         <td style="color:${fr>38?'#c0392b':fr>35?'#e67e22':'#27ae60'}">${+r.total?fr.toFixed(1)+'%':'—'}</td>
