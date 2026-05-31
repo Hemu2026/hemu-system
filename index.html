@@ -1787,8 +1787,9 @@ async function 儲存編輯薪資(br,id){
   const e=emps.find(x=>String(x.id)===String(id));
   if(!e)return;
   載入中(true,'儲存中...');
+  await 呼叫API({action:'deletePayroll',id});
   const res=await 呼叫API({action:'savePayroll',record:{
-    id,brand:br,month:window[`_emps_${br}`]?.month,
+    brand:br,month:window[`_emps_${br}`]?.month,
     employee_name:e.employee_name,role:e.role,
     base:g('base'),overtime:g('ot'),bonus:g('bonus'),
     absent:g('absent'),nhi_emp:g('nhi_emp'),nhi_co:g('nhi_co'),note
