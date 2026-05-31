@@ -921,6 +921,11 @@ async function 渲染歷史記錄(br){
   </table></div></div>`;
 }
 
+function 儲存週結算(lsKey,weekKey,val){
+  const data=JSON.parse(localStorage.getItem(lsKey)||'{}');
+  if(val)data[weekKey]=+val;else delete data[weekKey];
+  localStorage.setItem(lsKey,JSON.stringify(data));
+}
 function 顯示快速補填(br,recs){
   const el=document.getElementById(`quick-fill-${br}`);
   if(el.innerHTML){el.innerHTML='';return;}
@@ -1227,8 +1232,10 @@ function 建立月報HTML(recs,s,pl){
       });
       const weekKeys=Object.keys(weeks).sort();
       if(!weekKeys.length)return'<div style="color:#aaa;text-align:center;padding:1rem">暫無資料</div>';
+      const lsKey=`ws-${recs[0]?.brand||''}-${ym}`;
+      const saved=JSON.parse(localStorage.getItem(lsKey)||'{}');
       return`<div class="table-wrap"><table>
-        <thead><tr><th>週期</th><th>天數</th><th>系統應交現金</th><th>員工實際上繳</th><th>差異</th><th>狀態</th></tr></thead>
+        <thead><tr><th>週期</th><th>天數</th><th>系統應交現金</th><th>員工實際上繳</th><th>老闆結算金額</th><th>差異</th><th>狀態</th></tr></thead>
         <tbody>${weekKeys.map((key,i)=>{
           const wRecs=weeks[key];
           const endDate=new Date(key);endDate.setDate(endDate.getDate()+6);
@@ -1236,21 +1243,29 @@ function 建立月報HTML(recs,s,pl){
           const sysTotal=wRecs.reduce((a,r)=>a+取應交現金(r),0);
           const actTotal=wRecs.reduce((a,r)=>a+(+r.handover_actual||0),0);
           const hasActual=wRecs.some(r=>r.handover_actual);
-          const diff=actTotal-sysTotal;
+          const bossVal=saved[key]||'';
+          const bossNum=+bossVal||0;
+          const diff=hasActual?actTotal-sysTotal:0;
+          const bossDiff=bossVal?bossNum-sysTotal:null;
           const ok=Math.abs(diff)<=100;
+          const bossOk=bossDiff!==null&&Math.abs(bossDiff)<=100;
           return`<tr>
             <td>第${i+1}週<br><small style="color:#aaa">${period}</small></td>
             <td>${wRecs.length}天</td>
             <td>$${格式化金額(sysTotal)}</td>
             <td>${hasActual?'$'+格式化金額(actTotal):'<span style="color:#aaa">未填</span>'}</td>
-            <td style="color:${!hasActual?'#aaa':ok?'#27ae60':'#c0392b'}">${hasActual?(diff>=0?'+':'')+格式化金額(diff):'—'}</td>
-            <td>${!hasActual?'<span style="color:#aaa">待填寫</span>':ok?'<span style="color:#27ae60">✓ 正確</span>':'<span style="color:#c0392b">⚠ 異常</span>'}</td>
+            <td><input type="number" value="${bossVal}" placeholder="填入結算金額"
+              style="width:120px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit"
+              oninput="儲存週結算('${lsKey}','${key}',this.value)"></td>
+            <td style="color:${bossDiff===null?'#aaa':bossOk?'#27ae60':'#c0392b'}">${bossDiff===null?'—':(bossDiff>=0?'+':'')+格式化金額(bossDiff)}</td>
+            <td>${bossDiff===null?'<span style="color:#aaa">待填寫</span>':bossOk?'<span style="color:#27ae60">✓ 正確</span>':'<span style="color:#c0392b">⚠ 異常</span>'}</td>
           </tr>`;
         }).join('')}</tbody>
         <tfoot><tr style="font-weight:600;background:#f8f8f8">
           <td>合計</td><td>${recs.length}天</td>
           <td>$${格式化金額(recs.reduce((a,r)=>a+取應交現金(r),0))}</td>
           <td>$${格式化金額(recs.reduce((a,r)=>a+(+r.handover_actual||0),0))}</td>
+          <td>$${格式化金額(weekKeys.reduce((a,k)=>a+(+saved[k]||0),0))}</td>
           <td colspan="2"></td>
         </tr></tfoot>
       </table></div>`;
