@@ -404,26 +404,26 @@ function 切換頁面(page){
   if(el)el.classList.add('active');
   document.querySelectorAll(`.nav-item[data-page="${page}"]`).forEach(el=>el.classList.add('active'));
   const br=page.split('-').pop();
-  // 依品牌切換背景色與側邊欄顏色
+  // 依品牌切換背景色與側邊欄顏色（莫蘭迪風格）
   const main=document.querySelector('.main');
   const sidebar=document.querySelector('.sidebar');
   const isBrA=br==='a';
   const isBrB=br==='b';
   if(main){
-    if(isBrA){main.style.background='#f5ede0';}
-    else if(isBrB){main.style.background='#e8ede6';}
-    else{main.style.background='#f2f1ed';}
+    if(isBrA){main.style.background='#f0e9e1';} // 林家：莫蘭迪奶茶米
+    else if(isBrB){main.style.background='#e3eae3';} // 木谷：莫蘭迪霧鼠尾草
+    else{main.style.background='#ede9e4';} // 總部：莫蘭迪米白
   }
   if(sidebar){
     if(isBrA){
-      sidebar.style.background='#3d2b1f'; // 林家：深奶茶棕
-      sidebar.style.borderRight='3px solid #c8a96e';
+      sidebar.style.background='#7a6455'; // 林家：莫蘭迪暖棕
+      sidebar.style.borderRight='3px solid #c4a882';
     } else if(isBrB){
-      sidebar.style.background='#2a3d2e'; // 木谷：深橄欖綠
-      sidebar.style.borderRight='3px solid #7bb5a0';
+      sidebar.style.background='#556b57'; // 木谷：莫蘭迪鼠尾草綠
+      sidebar.style.borderRight='3px solid #8aab8c';
     } else {
-      sidebar.style.background='#111';
-      sidebar.style.borderRight='none';
+      sidebar.style.background='#8c8479'; // 總部：莫蘭迪溫暖米灰
+      sidebar.style.borderRight='3px solid #b5aca0';
     }
   }
   if(page.startsWith('上傳-'))渲染上傳頁(br);
