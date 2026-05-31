@@ -387,6 +387,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="系統設定"><span class="nav-dot dot-hq"></span>成本設定</div>
       <div class="nav-item" data-page="批發管理"><span class="nav-dot dot-hq"></span>批發管理</div>
       <div class="nav-item" data-page="批次上傳"><span class="nav-dot dot-hq"></span>批次上傳結帳單</div>
+      <div class="nav-item" data-page="原物料管理"><span class="nav-dot dot-hq"></span>原物料管理</div>
     </div>`;
   }
   nav.innerHTML=html;
@@ -404,7 +405,7 @@ function 建立頁面(role,brand){
     pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`];
   } else {
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`));
-    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳');
+    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -455,6 +456,7 @@ function 切換頁面(page){
   else if(page==='系統設定')渲染系統設定();
   else if(page==='批發管理')渲染批發管理();
   else if(page==='批次上傳')渲染批次上傳();
+  else if(page==='原物料管理')渲染原物料管理();
 }
 
 // ===== 每日輸入（店長/老闆）=====
@@ -2224,6 +2226,135 @@ async function 刪除資金記錄(id){
   載入中(false);
   if(!res.ok){提示('刪除失敗：'+(res.error||JSON.stringify(res)));return;}
   渲染資金管理();提示('✓ 已刪除');
+}
+
+// ===== 原物料管理 =====
+async function 渲染原物料管理(){
+  const el=document.getElementById('page-原物料管理');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">原物料管理</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  const res=await 呼叫API({action:'getMaterials'});
+  const mats=res.data||[];
+  window._materials=mats;
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">原物料管理</span></div>
+  <div class="btn-row" style="margin-bottom:1rem">
+    <button class="btn btn-hq" onclick="顯示原物料表單()">＋ 新增原物料</button>
+    <input type="text" id="mat-search" placeholder="搜尋名稱 / 貨號 / 供應商" oninput="篩選原物料()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px;width:220px">
+  </div>
+  <div id="mat-form-wrap"></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="table-wrap">
+      <table id="mat-table">
+        <thead><tr>
+          <th>貨號</th><th>供應商</th><th>材料名稱</th><th>進價（未稅）</th>
+          <th>規格</th><th>單位</th><th>得率%</th><th>得率單價</th><th>備註</th><th></th>
+        </tr></thead>
+        <tbody id="mat-tbody"></tbody>
+      </table>
+    </div>
+  </div>`;
+  渲染原物料列表(mats);
+}
+
+function 渲染原物料列表(mats){
+  const tbody=document.getElementById('mat-tbody');
+  if(!tbody)return;
+  if(!mats.length){tbody.innerHTML=`<tr><td colspan="10" style="text-align:center;color:#aaa;padding:2rem">尚無原物料資料，請點「新增原物料」</td></tr>`;return;}
+  tbody.innerHTML=mats.map(m=>{
+    const unitCost=m.spec&&m.yieldRate?(m.price/m.spec/(m.yieldRate/100)):0;
+    return`<tr id="mat-row-${m.id}">
+      <td style="font-size:12px;color:#888">${m.code||'—'}</td>
+      <td>${m.supplier||'—'}</td>
+      <td style="font-weight:600">${m.name}</td>
+      <td>$${格式化金額(m.price)}</td>
+      <td>${格式化金額(m.spec)} ${m.unit||''}</td>
+      <td>${m.unit||'—'}</td>
+      <td>${m.yieldRate||100}%</td>
+      <td style="font-weight:600;color:#27ae60">$${unitCost.toFixed(4)}</td>
+      <td style="font-size:12px;color:#888;max-width:160px">${m.note||'—'}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-outline" onclick="顯示原物料表單(${JSON.stringify(m).replace(/"/g,'&quot;')})">編輯</button>
+          <button class="btn btn-sm btn-danger" onclick="刪除原物料('${m.id}')">刪除</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function 篩選原物料(){
+  const q=(document.getElementById('mat-search')?.value||'').toLowerCase();
+  const mats=(window._materials||[]).filter(m=>
+    !q||m.name?.toLowerCase().includes(q)||m.code?.toLowerCase().includes(q)||m.supplier?.toLowerCase().includes(q)
+  );
+  渲染原物料列表(mats);
+}
+
+function 顯示原物料表單(m={}){
+  const wrap=document.getElementById('mat-form-wrap');
+  if(!wrap)return;
+  const isEdit=!!m.id;
+  wrap.innerHTML=`<div class="card" style="border:1px solid #c8a96e;margin-bottom:1rem">
+    <div class="card-title-lg" style="margin-bottom:14px">${isEdit?'✏️ 編輯原物料':'＋ 新增原物料'}</div>
+    <div class="g4" style="gap:10px;margin-bottom:12px">
+      <div class="field"><label>貨號</label><input type="text" id="mf-code" value="${m.code||''}" placeholder="E0001" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>供應商</label><input type="text" id="mf-supplier" value="${m.supplier||''}" placeholder="鳳農" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field full"><label>材料名稱 <span style="color:#c0392b">*</span></label><input type="text" id="mf-name" value="${m.name||''}" placeholder="雞油" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>進價（未稅）</label><input type="number" id="mf-price" value="${m.price||''}" placeholder="100" oninput="預覽得率單價()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>規格數量</label><input type="number" id="mf-spec" value="${m.spec||''}" placeholder="3000" oninput="預覽得率單價()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>單位</label><select id="mf-unit" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+        ${['g','kg','ml','L','份','包','桶','罐','斤','隻','公克','公升'].map(u=>`<option${m.unit===u?' selected':''}>${u}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>得率%</label><input type="number" id="mf-yield" value="${m.yieldRate||100}" min="1" max="200" oninput="預覽得率單價()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field" style="display:flex;align-items:flex-end"><div style="width:100%;padding:7px 10px;background:#f0fff4;border:1px solid #a8e6b8;border-radius:6px;font-size:13px">得率單價：<strong id="mf-preview" style="color:#27ae60">—</strong></div></div>
+      <div class="field full"><label>備註</label><input type="text" id="mf-note" value="${m.note||''}" placeholder="例：一箱/6包" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-hq" onclick="儲存原物料('${m.id||''}')">儲存</button>
+      <button class="btn btn-outline" onclick="document.getElementById('mat-form-wrap').innerHTML=''">取消</button>
+    </div>
+  </div>`;
+  預覽得率單價();
+}
+
+function 預覽得率單價(){
+  const price=+document.getElementById('mf-price')?.value||0;
+  const spec=+document.getElementById('mf-spec')?.value||0;
+  const yld=+document.getElementById('mf-yield')?.value||100;
+  const el=document.getElementById('mf-preview');
+  if(!el)return;
+  el.textContent=price&&spec?'$'+(price/spec/(yld/100)).toFixed(4)+' / '+document.getElementById('mf-unit')?.value:'—';
+}
+
+async function 儲存原物料(id){
+  const name=document.getElementById('mf-name')?.value?.trim();
+  if(!name){提示('請填寫材料名稱');return;}
+  const record={
+    id:id||undefined,
+    code:document.getElementById('mf-code')?.value?.trim(),
+    supplier:document.getElementById('mf-supplier')?.value?.trim(),
+    name,
+    price:+document.getElementById('mf-price')?.value||0,
+    spec:+document.getElementById('mf-spec')?.value||0,
+    unit:document.getElementById('mf-unit')?.value,
+    yieldRate:+document.getElementById('mf-yield')?.value||100,
+    note:document.getElementById('mf-note')?.value?.trim()
+  };
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'saveMaterial',record});
+  載入中(false);
+  if(!res.ok){提示('儲存失敗：'+(res.error||''));return;}
+  提示('✓ 已儲存');
+  渲染原物料管理();
+}
+
+async function 刪除原物料(id){
+  if(!confirm('確定刪除這筆原物料？'))return;
+  載入中(true);
+  await 呼叫API({action:'deleteMaterial',id});
+  載入中(false);
+  提示('已刪除');
+  渲染原物料管理();
 }
 
 // ===== 批次上傳結帳單 =====
