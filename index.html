@@ -1175,7 +1175,8 @@ function 建立月報HTML(recs,s,pl,allRecs=[]){
   const aov=tGuests?tRev/tGuests:0,productivity=tHours?tRev/tHours:0;
   const foodRate=tRev?tFood/tRev*100:0,laborRate=tRev?laborTotal/tRev*100:0;
   const rentRate=tRev?(s.rent||0)/tRev*100:0,profitRate=tRev?netProfit/tRev*100:0;
-  const fRate=foodRate||32,breakeven=tCost/(1-fRate/100),progress=Math.min(tRev/breakeven*100,100);
+  const varCost=tFood+tPack+tMeal+tGas+tMisc+tPFee,varRate=tRev?varCost/tRev:0.4;
+  const fixCost=fxC+laborTotal,breakeven=varRate<1?fixCost/(1-varRate):0,progress=Math.min(breakeven?tRev/breakeven*100:0,100);
   const flr=[
     {code:'F',name:'食材成本率',val:foodRate,ok:'30%~35%',warn:'> 38%',good:foodRate<=35,danger:foodRate>38},
     {code:'L',name:'人事成本率',val:laborRate,ok:'20%~25%',warn:'> 30%',good:laborRate<=25,danger:laborRate>30},
