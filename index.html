@@ -1165,20 +1165,44 @@ async function 管理員工資料(br){
 }
 
 function 顯示新增員工資料(br,p={}){
+  const t=(k,label,ph='',type='text')=>`<div class="field"><label>${label}</label><input type="${type}" id="sf-${br}-${k}" value="${p[k]||''}" placeholder="${ph}"></div>`;
   document.getElementById(`staffform-${br}`).innerHTML=`
   <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee">
-    <div style="font-size:12px;font-weight:600;color:#999;margin-bottom:8px">${p.id?'編輯員工':'新增員工'}</div>
+    <div style="font-size:12px;font-weight:600;color:#999;margin-bottom:12px">${p.id?'編輯員工資料':'新增員工資料'}</div>
+    <div style="font-size:11px;font-weight:600;color:#aaa;margin:8px 0 6px;text-transform:uppercase">個人資料</div>
     <div class="g3">
-      <div class="field"><label>姓名</label><input type="text" id="sf-${br}-name" value="${p.name||''}" placeholder="王秀珍"></div>
+      ${t('name','姓名','王秀珍')}
+      ${t('id_no','身份證字號','A123456789')}
+      ${t('join_date','到職年月日','2026-01-01','date')}
+      ${t('birth_date','出生年月日','2000-01-01','date')}
+      <div class="field full">${t('address','通訊地址','台北市...')}</div>
+      ${t('phone','聯絡電話','02-1234-5678')}
+      ${t('mobile','手機','0912-345-678')}
+      ${t('email','電子郵件','example@mail.com','email')}
+      ${t('edu','最高學歷','高中/大學/碩士')}
+      ${t('school','學校','')}
+      ${t('major','科系','')}
+    </div>
+    <div style="font-size:11px;font-weight:600;color:#aaa;margin:12px 0 6px;text-transform:uppercase">緊急聯絡人</div>
+    <div class="g3">
+      ${t('emergency_name','緊急聯絡人','')}
+      ${t('emergency_rel','關係','父/母/配偶')}
+      ${t('emergency_phone','電話','')}
+      <div class="field full">${t('emergency_addr','緊急聯絡人通訊地址','')}</div>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:#aaa;margin:12px 0 6px;text-transform:uppercase">部門與薪資</div>
+    <div class="g3">
       <div class="field"><label>職位</label><select id="sf-${br}-role">
         ${['正職','PT 兼職','CEO','主管'].map(r=>`<option${p.role===r?' selected':''}>${r}</option>`).join('')}
       </select></div>
-      <div class="field"><label>底薪</label><input type="number" id="sf-${br}-base" value="${p.base||''}" placeholder="29500"></div>
-      <div class="field"><label>勞健保自付（扣除）</label><input type="number" id="sf-${br}-nhi_emp" value="${p.nhi_emp||''}" placeholder="1196"></div>
-      <div class="field"><label>公司負擔勞健退</label><input type="number" id="sf-${br}-nhi_co" value="${p.nhi_co||''}" placeholder="5842"></div>
-      <div class="field"><label>備註</label><input type="text" id="sf-${br}-note" value="${p.note||''}" placeholder=""></div>
+      ${t('title','職稱','店長/廚師...')}
+      ${t('labor_date','勞保投保日期','','date')}
+      ${t('base','底薪（約定薪資）','29500','number')}
+      ${t('nhi_emp','勞健保自付（扣除）','1196','number')}
+      ${t('nhi_co','公司負擔勞健退','5842','number')}
+      <div class="field full">${t('note','備註','')}</div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:.5rem">
+    <div style="display:flex;gap:8px;margin-top:1rem">
       <button class="btn btn-${br}" onclick="儲存員工資料('${br}','${p.id||''}')">儲存</button>
       <button class="btn btn-outline" onclick="document.getElementById('staffform-${br}').innerHTML=''">取消</button>
     </div>
@@ -1189,7 +1213,15 @@ function 編輯員工資料(br,p){document.getElementById(`staffform-${br}`).inn
 
 async function 儲存員工資料(br,id=''){
   const g=k=>document.getElementById(`sf-${br}-${k}`)?.value||'';
-  const profile={brand:br,name:g('name'),role:g('role'),base:+g('base')||0,nhi_emp:+g('nhi_emp')||0,nhi_co:+g('nhi_co')||0,note:g('note'),active:true};
+  const profile={
+    brand:br,name:g('name'),id_no:g('id_no'),join_date:g('join_date'),birth_date:g('birth_date'),
+    address:g('address'),phone:g('phone'),mobile:g('mobile'),email:g('email'),
+    edu:g('edu'),school:g('school'),major:g('major'),
+    emergency_name:g('emergency_name'),emergency_rel:g('emergency_rel'),emergency_phone:g('emergency_phone'),emergency_addr:g('emergency_addr'),
+    role:g('role'),title:g('title'),labor_date:g('labor_date'),
+    base:+g('base')||0,nhi_emp:+g('nhi_emp')||0,nhi_co:+g('nhi_co')||0,
+    note:g('note'),active:true
+  };
   if(id)profile.id=id;
   if(!profile.name){提示('請輸入姓名');return}
   載入中(true,'儲存中...');
