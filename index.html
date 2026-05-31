@@ -233,6 +233,11 @@ let 品牌設定 = {
 let claudeApiKey = '';
 
 function 格式化金額(v){return Math.round(v||0).toLocaleString('zh-TW')}
+function 取應交現金(r){
+  // 若有存 handover 且不為 0 就用存的，否則即時計算
+  if(r.handover&&+r.handover!==0)return+r.handover;
+  return(+r.cash||0)-(+r.market||0)-(+r.pack||0)-(+r.meal||0)-(+r.gas||0);
+}
 function 格式化日期(d){
   if(!d)return '';
   if(d.includes('T')){const dt=new Date(d);return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;}
@@ -926,10 +931,10 @@ function 顯示快速補填(br,recs){
       <thead><tr><th>日期</th><th>系統應交</th><th>員工上繳（填入）</th><th>差異</th></tr></thead>
       <tbody>${sorted.map(r=>`<tr>
         <td>${格式化日期(r.date)}</td>
-        <td>$${格式化金額(+r.handover||0)}</td>
+        <td>$${格式化金額(取應交現金(r))}</td>
         <td><input type="number" value="${r.handover_actual||''}" placeholder="0"
           id="qf-${r.id}" style="width:110px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"
-          oninput="更新補填差異('${r.id}',${+r.handover||0},this.value)">
+          oninput="更新補填差異('${r.id}',${取應交現金(r)},this.value)">
         </td>
         <td id="qfdiff-${r.id}" style="font-weight:600;color:#aaa">—</td>
       </tr>`).join('')}</tbody>
@@ -972,7 +977,7 @@ function 查看詳細(r){
   document.getElementById('detail-title').textContent=格式化日期(r.date)+' 詳細記錄';
   const photo=r.photo||sessionStorage.getItem(`receipt-${r.brand}-${r.date}`)||'';
   const so=+r.cash_short_over||0;
-  const handover=r.handover!=null?+r.handover:(+r.cash||0)-(+r.market||0);
+  const handover=取應交現金(r);
   const rows=(label,val)=>`<div class="detail-row"><span style="color:#888">${label}</span><span style="font-weight:500">${val}</span></div>`;
   document.getElementById('detail-content').innerHTML=`
     ${photo?`<img src="data:image/jpeg;base64,${photo}" style="width:100%;border-radius:10px;margin-bottom:1rem;cursor:pointer" onclick="this.style.transform=this.style.transform?'':'scale(1.4)';this.style.transition='0.2s'">`:'<div style="text-align:center;color:#aaa;padding:1rem;background:#fff;border-radius:10px;margin-bottom:1rem">無上傳照片</div>'}
@@ -1228,7 +1233,7 @@ function 建立月報HTML(recs,s,pl){
           const wRecs=weeks[key];
           const endDate=new Date(key);endDate.setDate(endDate.getDate()+6);
           const period=`${key.slice(5)} ~ ${endDate.toISOString().slice(5,10)}`;
-          const sysTotal=wRecs.reduce((a,r)=>a+(+r.handover||0),0);
+          const sysTotal=wRecs.reduce((a,r)=>a+取應交現金(r),0);
           const actTotal=wRecs.reduce((a,r)=>a+(+r.handover_actual||0),0);
           const hasActual=wRecs.some(r=>r.handover_actual);
           const diff=actTotal-sysTotal;
@@ -1244,7 +1249,7 @@ function 建立月報HTML(recs,s,pl){
         }).join('')}</tbody>
         <tfoot><tr style="font-weight:600;background:#f8f8f8">
           <td>合計</td><td>${recs.length}天</td>
-          <td>$${格式化金額(recs.reduce((a,r)=>a+(+r.handover||0),0))}</td>
+          <td>$${格式化金額(recs.reduce((a,r)=>a+取應交現金(r),0))}</td>
           <td>$${格式化金額(recs.reduce((a,r)=>a+(+r.handover_actual||0),0))}</td>
           <td colspan="2"></td>
         </tr></tfoot>
@@ -1255,7 +1260,7 @@ function 建立月報HTML(recs,s,pl){
     <thead><tr><th>日期</th><th>天氣</th><th>來客數</th><th>客單價</th><th>總營收</th><th>食材率</th><th>應交現金</th><th>員工上繳</th></tr></thead>
     <tbody>${recs.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(r=>{
       const fr=+r.total?(+r.food_cost||0)/(+r.total)*100:0;
-      const handover=+r.handover||0;
+      const handover=取應交現金(r);
       const actual=+r.handover_actual||0;
       const diff=actual-handover;
       return`<tr><td>${格式化日期(r.date)}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
