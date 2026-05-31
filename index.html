@@ -464,6 +464,7 @@ function 渲染每日表單(br){
     <div class="g3">
       <div class="field"><label>LINE Pay 費率 %</label><input type="number" id="d${br}-lprate" value="${s.lp_rate||3}" step="0.1" oninput="計算表單('${br}')"></div>
       <div class="field"><label>Uber Eats 費率 %</label><input type="number" id="d${br}-uberrate" value="${s.uber_rate||31}" step="0.1" oninput="計算表單('${br}')"></div>
+      ${br==='b'?`<div class="field"><label>熊貓費率 %</label><input type="number" id="d${br}-pandarate" value="${s.panda_rate||30}" step="0.1" oninput="計算表單('${br}')"></div>`:''}
       <div class="field" style="background:#fef9e7;border-radius:8px;padding:8px 10px;justify-content:center">
         <label>平台費合計</label>
         <div id="d${br}-pfee" style="font-size:18px;font-weight:600;color:#c8a96e">$0</div>
@@ -528,8 +529,8 @@ function 處理檔案(br,file){
 function 計算表單(br){
   const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`),panda=數值(`d${br}-panda`);
   const total=cash+lp+tw+uber+panda,guests=數值(`d${br}-guests`);
-  const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100;
-  const pFee=lp*lpRate+uber*uberRate;
+  const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100,pandaRate=數值(`d${br}-pandarate`)/100;
+  const pFee=lp*lpRate+uber*uberRate+panda*pandaRate;
   const market=數值(`d${br}-market`),pack=數值(`d${br}-pack`),meal=數值(`d${br}-meal`),gas=數值(`d${br}-gas`);
   const totalExpense=market+pack+meal+gas;
   const reserve=數值(`d${br}-reserve`);
@@ -599,8 +600,8 @@ async function 儲存每日記錄(br){
   const date=文字(`d${br}-date`);if(!date){提示('請選擇日期');return}
   const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`),panda=數值(`d${br}-panda`);
   const total=cash+lp+tw+uber+panda;
-  const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100;
-  const pFee=lp*lpRate+uber*uberRate;
+  const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100,pandaRate=數值(`d${br}-pandarate`)/100;
+  const pFee=lp*lpRate+uber*uberRate+panda*pandaRate;
   const market=數值(`d${br}-market`),central=數值(`d${br}-central`),pack=數值(`d${br}-pack`);
   const meal=數值(`d${br}-meal`),gas=數值(`d${br}-gas`);
   const totalExpense=market+pack+meal+gas;
@@ -615,7 +616,7 @@ async function 儲存每日記錄(br){
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveRecord',record:{
     brand:br,date,weather:文字(`d${br}-weather`),hours:數值(`d${br}-hours`),guests:數值(`d${br}-guests`),
-    cash,lp,tw,uber,panda,total,lp_rate:數值(`d${br}-lprate`),uber_rate:數值(`d${br}-uberrate`),p_fee:pFee,
+    cash,lp,tw,uber,panda,total,lp_rate:數值(`d${br}-lprate`),uber_rate:數值(`d${br}-uberrate`),panda_rate:數值(`d${br}-pandarate`),p_fee:pFee,
     market,central,pack,food_cost:market+central,meal,gas,misc:數值(`d${br}-misc`),
     cash_should:cashShould,cash_actual:cashActual,cash_short_over:cashActual-cashShould,
     void_amt:數值(`d${br}-void`),tx_items:數值(`d${br}-txItems`),
