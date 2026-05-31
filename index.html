@@ -233,7 +233,11 @@ let 品牌設定 = {
 let claudeApiKey = '';
 
 function 格式化金額(v){return Math.round(v||0).toLocaleString('zh-TW')}
-function 格式化日期(d){return d?d.slice(0,10):''}
+function 格式化日期(d){
+  if(!d)return '';
+  if(d.includes('T')){const dt=new Date(d);return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;}
+  return d.slice(0,10);
+}
 function 今日日期(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function 百分比(v,t){return t?((v/t)*100).toFixed(1)+'%':'—'}
 function 數值(id){return parseFloat(document.getElementById(id)?.value)||0}
