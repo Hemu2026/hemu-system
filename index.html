@@ -1736,8 +1736,10 @@ async function 載入薪資(br){
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         <button class="btn btn-outline btn-sm" onclick="列印單人薪資條('${br}','${month}','${e.id}')">列印薪資條</button>
+        <button class="btn btn-${br} btn-sm" onclick="展開編輯薪資('${br}','${e.id}')">編輯</button>
         <button class="btn btn-danger btn-sm" onclick="刪除員工('${e.id}','${br}')">刪除</button>
       </div>
+      <div id="edit-pay-${e.id}" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f0"></div>
     </div>`}).join('');
   const tNet=emps.reduce((a,e)=>a+((+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0)),0);
   const tNhiCo=emps.reduce((a,e)=>a+(+e.nhi_co||0),0);
@@ -1753,6 +1755,47 @@ async function 刪除員工(id,br){
   if(!confirm('確定要刪除這筆薪資記錄嗎？'))return;
   載入中(true);await 呼叫API({action:'deletePayroll',id});載入中(false);
   載入薪資(br);提示('已刪除');
+}
+
+function 展開編輯薪資(br,id){
+  const el=document.getElementById(`edit-pay-${id}`);
+  if(!el)return;
+  if(el.style.display!=='none'){el.style.display='none';return;}
+  const emps=(window[`_emps_${br}`]?.emps)||[];
+  const e=emps.find(x=>String(x.id)===String(id));
+  if(!e)return;
+  el.style.display='block';
+  el.innerHTML=`<div class="g4" style="gap:8px;margin-bottom:10px">
+    <div class="field"><label style="font-size:11px">本薪</label><input type="number" id="ep-${id}-base" value="${e.base||0}" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+    <div class="field"><label style="font-size:11px">加班費</label><input type="number" id="ep-${id}-ot" value="${e.overtime||0}" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+    <div class="field"><label style="font-size:11px">獎金</label><input type="number" id="ep-${id}-bonus" value="${e.bonus||0}" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+    <div class="field"><label style="font-size:11px">缺勤扣款</label><input type="number" id="ep-${id}-absent" value="${e.absent||0}" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+    <div class="field"><label style="font-size:11px">勞健保自付</label><input type="number" id="ep-${id}-nhi_emp" value="${e.nhi_emp||0}" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+    <div class="field"><label style="font-size:11px">勞健退（公司）</label><input type="number" id="ep-${id}-nhi_co" value="${e.nhi_co||0}" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+    <div class="field" style="grid-column:1/-1"><label style="font-size:11px">備註</label><input type="text" id="ep-${id}-note" value="${e.note||''}" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-${br} btn-sm" onclick="儲存編輯薪資('${br}','${id}')">儲存</button>
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('edit-pay-${id}').style.display='none'">取消</button>
+  </div>`;
+}
+
+async function 儲存編輯薪資(br,id){
+  const g=k=>+document.getElementById(`ep-${id}-${k}`)?.value||0;
+  const note=document.getElementById(`ep-${id}-note`)?.value||'';
+  const emps=(window[`_emps_${br}`]?.emps)||[];
+  const e=emps.find(x=>String(x.id)===String(id));
+  if(!e)return;
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'savePayroll',record:{
+    id,brand:br,month:window[`_emps_${br}`]?.month,
+    employee_name:e.employee_name,role:e.role,
+    base:g('base'),overtime:g('ot'),bonus:g('bonus'),
+    absent:g('absent'),nhi_emp:g('nhi_emp'),nhi_co:g('nhi_co'),note
+  }});
+  載入中(false);
+  if(!res.ok){提示('儲存失敗：'+(res.error||''));return;}
+  提示('✓ 已更新');載入薪資(br);
 }
 
 function 建立薪資條(e,ym,品牌,isCompanyCopy){
