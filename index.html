@@ -43,6 +43,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .page-title{font-size:20px;font-weight:600}
 .card{background:#fff;border:1px solid #e5e5df;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
 .card-title{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px}
+.card-title-lg{font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:16px;letter-spacing:.01em}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
@@ -1191,12 +1192,12 @@ function 建立月報HTML(recs,s,pl){
     <div class="metric amber"><div class="metric-label">人事費用合計</div><div class="metric-value">$${格式化金額(laborTotal)}</div></div>
   </div>
   <div class="g2">
-    <div class="card"><div class="card-title">收入結構</div>
+    <div class="card"><div class="card-title-lg">📊 收入結構</div>
       ${[['現金收入',tCash],['LINE Pay',tLP],['台灣 PAY',tTW],['Uber Eats（門市）',tUber]].map(([l,v])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
       <div class="sum-row"><span class="sum-label">平台手續費（支出）</span><span style="color:#c0392b">-$${格式化金額(tPFee)}</span></div>
       <div class="sum-row"><span>實收淨額</span><span>$${格式化金額(tRev-tPFee)}</span></div>
     </div>
-    <div class="card"><div class="card-title">FLR 成本率燈號</div>
+    <div class="card"><div class="card-title-lg">🚦 FLR 成本率燈號</div>
       ${flr.map(f=>`<div class="light-row">
         <div><div style="font-size:12px;font-weight:600;color:#888">${f.code} ${f.name}</div>
         <div style="font-size:11px;color:#bbb">目標 ${f.ok} ／ 警戒 ${f.warn}</div></div>
@@ -1207,7 +1208,7 @@ function 建立月報HTML(recs,s,pl){
       </div>`).join('')}
     </div>
   </div>
-  <div class="card"><div class="card-title">損益總結</div>
+  <div class="card"><div class="card-title-lg">💹 損益總結</div>
     ${[['月營收',tRev,false],['食材進貨',tFood,true],['包材／餐具',tPack,true],['員工餐費',tMeal,true],['瓦斯',tGas,true],['平台手續費',tPFee,true],['其他當日雜支',tMisc,true],['薪資實發合計',pl.salary,true],['勞健退（公司負擔）',pl.nhi_co,true],['房租',s.rent||0,true],['其他固定費用',(s.platform||0)+(s.pos||0)+(s.phone||0)+(s.ads||0)+(s.other||0),true]]
       .map(([l,v,isE])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>${isE?'-':''}$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
     <div class="sum-row"><span>月淨利</span><span style="color:${netProfit>=0?'#27ae60':'#c0392b'}">${netProfit>=0?'+':'-'}$${格式化金額(Math.abs(netProfit))} (${profitRate.toFixed(1)}%)</span></div>
@@ -1217,7 +1218,7 @@ function 建立月報HTML(recs,s,pl){
       <div class="progress-label"><span>$0</span><span>${progress.toFixed(0)}%</span><span>損益兩平</span></div>
     </div>
   </div>
-  <div class="card"><div class="card-title">📅 週結算核對</div>
+  <div class="card"><div class="card-title-lg">📅 週結算核對</div>
     ${(()=>{
       const ym=recs[0]?.date?.slice(0,7)||格式化日期(recs[0]?.date)?.slice(0,7)||'';
       const sorted=recs.slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -1272,7 +1273,7 @@ function 建立月報HTML(recs,s,pl){
       </table></div>`;
     })()}
   </div>
-  <div class="card"><div class="card-title">每日明細</div><div class="table-wrap"><table>
+  <div class="card"><div class="card-title-lg">📋 每日明細</div><div class="table-wrap"><table>
     <thead><tr><th>日期</th><th>天氣</th><th>來客數</th><th>客單價</th><th>總營收</th><th>食材率</th><th>應交現金</th><th>員工上繳</th></tr></thead>
     <tbody>${recs.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(r=>{
       const fr=+r.total?(+r.food_cost||0)/(+r.total)*100:0;
