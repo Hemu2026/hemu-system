@@ -928,7 +928,7 @@ function 直接編輯(r){
 }
 function 編輯記錄(r){
   const f=(id,label,val,type='number')=>`<div class="field"><label>${label}</label><input type="${type}" id="edit-${id}" value="${val||''}" placeholder="0"></div>`;
-  const dateVal=(r.date||'').slice(0,10);
+  const dateVal=格式化日期(r.date);
   document.getElementById('detail-content').innerHTML=`
   <div class="g2">
     <div class="field"><label>日期</label><input type="date" id="edit-date" value="${dateVal}"></div>
