@@ -404,6 +404,17 @@ function 切換頁面(page){
   if(el)el.classList.add('active');
   document.querySelectorAll(`.nav-item[data-page="${page}"]`).forEach(el=>el.classList.add('active'));
   const br=page.split('-').pop();
+  // 依品牌切換背景色
+  const main=document.querySelector('.main');
+  if(main){
+    if(br==='a'||page.includes('-a')||page.startsWith('每日-a')||page.startsWith('歷史-a')||page.startsWith('月報-a')||page.startsWith('薪資-a')){
+      main.style.background='#f5ede0'; // 林家：奶茶色
+    } else if(br==='b'||page.includes('-b')||page.startsWith('每日-b')||page.startsWith('歷史-b')||page.startsWith('月報-b')||page.startsWith('薪資-b')){
+      main.style.background='#e8ede6'; // 木谷：橄欖綠
+    } else {
+      main.style.background='#f2f1ed'; // 總部/其他：原色
+    }
+  }
   if(page.startsWith('上傳-'))渲染上傳頁(br);
   else if(page.startsWith('確認-'))渲染確認頁(br);
   else if(page.startsWith('每日-'))渲染每日表單(br);
