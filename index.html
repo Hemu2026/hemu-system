@@ -981,18 +981,18 @@ function 查看詳細(r){
   const rows=(label,val)=>`<div class="detail-row"><span style="color:#888">${label}</span><span style="font-weight:500">${val}</span></div>`;
   document.getElementById('detail-content').innerHTML=`
     ${photo?`<img src="data:image/jpeg;base64,${photo}" style="width:100%;border-radius:10px;margin-bottom:1rem;cursor:pointer" onclick="this.style.transform=this.style.transform?'':'scale(1.4)';this.style.transition='0.2s'">`:'<div style="text-align:center;color:#aaa;padding:1rem;background:#fff;border-radius:10px;margin-bottom:1rem">無上傳照片</div>'}
-    <div style="background:#fff8f0;border:2px solid #e67e22;border-radius:10px;padding:1rem;margin-bottom:1rem">
-      <div style="font-size:11px;color:#e67e22;font-weight:600;margin-bottom:8px">💰 應交現金</div>
-      <div style="display:flex;gap:20px;flex-wrap:wrap">
+    <div style="background:#fff8f0;border:2px solid #e67e22;border-radius:12px;padding:1.25rem;margin-bottom:1rem;text-align:center">
+      <div style="font-size:12px;color:#e67e22;font-weight:600;margin-bottom:12px;letter-spacing:.05em">💰 應交現金</div>
+      <div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap">
         <div>
-          <div style="font-size:11px;color:#aaa">系統計算</div>
-          <div style="font-size:24px;font-weight:700;color:${handover<0?'#c0392b':'#e67e22'}">$${格式化金額(handover)}</div>
+          <div style="font-size:12px;color:#aaa;margin-bottom:4px">系統計算</div>
+          <div style="font-size:34px;font-weight:700;color:${handover<0?'#c0392b':'#e67e22'}">$${格式化金額(handover)}</div>
         </div>
         ${r.handover_actual?`<div>
-          <div style="font-size:11px;color:#aaa">員工上繳</div>
-          <div style="font-size:24px;font-weight:700;color:#27ae60">$${格式化金額(r.handover_actual)}</div>
-          <div style="font-size:12px;margin-top:2px;color:${Math.abs((+r.handover_actual)-handover)<=50?'#27ae60':'#c0392b'}">差異：${((+r.handover_actual)-handover)>=0?'+':''}${格式化金額((+r.handover_actual)-handover)}</div>
-        </div>`:'<div style="font-size:12px;color:#aaa;align-self:center">員工未填上繳金額</div>'}
+          <div style="font-size:12px;color:#aaa;margin-bottom:4px">員工上繳</div>
+          <div style="font-size:34px;font-weight:700;color:#27ae60">$${格式化金額(r.handover_actual)}</div>
+          <div style="font-size:13px;margin-top:6px;font-weight:600;color:${Math.abs((+r.handover_actual)-handover)<=50?'#27ae60':'#c0392b'}">差異：${((+r.handover_actual)-handover)>=0?'+':''}${格式化金額((+r.handover_actual)-handover)}</div>
+        </div>`:'<div style="font-size:13px;color:#bbb;align-self:center">員工未填上繳金額</div>'}
       </div>
     </div>
     <div class="detail-section">收入明細</div>
