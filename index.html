@@ -404,15 +404,26 @@ function 切換頁面(page){
   if(el)el.classList.add('active');
   document.querySelectorAll(`.nav-item[data-page="${page}"]`).forEach(el=>el.classList.add('active'));
   const br=page.split('-').pop();
-  // 依品牌切換背景色
+  // 依品牌切換背景色與側邊欄顏色
   const main=document.querySelector('.main');
+  const sidebar=document.querySelector('.sidebar');
+  const isBrA=br==='a';
+  const isBrB=br==='b';
   if(main){
-    if(br==='a'||page.includes('-a')||page.startsWith('每日-a')||page.startsWith('歷史-a')||page.startsWith('月報-a')||page.startsWith('薪資-a')){
-      main.style.background='#f5ede0'; // 林家：奶茶色
-    } else if(br==='b'||page.includes('-b')||page.startsWith('每日-b')||page.startsWith('歷史-b')||page.startsWith('月報-b')||page.startsWith('薪資-b')){
-      main.style.background='#e8ede6'; // 木谷：橄欖綠
+    if(isBrA){main.style.background='#f5ede0';}
+    else if(isBrB){main.style.background='#e8ede6';}
+    else{main.style.background='#f2f1ed';}
+  }
+  if(sidebar){
+    if(isBrA){
+      sidebar.style.background='#3d2b1f'; // 林家：深奶茶棕
+      sidebar.style.borderRight='3px solid #c8a96e';
+    } else if(isBrB){
+      sidebar.style.background='#2a3d2e'; // 木谷：深橄欖綠
+      sidebar.style.borderRight='3px solid #7bb5a0';
     } else {
-      main.style.background='#f2f1ed'; // 總部/其他：原色
+      sidebar.style.background='#111';
+      sidebar.style.borderRight='none';
     }
   }
   if(page.startsWith('上傳-'))渲染上傳頁(br);
