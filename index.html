@@ -1119,7 +1119,7 @@ function 建立月報HTML(recs,s,pl){
 // ===== 薪資 =====
 async function 渲染薪資頁(br){
   const el=document.getElementById(`page-薪資-${br}`);
-  const now=new Date().toISOString().slice(0,7);
+  const now=今日日期().slice(0,7);
   el.innerHTML=`
   <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">員工薪資管理</span></div>
   <div class="btn-row">
@@ -1127,6 +1127,7 @@ async function 渲染薪資頁(br){
       <option value="${now}">${now}</option>
     </select>
     <button class="btn btn-${br}" onclick="顯示新增員工('${br}')">＋ 新增員工薪資</button>
+    <button class="btn btn-outline" onclick="管理員工資料('${br}')">👤 員工資料管理</button>
     <button class="btn btn-outline" onclick="列印全員薪資條('${br}')">列印全員薪資條</button>
   </div>
   <div id="addEmp-${br}" style="display:none"></div>
@@ -1135,12 +1136,96 @@ async function 渲染薪資頁(br){
   載入薪資(br);
 }
 
+async function 管理員工資料(br){
+  const res=await 呼叫API({action:'getStaffProfiles',brand:br});
+  const profiles=res.data||[];
+  const el=document.getElementById(`addEmp-${br}`);
+  el.style.display='block';
+  el.innerHTML=`<div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>👤 員工資料管理</span>
+      <button class="btn btn-${br} btn-sm" onclick="顯示新增員工資料('${br}')">＋ 新增員工</button>
+    </div>
+    <div id="stafflist-${br}">
+    ${profiles.length===0?'<div style="color:#aaa;text-align:center;padding:1rem">尚無員工資料，請新增</div>':
+      profiles.map(p=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f0f0">
+        <div>
+          <div style="font-weight:600">${p.name} <span style="font-size:12px;color:#888;margin-left:6px">${p.role||''}</span></div>
+          <div style="font-size:12px;color:#888;margin-top:2px">底薪 $${格式化金額(p.base)} ／ 勞健保自付 $${格式化金額(p.nhi_emp)} ／ 公司負擔 $${格式化金額(p.nhi_co)}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-outline" onclick="編輯員工資料('${br}',${JSON.stringify(p).replace(/"/g,'&quot;')})">編輯</button>
+          <button class="btn btn-sm btn-danger" onclick="刪除員工資料('${br}','${p.id}')">刪除</button>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div id="staffform-${br}"></div>
+    <div style="margin-top:1rem"><button class="btn btn-outline" onclick="document.getElementById('addEmp-${br}').style.display='none'">關閉</button></div>
+  </div>`;
+}
+
+function 顯示新增員工資料(br,p={}){
+  document.getElementById(`staffform-${br}`).innerHTML=`
+  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee">
+    <div style="font-size:12px;font-weight:600;color:#999;margin-bottom:8px">${p.id?'編輯員工':'新增員工'}</div>
+    <div class="g3">
+      <div class="field"><label>姓名</label><input type="text" id="sf-${br}-name" value="${p.name||''}" placeholder="王秀珍"></div>
+      <div class="field"><label>職位</label><select id="sf-${br}-role">
+        ${['正職','PT 兼職','CEO','主管'].map(r=>`<option${p.role===r?' selected':''}>${r}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>底薪</label><input type="number" id="sf-${br}-base" value="${p.base||''}" placeholder="29500"></div>
+      <div class="field"><label>勞健保自付（扣除）</label><input type="number" id="sf-${br}-nhi_emp" value="${p.nhi_emp||''}" placeholder="1196"></div>
+      <div class="field"><label>公司負擔勞健退</label><input type="number" id="sf-${br}-nhi_co" value="${p.nhi_co||''}" placeholder="5842"></div>
+      <div class="field"><label>備註</label><input type="text" id="sf-${br}-note" value="${p.note||''}" placeholder=""></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:.5rem">
+      <button class="btn btn-${br}" onclick="儲存員工資料('${br}','${p.id||''}')">儲存</button>
+      <button class="btn btn-outline" onclick="document.getElementById('staffform-${br}').innerHTML=''">取消</button>
+    </div>
+  </div>`;
+}
+
+function 編輯員工資料(br,p){document.getElementById(`staffform-${br}`).innerHTML='';顯示新增員工資料(br,p);}
+
+async function 儲存員工資料(br,id=''){
+  const g=k=>document.getElementById(`sf-${br}-${k}`)?.value||'';
+  const profile={brand:br,name:g('name'),role:g('role'),base:+g('base')||0,nhi_emp:+g('nhi_emp')||0,nhi_co:+g('nhi_co')||0,note:g('note'),active:true};
+  if(id)profile.id=id;
+  if(!profile.name){提示('請輸入姓名');return}
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'saveStaffProfile',profile});
+  載入中(false);
+  if(!res.ok){提示('儲存失敗：'+res.error);return}
+  提示('✓ 已儲存');管理員工資料(br);
+}
+
+async function 刪除員工資料(br,id){
+  if(!confirm('確定要刪除這個員工資料嗎？'))return;
+  載入中(true);
+  await 呼叫API({action:'deleteStaffProfile',id});
+  載入中(false);
+  管理員工資料(br);提示('已刪除');
+}
+
 function 顯示新增員工(br){
   const el=document.getElementById(`addEmp-${br}`);
   el.style.display=el.style.display==='none'?'block':'none';
   if(el.style.display==='none'){el.innerHTML='';return}
+  載入員工選單(br);
+}
+
+async function 載入員工選單(br){
+  const res=await 呼叫API({action:'getStaffProfiles',brand:br});
+  const profiles=res.data||[];
+  const el=document.getElementById(`addEmp-${br}`);
   el.innerHTML=`<div class="card"><div class="card-title">新增員工薪資</div>
     <div class="g3">
+      <div class="field full"><label>選擇員工</label>
+        <select id="pn-${br}-staff" onchange="帶入員工資料('${br}',this.value,${JSON.stringify(profiles).replace(/"/g,'&quot;')})">
+          <option value="">— 選擇或手動輸入 —</option>
+          ${profiles.map(p=>`<option value="${p.id}">${p.name}（${p.role||''}）</option>`).join('')}
+        </select>
+      </div>
       <div class="field"><label>員工姓名</label><input type="text" id="pn-${br}-name" placeholder="王秀珍"></div>
       <div class="field"><label>職位</label><select id="pn-${br}-role"><option>正職</option><option>PT 兼職</option><option>CEO</option><option>主管</option></select></div>
       <div class="field"><label>本薪</label><input type="number" id="pn-${br}-base" placeholder="29500"></div>
@@ -1158,8 +1243,19 @@ function 顯示新增員工(br){
   </div>`;
 }
 
+function 帶入員工資料(br,id,profiles){
+  const p=profiles.find(x=>x.id===id||String(x.id)===String(id));
+  if(!p)return;
+  const s=k=>document.getElementById(`pn-${br}-${k}`);
+  if(s('name'))s('name').value=p.name||'';
+  if(s('role'))s('role').value=p.role||'正職';
+  if(s('base'))s('base').value=p.base||'';
+  if(s('nhi_emp'))s('nhi_emp').value=p.nhi_emp||'';
+  if(s('nhi_co'))s('nhi_co').value=p.nhi_co||'';
+}
+
 async function 新增員工(br){
-  const month=文字(`pmon-${br}`)||new Date().toISOString().slice(0,7);
+  const month=文字(`pmon-${br}`)||今日日期().slice(0,7);
   const name=文字(`pn-${br}-name`);if(!name){提示('請輸入員工姓名');return}
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'savePayroll',record:{
