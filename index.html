@@ -1162,10 +1162,10 @@ async function 渲染月報資料(br,ym){
     nhi_co:emps.reduce((a,e)=>a+(+e.nhi_co||0),0)
   };
   pl.total=pl.salary+pl.nhi_co;
-  document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,s,pl);
+  document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,s,pl,window[`_recs_${br}`]||[]);
 }
 
-function 建立月報HTML(recs,s,pl){
+function 建立月報HTML(recs,s,pl,allRecs=[]){
   if(!recs.length)return'<div style="color:#aaa;padding:1rem;text-align:center">該月尚無記錄</div>';
   const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
   const tRev=n('total'),tCash=n('cash'),tLP=n('lp'),tTW=n('tw'),tUber=n('uber'),tPFee=n('p_fee');
@@ -1273,6 +1273,90 @@ function 建立月報HTML(recs,s,pl){
       </table></div>`;
     })()}
   </div>
+  ${(()=>{
+    // 1. 趨勢分析（近6個月）
+    const monthMap={};
+    allRecs.forEach(r=>{const m=格式化日期(r.date).slice(0,7);if(!monthMap[m])monthMap[m]={rev:0,guests:0,days:0};monthMap[m].rev+=(+r.total||0);monthMap[m].guests+=(+r.guests||0);monthMap[m].days++;});
+    const months=Object.keys(monthMap).sort().slice(-6);
+    const maxRev=Math.max(...months.map(m=>monthMap[m].rev),1);
+    if(months.length<2)return'';
+    return`<div class="card"><div class="card-title-lg">📈 營收趨勢（近${months.length}個月）</div>
+      <div style="display:flex;align-items:flex-end;gap:8px;height:120px;padding:8px 0">
+        ${months.map(m=>{
+          const pct=(monthMap[m].rev/maxRev*100).toFixed(0);
+          const isCurrent=m===recs[0]?.date?.slice(0,7)||m===格式化日期(recs[0]?.date)?.slice(0,7);
+          return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="font-size:10px;color:#888">$${(monthMap[m].rev/1000).toFixed(0)}k</div>
+            <div style="width:100%;background:${isCurrent?'#c8a96e':'#ddd'};border-radius:4px 4px 0 0;height:${pct}%;min-height:4px;transition:.3s"></div>
+            <div style="font-size:10px;color:#888">${m.slice(5)}月</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
+        ${months.length>=2?`<div style="font-size:12px;color:#888">月增率：<span style="font-weight:600;color:${monthMap[months[months.length-1]].rev>=monthMap[months[months.length-2]].rev?'#27ae60':'#c0392b'}">${(((monthMap[months[months.length-1]].rev/monthMap[months[months.length-2]].rev)-1)*100).toFixed(1)}%</span></div>`:''}
+      </div>
+    </div>`;
+  })()}
+  <div class="g2">
+    ${(()=>{
+      // 2. 天氣影響分析
+      const wMap={};
+      recs.forEach(r=>{const w=r.weather||'未記錄';if(!wMap[w])wMap[w]={rev:0,guests:0,days:0};wMap[w].rev+=(+r.total||0);wMap[w].guests+=(+r.guests||0);wMap[w].days++;});
+      const wKeys=Object.keys(wMap).sort();
+      return`<div class="card"><div class="card-title-lg">🌤 天氣影響分析</div>
+        <table style="width:100%;font-size:13px"><thead><tr style="color:#999;font-size:11px"><th style="text-align:left;padding-bottom:8px">天氣</th><th style="text-align:right">天數</th><th style="text-align:right">平均來客</th><th style="text-align:right">平均營收</th></tr></thead>
+        <tbody>${wKeys.map(w=>`<tr>
+          <td style="padding:4px 0">${w}</td>
+          <td style="text-align:right">${wMap[w].days}天</td>
+          <td style="text-align:right">${wMap[w].days?Math.round(wMap[w].guests/wMap[w].days):0}人</td>
+          <td style="text-align:right">$${格式化金額(wMap[w].days?Math.round(wMap[w].rev/wMap[w].days):0)}</td>
+        </tr>`).join('')}</tbody></table>
+      </div>`;
+    })()}
+    ${(()=>{
+      // 3. 平台依賴度
+      const tUber2=n('uber'),tPanda=n('panda'),tRev2=n('total');
+      const deliveryRev=tUber2+tPanda;
+      const deliveryRate=tRev2?deliveryRev/tRev2*100:0;
+      const danger=deliveryRate>35;
+      const uberRate=tRev2?tUber2/tRev2*100:0;
+      const pandaRate=tRev2?tPanda/tRev2*100:0;
+      return`<div class="card"><div class="card-title-lg">🛵 平台依賴度</div>
+        <div style="font-size:30px;font-weight:700;color:${danger?'#c0392b':'#27ae60'};margin-bottom:4px">${deliveryRate.toFixed(1)}%</div>
+        <div style="font-size:12px;color:#888;margin-bottom:12px">外送佔總營收 ${danger?'⚠ 超過35%，注意抽成成本':' ✓ 健康範圍'}</div>
+        ${[['Uber Eats',uberRate,tUber2],['熊貓',pandaRate,tPanda]].filter(([,r])=>r>0).map(([l,r,v])=>`
+          <div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${l}</span><span>$${格式化金額(v)} (${r.toFixed(1)}%)</span></div>
+            <div style="background:#eee;border-radius:4px;height:6px"><div style="background:#7bb5a0;border-radius:4px;height:6px;width:${Math.min(r/50*100,100)}%"></div></div>
+          </div>`).join('')}
+      </div>`;
+    })()}
+  </div>
+  ${(()=>{
+    // 5. 食材損耗分析
+    const tFood2=n('food_cost'),tRev3=n('total');
+    const actualRate=tRev3?tFood2/tRev3*100:0;
+    const targetRate=32;
+    const excess=actualRate-targetRate;
+    const lossAmt=excess>0?tRev3*excess/100:0;
+    return`<div class="card"><div class="card-title-lg">🥩 食材成本分析</div>
+      <div class="g3">
+        <div style="text-align:center;padding:12px;background:#f8f8f8;border-radius:8px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">實際食材率</div>
+          <div style="font-size:26px;font-weight:700;color:${actualRate>38?'#c0392b':actualRate>35?'#e67e22':'#27ae60'}">${actualRate.toFixed(1)}%</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:#f8f8f8;border-radius:8px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">目標食材率</div>
+          <div style="font-size:26px;font-weight:700;color:#27ae60">${targetRate}%</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:${excess>0?'#fff0f0':'#f0fff4'};border-radius:8px;border:1px solid ${excess>0?'#fcc':'#a8e6b8'}">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">${excess>0?'估算損耗金額':'節省金額'}</div>
+          <div style="font-size:26px;font-weight:700;color:${excess>0?'#c0392b':'#27ae60'}">${excess>0?'-':'+'} $${格式化金額(Math.abs(lossAmt))}</div>
+        </div>
+      </div>
+      ${excess>0?`<div style="font-size:12px;color:#c0392b;margin-top:10px;padding:8px;background:#fff0f0;border-radius:6px">⚠ 食材率超標 ${excess.toFixed(1)}%，建議檢查進貨量、菜單定價或備料控管</div>`:'<div style="font-size:12px;color:#27ae60;margin-top:10px">✓ 食材成本控制良好</div>'}
+    </div>`;
+  })()}
   <div class="card"><div class="card-title-lg">📋 每日明細</div><div class="table-wrap"><table>
     <thead><tr><th>日期</th><th>天氣</th><th>來客數</th><th>客單價</th><th>總營收</th><th>食材率</th><th>應交現金</th><th>員工上繳</th></tr></thead>
     <tbody>${recs.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(r=>{
@@ -1287,7 +1371,148 @@ function 建立月報HTML(recs,s,pl){
         <td>$${格式化金額(handover)}</td>
         <td style="color:${!r.handover_actual?'#aaa':Math.abs(diff)<=50?'#27ae60':'#c0392b'}">${r.handover_actual?'$'+格式化金額(actual):'—'}</td>
       </tr>`;}).join('')}</tbody>
-  </table></div></div>`;
+  </table></div></div>
+  ${(()=>{
+    // A. Top 3 高峰日 / Bottom 3 低谷日
+    const sorted=[...recs].filter(r=>+r.total>0).sort((a,b)=>(+b.total||0)-(+a.total||0));
+    if(sorted.length<2)return'';
+    const top=sorted.slice(0,3),bot=sorted.slice(-3).reverse();
+    const row=(r,cls)=>`<tr>
+      <td>${格式化日期(r.date)}</td>
+      <td>${r.weather||'—'}</td>
+      <td style="text-align:right">${r.guests||0}人</td>
+      <td style="text-align:right;font-weight:600;color:${cls}">$${格式化金額(r.total)}</td>
+    </tr>`;
+    return`<div class="g2">
+      <div class="card"><div class="card-title-lg">🏆 本月 Top 3 高峰日</div>
+        <table style="width:100%;font-size:13px"><thead><tr style="color:#999;font-size:11px"><th style="text-align:left;padding-bottom:8px">日期</th><th style="text-align:left">天氣</th><th style="text-align:right">來客</th><th style="text-align:right">營收</th></tr></thead>
+        <tbody>${top.map(r=>row(r,'#27ae60')).join('')}</tbody></table>
+      </div>
+      <div class="card"><div class="card-title-lg">📉 本月 Bottom 3 低谷日</div>
+        <table style="width:100%;font-size:13px"><thead><tr style="color:#999;font-size:11px"><th style="text-align:left;padding-bottom:8px">日期</th><th style="text-align:left">天氣</th><th style="text-align:right">來客</th><th style="text-align:right">營收</th></tr></thead>
+        <tbody>${bot.map(r=>row(r,'#c0392b')).join('')}</tbody></table>
+      </div>
+    </div>`;
+  })()}
+  ${(()=>{
+    // B. 現金繳交合規率
+    const total=recs.length;
+    const filled=recs.filter(r=>r.handover_actual).length;
+    const onTime=recs.filter(r=>r.handover_actual&&Math.abs((+r.handover_actual||0)-取應交現金(r))<=50).length;
+    const abnormal=filled-onTime;
+    const fillRate=total?filled/total*100:0;
+    const okRate=filled?onTime/filled*100:0;
+    return`<div class="card"><div class="card-title-lg">💵 現金繳交合規率</div>
+      <div class="g3" style="margin-bottom:12px">
+        <div style="text-align:center;padding:12px;background:#f8f8f8;border-radius:8px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">已填天數</div>
+          <div style="font-size:26px;font-weight:700">${filled}<span style="font-size:13px;color:#aaa"> / ${total}</span></div>
+          <div style="font-size:11px;color:#888;margin-top:2px">填寫率 ${fillRate.toFixed(0)}%</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:${onTime===filled&&filled>0?'#f0fff4':'#f8f8f8'};border-radius:8px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">差異 ≤$50 天數</div>
+          <div style="font-size:26px;font-weight:700;color:${onTime===filled&&filled>0?'#27ae60':'#1a1a1a'}">${onTime}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">正確率 ${filled?okRate.toFixed(0):0}%</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:${abnormal>0?'#fff0f0':'#f8f8f8'};border-radius:8px;${abnormal>0?'border:1px solid #fcc':''}">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">異常天數</div>
+          <div style="font-size:26px;font-weight:700;color:${abnormal>0?'#c0392b':'#27ae60'}">${abnormal}</div>
+          <div style="font-size:11px;color:${abnormal>0?'#c0392b':'#aaa'};margin-top:2px">${abnormal>0?'需複查':'無異常'}</div>
+        </div>
+      </div>
+      ${filled<total?`<div style="font-size:12px;color:#e67e22;padding:8px;background:#fff8ec;border-radius:6px">⚠ 尚有 ${total-filled} 天未填上繳金額，請補齊後才能完整核對</div>`:'<div style="font-size:12px;color:#27ae60">✓ 本月所有天數均已填寫上繳金額</div>'}
+    </div>`;
+  })()}
+  ${(()=>{
+    // C. 營運穩定度（波動係數 CV）
+    const vals=recs.map(r=>+r.total||0).filter(v=>v>0);
+    if(vals.length<3)return'';
+    const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+    const std=Math.sqrt(vals.reduce((a,v)=>a+(v-avg)**2,0)/vals.length);
+    const cv=avg?std/avg*100:0;
+    const stable=cv<20,unstable=cv>35;
+    const maxV=Math.max(...vals),minV=Math.min(...vals);
+    const above=vals.filter(v=>v>avg).length;
+    return`<div class="card"><div class="card-title-lg">📊 營運穩定度</div>
+      <div class="g2">
+        <div>
+          <div style="font-size:11px;color:#888;margin-bottom:6px">日營收波動係數（CV）</div>
+          <div style="font-size:36px;font-weight:700;color:${unstable?'#c0392b':stable?'#27ae60':'#e67e22'}">${cv.toFixed(1)}<span style="font-size:16px">%</span></div>
+          <div style="font-size:12px;margin-top:6px;color:${unstable?'#c0392b':stable?'#27ae60':'#e67e22'}">${unstable?'⚠ 波動偏大，業績不穩定':stable?'✓ 穩定度高，每日表現一致':'▲ 尚可，留意低谷日原因'}</div>
+          <div style="font-size:11px;color:#aaa;margin-top:4px">目標 CV &lt; 20%</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;justify-content:center">
+          <div class="sum-row"><span style="color:#888">日均營收</span><span style="font-weight:600">$${格式化金額(Math.round(avg))}</span></div>
+          <div class="sum-row"><span style="color:#888">最高單日</span><span style="color:#27ae60;font-weight:600">$${格式化金額(maxV)}</span></div>
+          <div class="sum-row"><span style="color:#888">最低單日</span><span style="color:#c0392b;font-weight:600">$${格式化金額(minV)}</span></div>
+          <div class="sum-row"><span style="color:#888">超均值天數</span><span>${above} / ${vals.length} 天</span></div>
+        </div>
+      </div>
+    </div>`;
+  })()}
+  ${(()=>{
+    // D. 固定成本結構拆解
+    const items=[
+      ['房租',s.rent||0,'#c8a96e'],
+      ['平台月費',s.platform||0,'#7bb5a0'],
+      ['POS 系統',s.pos||0,'#9b8ec4'],
+      ['電話網路',s.phone||0,'#e8a87c'],
+      ['廣告費',s.ads||0,'#6db3d4'],
+      ['其他固定',s.other||0,'#aaa']
+    ].filter(([,v])=>v>0);
+    if(!items.length)return'';
+    const fixTotal=items.reduce((a,[,v])=>a+v,0);
+    return`<div class="card"><div class="card-title-lg">🏗 固定成本結構</div>
+      <div style="font-size:12px;color:#888;margin-bottom:12px">合計 <strong>$${格式化金額(fixTotal)}</strong> ／ 佔月營收 <strong style="color:${tRev&&fixTotal/tRev>0.3?'#c0392b':'#1a1a1a'}">${tRev?((fixTotal/tRev)*100).toFixed(1):0}%</strong></div>
+      ${items.map(([l,v,color])=>{
+        const pct=fixTotal?v/fixTotal*100:0;
+        return`<div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block"></span>${l}</span>
+            <span>$${格式化金額(v)} <span style="color:#aaa;font-size:11px">${pct.toFixed(1)}%</span></span>
+          </div>
+          <div style="background:#eee;border-radius:4px;height:6px"><div style="background:${color};border-radius:4px;height:6px;width:${Math.min(pct,100)}%"></div></div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  })()}
+  ${(()=>{
+    // E. 客單價趨勢（近6個月）
+    const aovMap={};
+    allRecs.forEach(r=>{
+      const m=格式化日期(r.date).slice(0,7);
+      if(!aovMap[m])aovMap[m]={rev:0,guests:0};
+      aovMap[m].rev+=(+r.total||0);
+      aovMap[m].guests+=(+r.guests||0);
+    });
+    const months=Object.keys(aovMap).sort().slice(-6);
+    if(months.length<2)return'';
+    const aovs=months.map(m=>aovMap[m].guests?Math.round(aovMap[m].rev/aovMap[m].guests):0);
+    const maxAov=Math.max(...aovs,1);
+    const lastTwo=aovs.slice(-2);
+    const aovChange=lastTwo[0]?((lastTwo[1]-lastTwo[0])/lastTwo[0]*100):0;
+    const curAov=aovs[aovs.length-1];
+    return`<div class="card"><div class="card-title-lg">🎯 客單價趨勢（近${months.length}個月）</div>
+      <div style="display:flex;align-items:flex-end;gap:8px;height:100px;padding:8px 0">
+        ${months.map((m,i)=>{
+          const pct=(aovs[i]/maxAov*100).toFixed(0);
+          const isCurrent=m===(recs[0]?.date?.slice(0,7)||格式化日期(recs[0]?.date)?.slice(0,7));
+          const ok=aovs[i]>=120;
+          return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="font-size:10px;color:#888">$${aovs[i]}</div>
+            <div style="width:100%;background:${isCurrent?(ok?'#27ae60':'#c0392b'):'#ddd'};border-radius:4px 4px 0 0;height:${pct}%;min-height:4px;transition:.3s"></div>
+            <div style="font-size:10px;color:#888">${m.slice(5)}月</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;align-items:center">
+        <div style="font-size:12px;color:#888">月增率：<span style="font-weight:600;color:${aovChange>=0?'#27ae60':'#c0392b'}">${aovChange>=0?'+':''}${aovChange.toFixed(1)}%</span></div>
+        <div style="font-size:12px;color:#888">本月客單：<span style="font-weight:600">$${curAov}</span></div>
+        <div style="font-size:12px;color:#888">目標：<span style="font-weight:600">$120</span></div>
+        ${curAov>=120?'<div style="font-size:12px;color:#27ae60;font-weight:600">✓ 達標</div>':'<div style="font-size:12px;color:#c0392b;font-weight:600">⚠ 未達目標</div>'}
+      </div>
+    </div>`;
+  })()}`;
 }
 
 // ===== 薪資 =====
