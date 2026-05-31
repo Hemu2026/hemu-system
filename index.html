@@ -1219,6 +1219,7 @@ function 建立月報HTML(recs,s,pl){
   </div>
   <div class="card"><div class="card-title">📅 週結算核對</div>
     ${(()=>{
+      const ym=recs[0]?.date?.slice(0,7)||格式化日期(recs[0]?.date)?.slice(0,7)||'';
       const sorted=recs.slice().sort((a,b)=>a.date.localeCompare(b.date));
       // 依週分組（週一為起始）
       const weeks={};
