@@ -138,7 +138,14 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
 .confirm-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f2f1ed;font-size:14px}
 .confirm-row:last-child{border-bottom:none}
 .confirm-label{color:#888}
-@media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:fixed;left:0;top:0;width:100%;padding:0;background:#fff}}
+@media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:fixed;left:0;top:0;width:100%;padding:0;background:#fff}
+.print-area>div{display:flex;flex-direction:column;height:100vh;justify-content:space-evenly}
+.print-area>div>.slip{flex:1;max-height:49vh;overflow:hidden;font-size:11.5px;padding:.75rem 1rem}
+.print-area>div>.slip .slip-table th,.print-area>div>.slip .slip-table td{padding:3px 6px}
+.print-area>div>.slip .slip-header{margin-bottom:8px;padding-bottom:6px}
+.print-area>div>.slip .slip-info{margin-bottom:8px}
+.print-area>div>.slip .slip-footer{margin-top:6px;padding-top:4px}
+.print-area>div>.slip .slip-sign{margin-top:6px}}
 .slip{border:1px solid #999;padding:1.25rem 1.5rem;font-size:13px;page-break-inside:avoid}
 .slip+.slip{border-top:2px dashed #bbb}
 .slip-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #ddd}
