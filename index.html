@@ -709,10 +709,18 @@ function 渲染上傳頁(br){
   </div>
   <div class="card" style="border:2px solid #e67e22">
     <div class="card-title" style="color:#e67e22">💰 應交現金</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
-      <div style="font-size:13px;color:#888">現金收入 − 貨款留存(7,000) − 找零留存(2,300)</div>
+    <div class="g2" style="align-items:flex-end;gap:16px">
+      <div>
+        <div style="font-size:13px;color:#888;margin-bottom:4px">現金收入 − 現場進貨</div>
+        <div id="u${br}-handover" style="font-size:28px;font-weight:700;color:#e67e22">$0</div>
+        <div style="font-size:11px;color:#aaa;margin-top:4px">系統計算</div>
+      </div>
+      <div class="field">
+        <label style="color:#e67e22;font-weight:600">實際上繳金額（必填）</label>
+        <input type="number" inputmode="decimal" id="u${br}-handover-actual" placeholder="請填入實際上繳金額" oninput="計算上傳('${br}')" style="font-size:20px;font-weight:700;border:2px solid #e67e22">
+        <div style="font-size:12px;margin-top:4px">差異：<span id="u${br}-handover-diff" style="font-weight:600;color:#aaa">—</span></div>
+      </div>
     </div>
-    <div id="u${br}-handover" style="font-size:28px;font-weight:700;color:#e67e22;margin-top:4px">$0</div>
   </div>
   <div class="card"><div class="card-title">現金核對</div>
     <div class="g2">
@@ -760,6 +768,9 @@ function 計算上傳(br){
   const handover=cash-market;
   const hoEl=document.getElementById(`u${br}-handover`);
   if(hoEl){hoEl.textContent='$'+格式化金額(handover);hoEl.style.color=handover<0?'#c0392b':'#e67e22';}
+  const actual=數值(`u${br}-handover-actual`);
+  const diffEl=document.getElementById(`u${br}-handover-diff`);
+  if(diffEl){if(actual){const d=actual-handover;diffEl.textContent=(d>=0?'+':'')+格式化金額(d);diffEl.style.color=Math.abs(d)<=50?'#27ae60':'#c0392b';}else{diffEl.textContent='—';diffEl.style.color='#aaa';}}
   const soEl=document.getElementById(`u${br}-shortover`);
   if(soEl&&cashShould&&cashActual){const so=cashActual-cashShould;soEl.textContent=(so>=0?'+':'')+格式化金額(so);soEl.style.color=so===0?'#27ae60':so>0?'#2980b9':'#c0392b';}
 }
@@ -833,7 +844,10 @@ async function 送出上傳(br){
     pack:數值(`u${br}-pack`),meal:數值(`u${br}-meal`),
     gas:數值(`u${br}-gas`),misc:數值(`u${br}-misc`),
     note:文字(`u${br}-note`),uploaded_by:目前使用者?.email,
-    handover:cash-數值(`u${br}-market`),photo:photoData
+    handover:cash-數值(`u${br}-market`),
+    handover_actual:數值(`u${br}-handover-actual`)||null,
+    handover_diff:數值(`u${br}-handover-actual`)?數值(`u${br}-handover-actual`)-(cash-數值(`u${br}-market`)):null,
+    photo:photoData
   }});
   載入中(false);
   if(!res.ok){提示('送出失敗：'+res.error);return}
