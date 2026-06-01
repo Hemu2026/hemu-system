@@ -2294,7 +2294,7 @@ async function 記入週結現金(amount,period,date){
 }
 
 async function 儲存月初快照(){
-  const 帳戶=['富郁霖卡','南閩卡','林家涼麵現金','木谷食麵所現金'];
+  const 帳戶=['富郁霖卡','南閩卡','公司現金'];
   const today=今日日期();
   const records=帳戶.map(a=>({
     date:today,type:'快照',account:a,
