@@ -2105,15 +2105,34 @@ async function 渲染資金管理(){
   載入中(false);
   const records=(res.records||res.data||[]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
-  // 從流水反推各帳戶餘額
+  // 從流水反推各帳戶餘額（以最新快照為起點）
   const 帳戶=['富郁霖卡','南閩卡','林家涼麵現金','木谷食麵所現金'];
   const 餘額={};帳戶.forEach(a=>餘額[a]=0);
-  [...records].reverse().forEach(r=>{
+  const sorted=[...records].reverse(); // 由舊到新
+  // 找每個帳戶最新的快照索引
+  const 快照起點={};
+  帳戶.forEach(a=>{
+    for(let i=sorted.length-1;i>=0;i--){
+      if(sorted[i].type==='快照'&&sorted[i].account===a){快照起點[a]=i;break;}
+    }
+  });
+  sorted.forEach((r,i)=>{
     if(!r.account||!(r.account in 餘額))return;
+    if(r.type==='快照'){
+      // 快照：直接設定該帳戶餘額
+      if(i===快照起點[r.account]) 餘額[r.account]=+r.amount||0;
+      return;
+    }
+    // 只計算快照之後的記錄
+    const base=快照起點[r.account]??-1;
+    if(i<=base)return;
     if(r.type==='支出') 餘額[r.account]-=(+r.amount||0);
     else if(r.type==='轉帳'){
       餘額[r.account]-=(+r.amount||0);
-      if(r.to_account&&r.to_account in 餘額) 餘額[r.to_account]+=(+r.amount||0);
+      if(r.to_account&&r.to_account in 餘額){
+        const baseB=快照起點[r.to_account]??-1;
+        if(i>baseB) 餘額[r.to_account]+=(+r.amount||0);
+      }
     } else 餘額[r.account]+=(+r.amount||0);
   });
   const 銀行合計=餘額['富郁霖卡']+餘額['南閩卡'];
@@ -2135,6 +2154,20 @@ async function 渲染資金管理(){
     <div class="card"><div class="card-title">店面現金</div>
       ${[['林家涼麵','林家涼麵現金'],['木谷食麵所','木谷食麵所現金']].map(([n,k])=>`
       <div class="sum-row"><span class="sum-label">${n}</span><span style="font-weight:600;font-size:16px">$${格式化金額(餘額[k])}</span></div>`).join('')}
+    </div>
+  </div>
+  <div class="card" style="border:1px solid #c8a96e">
+    <div class="card-title-lg" style="margin-bottom:14px">📸 月初對帳（設定各帳戶實際餘額）</div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">填入今日各帳戶的實際餘額，系統會以此為新起點計算後續流水。</div>
+    <div class="g2" style="margin-bottom:12px">
+      ${帳戶.map(a=>`<div class="field">
+        <label>${a}</label>
+        <input type="number" inputmode="decimal" id="snap-${a}" placeholder="0" style="font-size:18px;font-weight:600;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;width:100%">
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-hq" onclick="儲存月初快照()" style="flex:1;padding:12px">儲存對帳快照</button>
+      <div style="font-size:12px;color:#aaa">日期：${今日日期()}</div>
     </div>
   </div>
   <div class="card">
@@ -2207,6 +2240,24 @@ function 切換資金類型(){
   const type=document.getElementById('fr-type')?.value;
   const w=document.getElementById('fr-to-wrap');
   if(w) w.style.display=type==='轉帳'?'':'none';
+}
+
+async function 儲存月初快照(){
+  const 帳戶=['富郁霖卡','南閩卡','林家涼麵現金','木谷食麵所現金'];
+  const today=今日日期();
+  const records=帳戶.map(a=>({
+    date:today,type:'快照',account:a,
+    amount:+document.getElementById(`snap-${a}`)?.value||0,
+    note:`月初對帳快照 ${today}`
+  })).filter(r=>r.amount>0||document.getElementById(`snap-${r.account}`)?.value!=='');
+  if(!records.length){提示('請至少填寫一個帳戶金額');return;}
+  載入中(true,'儲存中...');
+  for(const r of records){
+    await 呼叫API({action:'saveFundRecord',date:r.date,type:r.type,account:r.account,amount:r.amount,note:r.note,toAccount:'',created_by:目前使用者?.email});
+  }
+  載入中(false);
+  提示('✓ 對帳快照已儲存，餘額已更新');
+  渲染資金管理();
 }
 
 async function 儲存資金記錄(){
