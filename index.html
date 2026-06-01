@@ -391,6 +391,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="批次上傳"><span class="nav-dot dot-hq"></span>批次上傳結帳單</div>
       <div class="nav-item" data-page="原物料管理"><span class="nav-dot dot-hq"></span>原物料管理</div>
       <div class="nav-item" data-page="商品管理"><span class="nav-dot dot-hq"></span>商品管理</div>
+      <div class="nav-item" data-page="成本表"><span class="nav-dot dot-hq"></span>成本表</div>
     </div>`;
   }
   nav.innerHTML=html;
@@ -408,7 +409,7 @@ function 建立頁面(role,brand){
     pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`];
   } else {
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`));
-    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理');
+    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -461,6 +462,7 @@ function 切換頁面(page){
   else if(page==='批次上傳')渲染批次上傳();
   else if(page==='原物料管理')渲染原物料管理();
   else if(page==='商品管理')渲染商品管理();
+  else if(page==='成本表')渲染成本表();
 }
 
 // ===== 每日輸入（店長/老闆）=====
@@ -2463,6 +2465,18 @@ function 顯示商品表單(p={}){
       <div class="field full"><label>備註</label>
         <input type="text" id="pf-note" value="${p.note||''}" placeholder="例：冷藏品" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
     </div>
+    <div style="background:#f0f7ff;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #cce0ff">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px">🏪 B2B 批發設定</div>
+      <div class="g3" style="gap:10px;align-items:center">
+        <div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="pf-b2b-enabled" ${p.b2bEnabled==='true'||p.b2bEnabled===true?'checked':''} style="width:16px;height:16px">
+          開放批發下單</label></div>
+        <div class="field"><label>批發售價（元/袋）</label>
+          <input type="number" id="pf-b2b-price" value="${p.b2bPrice||''}" placeholder="600" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+        <div class="field"><label>每袋數量（包/袋）</label>
+          <input type="number" id="pf-b2b-pkg" value="${p.packageSize||''}" placeholder="100" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      </div>
+    </div>
     <div style="background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-size:13px;font-weight:600">📋 配方原料</div>
@@ -2564,10 +2578,12 @@ async function 儲存商品(id){
     spec:document.getElementById('pf-spec')?.value?.trim(),
     category:document.getElementById('pf-cat')?.value,
     price,cost,
-    packageSize:+document.getElementById('pf-pkg-size')?.value||0,
+    packageSize:+document.getElementById('pf-pkg-size')?.value||+document.getElementById('pf-b2b-pkg')?.value||0,
     packageUnit:document.getElementById('pf-pkg-unit')?.value?.trim(),
     note:document.getElementById('pf-note')?.value?.trim(),
-    recipe:JSON.stringify(recipe)
+    recipe:JSON.stringify(recipe),
+    b2bEnabled:document.getElementById('pf-b2b-enabled')?.checked?'true':'false',
+    b2bPrice:+document.getElementById('pf-b2b-price')?.value||0,
   };
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveProduct',record});
@@ -3041,6 +3057,100 @@ async function 審核批發(id,action){
   if(!res.ok){提示('操作失敗：'+(res.error||''));return;}
   提示(action==='approve'?'✓ 已核准，客戶代碼已發送':'✓ 已拒絕');
   載入批發資料();
+}
+
+// ===== 成本表 =====
+async function 渲染成本表(){
+  const el=document.getElementById('page-成本表');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">成本表</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  const [resP,resM]=await Promise.all([呼叫API({action:'getProducts'}),呼叫API({action:'getMaterials'})]);
+  const products=resP.data||[];
+  const matMap={};
+  (resM.data||[]).forEach(m=>{matMap[m.id]=m;});
+  if(!products.length){
+    el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">成本表</span></div><div class="card" style="text-align:center;color:#aaa;padding:2rem">尚無商品，請先在「商品管理」建立商品</div>`;
+    return;
+  }
+  // 依分類群組
+  const groups={};
+  products.forEach(p=>{
+    const g=p.category||'其他';
+    if(!groups[g])groups[g]=[];
+    groups[g].push(p);
+  });
+  let html=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">成本表</span></div>`;
+  Object.entries(groups).forEach(([cat,prods])=>{
+    html+=`<div class="card" style="margin-bottom:1.25rem">
+      <div class="card-title">${cat}</div>`;
+    prods.forEach(p=>{
+      const cost=+p.cost||0;
+      const price=+p.price||0;
+      const margin=price?((price-cost)/price*100):0;
+      const marginColor=margin>=30?'#27ae60':margin>=15?'#e67e22':'#c0392b';
+      const recipe=p.recipe?JSON.parse(p.recipe):[];
+      const b2bEnabled=p.b2bEnabled==='true'||p.b2bEnabled===true;
+      const pkgSize=+p.packageSize||0;
+      const b2bPrice=+p.b2bPrice||0;
+      html+=`<div style="border:1px solid #e8e8e2;border-radius:10px;margin-bottom:10px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;background:#fafaf7"
+          onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:600">${p.name}${p.spec?` <span style="font-size:12px;color:#888;font-weight:400">${p.spec}</span>`:''}
+              ${b2bEnabled?`<span style="font-size:11px;background:#e8f4ff;color:#1a7fd4;border-radius:4px;padding:2px 6px;margin-left:6px">批發</span>`:''}
+            </div>
+            ${p.note?`<div style="font-size:11px;color:#aaa;margin-top:2px">${p.note}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:13px">售價 <strong>$${格式化金額(price)}</strong></div>
+            <div style="font-size:12px;color:#888">食材成本 $${cost.toFixed(2)}</div>
+          </div>
+          <div style="min-width:56px;text-align:right">
+            <div style="font-size:16px;font-weight:700;color:${marginColor}">${margin.toFixed(1)}%</div>
+            <div style="font-size:10px;color:#aaa">毛利率</div>
+          </div>
+          <div style="color:#bbb;font-size:12px">▼</div>
+        </div>
+        <div style="display:none;border-top:1px solid #eee;padding:14px 16px;background:#fff">
+          ${recipe.length?`
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px">
+            <thead><tr style="color:#999;font-size:11px">
+              <th style="text-align:left;padding:4px 8px;border-bottom:1px solid #f0f0ec">原料名稱</th>
+              <th style="text-align:right;padding:4px 8px;border-bottom:1px solid #f0f0ec">用量</th>
+              <th style="text-align:right;padding:4px 8px;border-bottom:1px solid #f0f0ec">單位</th>
+              <th style="text-align:right;padding:4px 8px;border-bottom:1px solid #f0f0ec">單位成本</th>
+              <th style="text-align:right;padding:4px 8px;border-bottom:1px solid #f0f0ec">小計</th>
+              <th style="text-align:right;padding:4px 8px;border-bottom:1px solid #f0f0ec">佔比</th>
+            </tr></thead>
+            <tbody>
+            ${recipe.map(r=>{
+              const sub=r.unitCost*r.amount;
+              const pct=cost>0?(sub/cost*100):0;
+              return`<tr>
+                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4">${r.name}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right">${r.amount}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">${r.unit}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">$${r.unitCost.toFixed(4)}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;font-weight:500">$${sub.toFixed(4)}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">${pct.toFixed(1)}%</td>
+              </tr>`;
+            }).join('')}
+            </tbody>
+          </table>
+          <div style="display:flex;justify-content:flex-end;gap:24px;font-size:13px;padding:8px 8px 0;border-top:1px solid #f0f0ec">
+            <span style="color:#888">食材成本合計</span>
+            <strong>$${cost.toFixed(4)}</strong>
+          </div>`:'<div style="color:#aaa;font-size:13px;padding:8px">尚未設定配方</div>'}
+          ${b2bEnabled?`<div style="margin-top:12px;padding:10px 12px;background:#f0f7ff;border-radius:8px;font-size:13px;display:flex;gap:24px;flex-wrap:wrap">
+            <span>🏪 批發價 <strong>$${格式化金額(b2bPrice)}/袋</strong></span>
+            ${pkgSize?`<span>每袋 <strong>${pkgSize} 包</strong>　單包均攤 $${pkgSize?(b2bPrice/pkgSize).toFixed(2):'—'}</span>`:''}
+            <span>批發毛利率 <strong style="color:${b2bPrice&&pkgSize&&cost?(((b2bPrice/pkgSize-cost)/(b2bPrice/pkgSize)*100)>=20?'#27ae60':'#e67e22'):'#888'}">${b2bPrice&&pkgSize&&cost?(((b2bPrice/pkgSize-cost)/(b2bPrice/pkgSize)*100).toFixed(1)+'%'):'—'}</strong></span>
+          </div>`:''}
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+  });
+  el.innerHTML=html;
 }
 
 // ===== 啟動 =====
