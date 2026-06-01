@@ -2372,6 +2372,8 @@ async function 刪除資金記錄(id){
 }
 
 // ===== 原物料管理 =====
+const 原物料分類=['調味料','配料','蔬菜','包材','肉類','乾貨','其他'];
+
 async function 渲染原物料管理(){
   const el=document.getElementById('page-原物料管理');
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">原物料管理</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
@@ -2380,17 +2382,23 @@ async function 渲染原物料管理(){
   window._materials=mats;
   el.innerHTML=`
   <div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">原物料管理</span></div>
-  <div class="btn-row" style="margin-bottom:1rem">
+  <div class="btn-row" style="margin-bottom:1rem;flex-wrap:wrap;gap:8px">
     <button class="btn btn-hq" onclick="顯示原物料表單()">＋ 新增原物料</button>
-    <input type="text" id="mat-search" placeholder="搜尋名稱 / 貨號 / 供應商" oninput="篩選原物料()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px;width:220px">
+    <button class="btn btn-outline" onclick="顯示批量匯入()">📥 CSV 批量匯入</button>
+    <input type="text" id="mat-search" placeholder="搜尋名稱 / 貨號 / 供應商" oninput="篩選原物料()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px;width:200px">
+    <select id="mat-cat-filter" onchange="篩選原物料()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px">
+      <option value="">全部分類</option>
+      ${原物料分類.map(c=>`<option>${c}</option>`).join('')}
+    </select>
+    <span style="font-size:12px;color:#aaa;align-self:center">共 <strong id="mat-count">${mats.length}</strong> 筆</span>
   </div>
   <div id="mat-form-wrap"></div>
   <div class="card" style="padding:0;overflow:hidden">
     <div class="table-wrap">
       <table id="mat-table">
         <thead><tr>
-          <th>貨號</th><th>供應商</th><th>材料名稱</th><th>進價（未稅）</th>
-          <th>規格</th><th>單位</th><th>得率%</th><th>得率單價</th><th>備註</th><th></th>
+          <th>分類</th><th>貨號</th><th>供應商</th><th>材料名稱</th>
+          <th>進價</th><th>規格</th><th>單位</th><th>得率%</th><th>得率單價</th><th>備註</th><th></th>
         </tr></thead>
         <tbody id="mat-tbody"></tbody>
       </table>
@@ -2401,22 +2409,28 @@ async function 渲染原物料管理(){
 
 function 渲染原物料列表(mats){
   const tbody=document.getElementById('mat-tbody');
+  const countEl=document.getElementById('mat-count');
   if(!tbody)return;
-  if(!mats.length){tbody.innerHTML=`<tr><td colspan="10" style="text-align:center;color:#aaa;padding:2rem">尚無原物料資料，請點「新增原物料」</td></tr>`;return;}
+  if(countEl)countEl.textContent=mats.length;
+  if(!mats.length){tbody.innerHTML=`<tr><td colspan="11" style="text-align:center;color:#aaa;padding:2rem">尚無符合的原物料資料</td></tr>`;return;}
+  const catColor={'調味料':'#f5ead8','配料':'#d9ede8','蔬菜':'#e8f5e9','包材':'#e8e4f5','肉類':'#fce4e4','乾貨':'#fff3e0','其他':'#f5f5f5'};
+  const catText={'調味料':'#8a6a2a','配料':'#2a6b58','蔬菜':'#2e7d32','包材':'#4a3a8a','肉類':'#c0392b','乾貨':'#e67e22','其他':'#888'};
   tbody.innerHTML=mats.map(m=>{
     const unitCost=m.spec&&m.yieldRate?(m.price/m.spec/(m.yieldRate/100)):0;
-    return`<tr id="mat-row-${m.id}">
+    const cat=m.category||'其他';
+    return`<tr>
+      <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${catColor[cat]||'#eee'};color:${catText[cat]||'#888'}">${cat}</span></td>
       <td style="font-size:12px;color:#888">${m.code||'—'}</td>
-      <td>${m.supplier||'—'}</td>
+      <td style="font-size:12px">${m.supplier||'—'}</td>
       <td style="font-weight:600">${m.name}</td>
       <td>$${格式化金額(m.price)}</td>
-      <td>${格式化金額(m.spec)} ${m.unit||''}</td>
-      <td>${m.unit||'—'}</td>
-      <td>${m.yieldRate||100}%</td>
-      <td style="font-weight:600;color:#27ae60">$${unitCost.toFixed(4)}</td>
-      <td style="font-size:12px;color:#888;max-width:160px">${m.note||'—'}</td>
+      <td style="font-size:12px">${格式化金額(m.spec)}</td>
+      <td style="font-size:12px">${m.unit||'—'}</td>
+      <td style="font-size:12px">${m.yieldRate||100}%</td>
+      <td style="font-weight:600;color:#27ae60;font-size:12px">$${unitCost.toFixed(4)}</td>
+      <td style="font-size:11px;color:#888;max-width:120px">${m.note||'—'}</td>
       <td>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:4px">
           <button class="btn btn-sm btn-outline" onclick="顯示原物料表單(${JSON.stringify(m).replace(/"/g,'&quot;')})">編輯</button>
           <button class="btn btn-sm btn-danger" onclick="刪除原物料('${m.id}')">刪除</button>
         </div>
@@ -2427,8 +2441,10 @@ function 渲染原物料列表(mats){
 
 function 篩選原物料(){
   const q=(document.getElementById('mat-search')?.value||'').toLowerCase();
+  const cat=document.getElementById('mat-cat-filter')?.value||'';
   const mats=(window._materials||[]).filter(m=>
-    !q||m.name?.toLowerCase().includes(q)||m.code?.toLowerCase().includes(q)||m.supplier?.toLowerCase().includes(q)
+    (!q||m.name?.toLowerCase().includes(q)||m.code?.toLowerCase().includes(q)||m.supplier?.toLowerCase().includes(q))&&
+    (!cat||m.category===cat)
   );
   渲染原物料列表(mats);
 }
@@ -2440,12 +2456,17 @@ function 顯示原物料表單(m={}){
   wrap.innerHTML=`<div class="card" style="border:1px solid #c8a96e;margin-bottom:1rem">
     <div class="card-title-lg" style="margin-bottom:14px">${isEdit?'✏️ 編輯原物料':'＋ 新增原物料'}</div>
     <div class="g4" style="gap:10px;margin-bottom:12px">
+      <div class="field"><label>分類 <span style="color:#c0392b">*</span></label>
+        <select id="mf-category" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+          ${原物料分類.map(c=>`<option${m.category===c?' selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
       <div class="field"><label>貨號</label><input type="text" id="mf-code" value="${m.code||''}" placeholder="E0001" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field"><label>供應商</label><input type="text" id="mf-supplier" value="${m.supplier||''}" placeholder="鳳農" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
-      <div class="field full"><label>材料名稱 <span style="color:#c0392b">*</span></label><input type="text" id="mf-name" value="${m.name||''}" placeholder="雞油" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>材料名稱 <span style="color:#c0392b">*</span></label><input type="text" id="mf-name" value="${m.name||''}" placeholder="雞油" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field"><label>進價（未稅）</label><input type="number" id="mf-price" value="${m.price||''}" placeholder="100" oninput="預覽得率單價()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field"><label>規格數量</label><input type="number" id="mf-spec" value="${m.spec||''}" placeholder="3000" oninput="預覽得率單價()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
-      <div class="field"><label>單位</label><select id="mf-unit" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+      <div class="field"><label>單位</label><select id="mf-unit" onchange="預覽得率單價()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
         ${['g','kg','ml','L','份','包','桶','罐','斤','隻','公克','公升'].map(u=>`<option${m.unit===u?' selected':''}>${u}</option>`).join('')}
       </select></div>
       <div class="field"><label>得率%</label><input type="number" id="mf-yield" value="${m.yieldRate||100}" min="1" max="200" oninput="預覽得率單價()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
@@ -2458,6 +2479,66 @@ function 顯示原物料表單(m={}){
     </div>
   </div>`;
   預覽得率單價();
+}
+
+function 顯示批量匯入(){
+  const wrap=document.getElementById('mat-form-wrap');
+  if(wrap.innerHTML.includes('mat-csv')){wrap.innerHTML='';return;}
+  wrap.innerHTML=`<div class="card" style="border:1px solid #7bb5a0;margin-bottom:1rem">
+    <div class="card-title-lg" style="margin-bottom:8px">📥 CSV 批量匯入</div>
+    <div style="font-size:12px;color:#888;margin-bottom:10px">
+      從 Excel 複製資料後貼上，欄位順序：<br>
+      <code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;font-size:11px">分類 | 貨號 | 供應商 | 材料名稱 | 進價 | 規格 | 單位 | 得率% | 備註</code>
+      <br>（用 Tab 分隔，直接從 Excel 複製貼上即可）
+    </div>
+    <textarea id="mat-csv" rows="10" placeholder="直接從 Excel 複製貼上..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-family:monospace;font-size:12px;resize:vertical" oninput="預覽CSV()"></textarea>
+    <div id="csv-preview" style="margin-top:10px"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-hq" onclick="執行批量匯入()">匯入</button>
+      <button class="btn btn-outline" onclick="document.getElementById('mat-form-wrap').innerHTML=''">取消</button>
+    </div>
+  </div>`;
+}
+
+function 預覽CSV(){
+  const raw=document.getElementById('mat-csv')?.value||'';
+  const rows=raw.trim().split('\n').filter(r=>r.trim()).map(r=>r.split('\t').map(c=>c.trim().replace(/^\$/, '')));
+  const preview=document.getElementById('csv-preview');
+  if(!rows.length){preview.innerHTML='';return;}
+  const valid=rows.filter(r=>r.length>=4&&r[3]);
+  preview.innerHTML=`<div style="font-size:12px;color:#2a6b58;margin-bottom:6px">✓ 偵測到 ${valid.length} 筆有效資料（共 ${rows.length} 行）</div>
+  <div class="table-wrap" style="max-height:200px;overflow-y:auto"><table style="font-size:11px">
+    <thead><tr style="color:#999"><th>分類</th><th>貨號</th><th>供應商</th><th>名稱</th><th>進價</th><th>規格</th><th>單位</th><th>得率%</th></tr></thead>
+    <tbody>${valid.slice(0,20).map(r=>`<tr>
+      <td>${r[0]||'其他'}</td><td>${r[1]||'—'}</td><td>${r[2]||'—'}</td><td style="font-weight:600">${r[3]}</td>
+      <td>${r[4]||0}</td><td>${r[5]||0}</td><td>${r[6]||'g'}</td><td>${r[7]||100}%</td>
+    </tr>`).join('')}
+    ${valid.length>20?`<tr><td colspan="8" style="color:#aaa;text-align:center">...還有 ${valid.length-20} 筆</td></tr>`:''}</tbody>
+  </table></div>`;
+}
+
+async function 執行批量匯入(){
+  const raw=document.getElementById('mat-csv')?.value||'';
+  const rows=raw.trim().split('\n').filter(r=>r.trim()).map(r=>r.split('\t').map(c=>c.trim().replace(/^\$/, '')));
+  const valid=rows.filter(r=>r.length>=4&&r[3]);
+  if(!valid.length){提示('沒有偵測到有效資料，請確認格式');return;}
+  if(!confirm(`確定匯入 ${valid.length} 筆原物料？`))return;
+  載入中(true,`匯入中 0/${valid.length}...`);
+  let ok=0;
+  for(let i=0;i<valid.length;i++){
+    const r=valid[i];
+    const record={
+      category:r[0]||'其他',code:r[1]||'',supplier:r[2]||'',name:r[3],
+      price:+r[4]||0,spec:+r[5]||0,unit:r[6]||'g',
+      yieldRate:+(r[7]?.replace('%',''))||100,note:r[8]||''
+    };
+    const res=await 呼叫API({action:'saveMaterial',record});
+    if(res.ok)ok++;
+    document.querySelector('.loading-text')&&(document.querySelector('.loading-text').textContent=`匯入中 ${i+1}/${valid.length}...`);
+  }
+  載入中(false);
+  提示(`✓ 成功匯入 ${ok} 筆，失敗 ${valid.length-ok} 筆`);
+  渲染原物料管理();
 }
 
 function 預覽得率單價(){
@@ -2474,6 +2555,7 @@ async function 儲存原物料(id){
   if(!name){提示('請填寫材料名稱');return;}
   const record={
     id:id||undefined,
+    category:document.getElementById('mf-category')?.value||'其他',
     code:document.getElementById('mf-code')?.value?.trim(),
     supplier:document.getElementById('mf-supplier')?.value?.trim(),
     name,
