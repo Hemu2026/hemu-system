@@ -272,7 +272,9 @@ function 載入中(顯示,訊息='處理中...'){
 
 async function 呼叫API(參數){
   const res=await fetch(API+'?t='+Date.now(),{method:'POST',body:JSON.stringify(參數)});
-  return res.json();
+  const text=await res.text();
+  try{return JSON.parse(text);}
+  catch(e){console.error('API回傳非JSON:',text.slice(0,500));throw new Error(text.slice(0,200));}
 }
 
 // ===== 登入登出 =====
