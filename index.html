@@ -2391,7 +2391,6 @@ async function 渲染原物料管理(){
     </div>`;
     return;
   }
-  console.log('getMaterials回傳:', JSON.stringify(res).slice(0,300));
   const mats=res.data||[];
   window._materials=mats;
   el.innerHTML=`
