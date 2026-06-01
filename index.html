@@ -896,24 +896,42 @@ async function 渲染歷史記錄(br){
   載入中(true);
   const res=await 呼叫API({action:'getRecords',brand:br,role:目前使用者?.role});
   載入中(false);
-  const recs=res.data||[];
-  if(!recs.length){el.querySelector('div:last-child').textContent='尚無記錄';return}
-  recs.sort((a,b)=>b.date.localeCompare(a.date));
+  const allRecs=res.data||[];
+  if(!allRecs.length){el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">歷史記錄</span></div><div style="color:#aaa;padding:2rem;text-align:center">尚無記錄</div>`;return;}
+  window[`_hist_${br}`]=allRecs;
+  // 取得所有月份
+  const months=[...new Set(allRecs.map(r=>格式化日期(r.date).slice(0,7)))].sort().reverse();
+  const curMonth=months[0]||今日日期().slice(0,7);
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">歷史記錄</span></div>
+  <div style="margin-bottom:1.25rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <select id="hist-month-${br}" onchange="渲染歷史月份('${br}')" style="padding:8px 14px;border-radius:8px;border:1px solid #ddd;font-family:inherit;font-size:15px;font-weight:600">
+      ${months.map(m=>`<option value="${m}"${m===curMonth?' selected':''}>${m.slice(0,4)}年${parseInt(m.slice(5))}月</option>`).join('')}
+    </select>
+    ${目前使用者?.role==='owner'?`<button class="btn btn-outline" id="qfill-btn-${br}" onclick="顯示快速補填歷史('${br}')">✏️ 快速補填上繳金額</button>`:''}
+  </div>
+  <div id="hist-stats-${br}"></div>
+  <div id="quick-fill-${br}"></div>
+  <div id="hist-table-${br}"></div>`;
+  渲染歷史月份(br);
+}
+
+function 渲染歷史月份(br){
+  const ym=document.getElementById(`hist-month-${br}`)?.value;
+  const allRecs=window[`_hist_${br}`]||[];
+  const recs=allRecs.filter(r=>格式化日期(r.date).startsWith(ym)).sort((a,b)=>b.date.localeCompare(a.date));
   const tRev=recs.reduce((s,r)=>s+(+r.total||0),0);
   const tFood=recs.reduce((s,r)=>s+(+r.food_cost||0),0);
   const tGuests=recs.reduce((s,r)=>s+(+r.guests||0),0);
-  el.innerHTML=`
-  <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">歷史記錄</span></div>
-  <div class="metric-grid">
-    <div class="metric"><div class="metric-label">總營收</div><div class="metric-value">$${格式化金額(tRev)}</div></div>
+  document.getElementById(`hist-stats-${br}`).innerHTML=`
+  <div class="metric-grid" style="margin-bottom:1rem">
+    <div class="metric"><div class="metric-label">月營收</div><div class="metric-value">$${格式化金額(tRev)}</div></div>
     <div class="metric"><div class="metric-label">食材成本率</div><div class="metric-value">${百分比(tFood,tRev)}</div></div>
-    <div class="metric"><div class="metric-label">總來客數</div><div class="metric-value">${格式化金額(tGuests)}</div></div>
+    <div class="metric"><div class="metric-label">來客數</div><div class="metric-value">${格式化金額(tGuests)}</div></div>
     <div class="metric"><div class="metric-label">平均客單價</div><div class="metric-value">$${tGuests?格式化金額(tRev/tGuests):'—'}</div></div>
     <div class="metric"><div class="metric-label">記錄天數</div><div class="metric-value">${recs.length} 天</div></div>
-  </div>
-  ${目前使用者?.role==='owner'?`<div style="margin-bottom:1rem"><button class="btn btn-outline" onclick="顯示快速補填('${br}',${JSON.stringify(recs).replace(/"/g,'&quot;')})">✏️ 快速補填上繳金額</button></div>`:''}
-  <div id="quick-fill-${br}"></div>
-  <div class="card"><div class="table-wrap"><table>
+  </div>`;
+  document.getElementById(`hist-table-${br}`).innerHTML=recs.length?`<div class="card"><div class="table-wrap"><table>
     <thead><tr><th>日期</th><th>天氣</th><th>來客數</th><th>總營收</th><th>現金短溢</th><th>操作</th></tr></thead>
     <tbody>${recs.map(r=>{
       const so=+r.cash_short_over||0;
@@ -928,7 +946,15 @@ async function 渲染歷史記錄(br){
         </td>
       </tr>`;}).join('')}
     </tbody>
-  </table></div></div>`;
+  </table></div></div>`:'<div style="color:#aaa;text-align:center;padding:2rem">本月尚無記錄</div>';
+}
+
+function 顯示快速補填歷史(br){
+  const el=document.getElementById(`quick-fill-${br}`);
+  if(el.innerHTML){el.innerHTML='';return;}
+  const ym=document.getElementById(`hist-month-${br}`)?.value;
+  const recs=(window[`_hist_${br}`]||[]).filter(r=>格式化日期(r.date).startsWith(ym)).sort((a,b)=>a.date.localeCompare(b.date));
+  顯示快速補填(br,recs);
 }
 
 function 儲存週結算(lsKey,weekKey,val){
