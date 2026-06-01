@@ -2300,8 +2300,9 @@ async function 儲存月初快照(){
     date:today,type:'快照',account:a,
     amount:+document.getElementById(`snap-${a}`)?.value||0,
     note:`月初對帳快照 ${today}`
-  })).filter(r=>r.amount>0||document.getElementById(`snap-${r.account}`)?.value!=='');
-  if(!records.length){提示('請至少填寫一個帳戶金額');return;}
+  }));
+  const hasAny=records.some(r=>r.amount>0);
+  if(!hasAny){提示('請至少填寫一個帳戶金額');return;}
   載入中(true,'儲存中...');
   for(const r of records){
     await 呼叫API({action:'saveFundRecord',date:r.date,type:r.type,account:r.account,amount:r.amount,note:r.note,toAccount:'',created_by:目前使用者?.email});
