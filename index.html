@@ -3014,25 +3014,28 @@ async function 載入批發資料(){
     const list=res.data||[];
     if(!list.length){panel.innerHTML=`<div class="card"><div style="color:#aaa;text-align:center;padding:1.5rem">尚無申請記錄</div></div>`;return;}
     panel.innerHTML=`<div class="card"><div class="card-title">申請列表（${list.length} 筆）</div>
-    ${list.map(r=>`
-    <div style="border:1px solid #e5e5df;border-radius:10px;padding:1rem;margin-bottom:10px">
+    ${list.map(r=>{
+      const isPending=r.status==='pending'||r.status==='待審核'||!r.status;
+      const badgeClass=r.status==='approved'||r.status==='審核通過'?'approved':r.status==='rejected'||r.status==='拒絕'?'rejected':'pending';
+      const statusLabel=r.status==='approved'||r.status==='審核通過'?'已核准':r.status==='rejected'||r.status==='拒絕'?'已拒絕':'待審核';
+      return`<div style="border:1px solid #e5e5df;border-radius:10px;padding:1rem;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-weight:600">${r.shopName||'—'}</span>
-        <span class="badge badge-${r.status==='審核通過'?'approved':r.status==='拒絕'?'rejected':'pending'}">${r.status||'待審核'}</span>
+        <span style="font-weight:600">${r.name||r.shopName||'—'}</span>
+        <span class="badge badge-${badgeClass}">${statusLabel}</span>
       </div>
       <div style="font-size:13px;color:#666;display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
-        <span>業態：${r.industry||'—'}</span><span>聯絡人：${r.contact||'—'}</span>
+        <span>業態：${r.type||r.industry||'—'}</span><span>聯絡人：${r.contact||'—'}</span>
         <span>電話：${r.phone||'—'}</span><span>Email：${r.email||'—'}</span>
         <span style="grid-column:1/-1">地址：${r.address||'—'}</span>
         ${r.code?`<span style="grid-column:1/-1;color:#2a6b58;font-weight:600">客戶代碼：${r.code}</span>`:''}
         ${r.note?`<span style="grid-column:1/-1">備註：${r.note}</span>`:''}
       </div>
-      ${!r.status||r.status==='待審核'?`
+      ${isPending?`
       <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-hq btn-sm" onclick="審核批發('${r.id}','approve')">核准</button>
-        <button class="btn btn-outline btn-sm" onclick="審核批發('${r.id}','reject')">拒絕</button>
+        <button class="btn btn-hq btn-sm" onclick="審核批發('${r.code}','approve')">核准</button>
+        <button class="btn btn-outline btn-sm" onclick="審核批發('${r.code}','reject')">拒絕</button>
       </div>`:''}
-    </div>`).join('')}
+    </div>`;}).join('')}
     </div>`;
   } else {
     const res=await 呼叫API({action:'b2bGetOrders'});
