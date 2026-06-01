@@ -2104,44 +2104,48 @@ async function 渲染資金管理(){
   const ym=今日日期().slice(0,7);
   const [res,resA,resB]=await Promise.all([
     呼叫API({action:'getFundRecords'}),
-    呼叫API({action:'getRecords',brand:'a',month:ym}),
-    呼叫API({action:'getRecords',brand:'b',month:ym})
+    呼叫API({action:'getRecords',brand:'a',role:'owner'}),
+    呼叫API({action:'getRecords',brand:'b',role:'owner'})
   ]);
   載入中(false);
-  // 計算本月週結數字
-  const recsA=resA.data||[],recsB=resB.data||[];
+  // 只取本月記錄計算週結
+  const recsA=(resA.data||[]).filter(r=>格式化日期(r.date).startsWith(ym));
+  const recsB=(resB.data||[]).filter(r=>格式化日期(r.date).startsWith(ym));
   const 週結資料=計算週結現金(recsA,recsB);
   const records=(res.records||res.data||[]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   // 從流水反推各帳戶餘額（以最新快照為起點）
   const 帳戶=['富郁霖卡','南閩卡','公司現金'];
+  // 舊帳戶名稱對應
+  const 帳戶對應={'林家涼麵現金':'公司現金','木谷食麵所現金':'公司現金'};
+  const 正規化帳戶=a=>帳戶對應[a]||a;
   const 餘額={};帳戶.forEach(a=>餘額[a]=0);
-  const sorted=[...records].reverse(); // 由舊到新
+  const sorted=[...records].sort((a,b)=>(a.date||'').localeCompare(b.date||'')); // 由舊到新
   // 找每個帳戶最新的快照索引
   const 快照起點={};
   帳戶.forEach(a=>{
     for(let i=sorted.length-1;i>=0;i--){
-      if(sorted[i].type==='快照'&&sorted[i].account===a){快照起點[a]=i;break;}
+      if(sorted[i].type==='快照'&&正規化帳戶(sorted[i].account)===a){快照起點[a]=i;break;}
     }
   });
   sorted.forEach((r,i)=>{
-    if(!r.account||!(r.account in 餘額))return;
+    const acc=正規化帳戶(r.account);
+    if(!acc||!(acc in 餘額))return;
     if(r.type==='快照'){
-      // 快照：直接設定該帳戶餘額
-      if(i===快照起點[r.account]) 餘額[r.account]=+r.amount||0;
+      if(i===快照起點[acc]) 餘額[acc]=+r.amount||0;
       return;
     }
-    // 只計算快照之後的記錄
-    const base=快照起點[r.account]??-1;
+    const base=快照起點[acc]??-1;
     if(i<=base)return;
-    if(r.type==='支出') 餘額[r.account]-=(+r.amount||0);
+    if(r.type==='支出') 餘額[acc]-=(+r.amount||0);
     else if(r.type==='轉帳'){
-      餘額[r.account]-=(+r.amount||0);
-      if(r.to_account&&r.to_account in 餘額){
-        const baseB=快照起點[r.to_account]??-1;
-        if(i>baseB) 餘額[r.to_account]+=(+r.amount||0);
+      餘額[acc]-=(+r.amount||0);
+      const toAcc=正規化帳戶(r.to_account);
+      if(toAcc&&toAcc in 餘額){
+        const baseB=快照起點[toAcc]??-1;
+        if(i>baseB) 餘額[toAcc]+=(+r.amount||0);
       }
-    } else 餘額[r.account]+=(+r.amount||0);
+    } else 餘額[acc]+=(+r.amount||0);
   });
   const 銀行合計=餘額['富郁霖卡']+餘額['南閩卡'];
   const 現金合計=餘額['公司現金'];
@@ -2234,7 +2238,7 @@ async function 渲染資金管理(){
         const 顏色map={週收款:'#d9ede8',收入:'#f5ead8',支出:'#fef0f0',轉帳:'#e8e4f5',設定:'#f0f0f5'};
         const 文字map={週收款:'#2a6b58',收入:'#8a6a2a',支出:'#c0392b',轉帳:'#4a3a8a',設定:'#666'};
         return`<tr>
-          <td>${r.date}</td>
+          <td>${格式化日期(r.date)}</td>
           <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${顏色map[r.type]||'#eee'};color:${文字map[r.type]||'#555'}">${r.type}</span></td>
           <td>${r.account}${r.to_account?'→'+r.to_account:''}</td>
           <td style="font-weight:600;color:${r.type==='支出'?'#c0392b':'#1a1a1a'}">${r.type==='支出'?'-':''}$${格式化金額(r.amount)}</td>
