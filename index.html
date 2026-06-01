@@ -390,6 +390,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="批發管理"><span class="nav-dot dot-hq"></span>批發管理</div>
       <div class="nav-item" data-page="批次上傳"><span class="nav-dot dot-hq"></span>批次上傳結帳單</div>
       <div class="nav-item" data-page="原物料管理"><span class="nav-dot dot-hq"></span>原物料管理</div>
+      <div class="nav-item" data-page="商品管理"><span class="nav-dot dot-hq"></span>商品管理</div>
     </div>`;
   }
   nav.innerHTML=html;
@@ -407,7 +408,7 @@ function 建立頁面(role,brand){
     pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`];
   } else {
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`));
-    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理');
+    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -459,6 +460,7 @@ function 切換頁面(page){
   else if(page==='批發管理')渲染批發管理();
   else if(page==='批次上傳')渲染批次上傳();
   else if(page==='原物料管理')渲染原物料管理();
+  else if(page==='商品管理')渲染商品管理();
 }
 
 // ===== 每日輸入（店長/老闆）=====
@@ -2371,6 +2373,217 @@ async function 刪除資金記錄(id){
   載入中(false);
   if(!res.ok){提示('刪除失敗：'+(res.error||JSON.stringify(res)));return;}
   渲染資金管理();提示('✓ 已刪除');
+}
+
+// ===== 商品管理 =====
+const 商品分類=['麻醬系列','涼麵系列','小菜系列','飲料系列','包材','其他'];
+
+async function 渲染商品管理(){
+  const el=document.getElementById('page-商品管理');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">商品管理</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  const [resP,resM]=await Promise.all([呼叫API({action:'getProducts'}),呼叫API({action:'getMaterials'})]);
+  const products=resP.data||[];
+  window._products=products;
+  window._materials_cache=resM.data||[];
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">商品管理</span></div>
+  <div class="btn-row" style="margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+    <button class="btn btn-hq" onclick="顯示商品表單()">＋ 新增商品</button>
+    <input type="text" id="prod-search" placeholder="搜尋商品名稱" oninput="篩選商品()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:13px;width:200px">
+    <span style="font-size:12px;color:#aaa;align-self:center">共 <strong id="prod-count">${products.length}</strong> 項</span>
+  </div>
+  <div id="prod-form-wrap"></div>
+  <div id="prod-list"></div>`;
+  渲染商品列表(products);
+}
+
+function 渲染商品列表(products){
+  const el=document.getElementById('prod-list');
+  const countEl=document.getElementById('prod-count');
+  if(!el)return;
+  if(countEl)countEl.textContent=products.length;
+  if(!products.length){el.innerHTML=`<div class="card" style="text-align:center;color:#aaa;padding:2rem">尚無商品，請點「新增商品」建立第一個商品</div>`;return;}
+  el.innerHTML=products.map(p=>{
+    const cost=+p.cost||0,price=+p.price||0;
+    const margin=price?((price-cost)/price*100):0;
+    const recipe=p.recipe?JSON.parse(p.recipe):[];
+    return`<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div>
+          <div style="font-size:16px;font-weight:700">${p.name} <span style="font-size:13px;color:#888;font-weight:400">${p.spec||''}</span></div>
+          <div style="font-size:12px;color:#888;margin-top:2px">${p.category||''} ${p.packageSize?'｜ 包裝：'+p.packageSize+' '+( p.packageUnit||''):''}  ${p.note?'｜ '+p.note:''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:22px;font-weight:700;color:#27ae60">$${格式化金額(price)}</div>
+          <div style="font-size:12px;color:#888">成本 $${格式化金額(cost)} ｜ 毛利率 <span style="color:${margin>=20?'#27ae60':margin>=10?'#e67e22':'#c0392b'};font-weight:600">${margin.toFixed(1)}%</span></div>
+        </div>
+      </div>
+      ${recipe.length?`<div style="background:#f8f8f8;border-radius:8px;padding:10px;margin-bottom:10px">
+        <div style="font-size:11px;color:#999;font-weight:600;margin-bottom:6px">配方（${recipe.length}項原料）</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${recipe.map(r=>`<span style="font-size:12px;background:#fff;border:1px solid #eee;padding:2px 8px;border-radius:4px">${r.name} ${r.amount}${r.unit}</span>`).join('')}
+        </div>
+      </div>`:''}
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-hq btn-sm" onclick="顯示商品表單(${JSON.stringify(p).replace(/"/g,'&quot;')})">編輯</button>
+        <button class="btn btn-danger btn-sm" onclick="刪除商品('${p.id}')">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function 篩選商品(){
+  const q=(document.getElementById('prod-search')?.value||'').toLowerCase();
+  const list=(window._products||[]).filter(p=>!q||p.name?.toLowerCase().includes(q)||p.spec?.toLowerCase().includes(q));
+  渲染商品列表(list);
+}
+
+function 顯示商品表單(p={}){
+  const wrap=document.getElementById('prod-form-wrap');
+  if(!wrap)return;
+  const isEdit=!!p.id;
+  const recipe=p.recipe?JSON.parse(p.recipe):[];
+  wrap.innerHTML=`<div class="card" style="border:2px solid #c8a96e;margin-bottom:1rem">
+    <div class="card-title-lg" style="margin-bottom:16px">${isEdit?'✏️ 編輯商品':'＋ 新增商品'}</div>
+    <div class="g4" style="gap:10px;margin-bottom:14px">
+      <div class="field"><label>商品名稱 <span style="color:#c0392b">*</span></label>
+        <input type="text" id="pf-name" value="${p.name||''}" placeholder="麻醬包" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>規格</label>
+        <input type="text" id="pf-spec" value="${p.spec||''}" placeholder="小80g" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>分類</label>
+        <select id="pf-cat" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+          ${商品分類.map(c=>`<option${p.category===c?' selected':''}>${c}</option>`).join('')}
+        </select></div>
+      <div class="field"><label>售價（元）</label>
+        <input type="number" id="pf-price" value="${p.price||''}" placeholder="6" oninput="更新商品毛利()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>包裝數量</label>
+        <input type="number" id="pf-pkg-size" value="${p.packageSize||''}" placeholder="100" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>包裝單位</label>
+        <input type="text" id="pf-pkg-unit" value="${p.packageUnit||''}" placeholder="包/袋" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field full"><label>備註</label>
+        <input type="text" id="pf-note" value="${p.note||''}" placeholder="例：冷藏品" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+    </div>
+    <div style="background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:600">📋 配方原料</div>
+        <div style="font-size:13px">成本合計：<strong id="pf-cost" style="color:#27ae60">$0.0000</strong>　毛利率：<strong id="pf-margin" style="color:#888">—</strong></div>
+      </div>
+      <div id="pf-recipe-list">
+        ${recipe.map((r,i)=>商品配方行(r,i)).join('')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <input type="text" id="pf-mat-search" placeholder="搜尋原物料加入配方..." oninput="搜尋原物料加入()" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+      </div>
+      <div id="pf-mat-results" style="margin-top:6px;max-height:160px;overflow-y:auto"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-hq" onclick="儲存商品('${p.id||''}')">儲存</button>
+      <button class="btn btn-outline" onclick="document.getElementById('prod-form-wrap').innerHTML=''">取消</button>
+    </div>
+  </div>`;
+  更新商品毛利();
+  window._recipe_rows=recipe.map((r,i)=>({...r,_idx:i}));
+  window._recipe_idx=recipe.length;
+}
+
+function 商品配方行(r,i){
+  return`<div id="recipe-row-${i}" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee">
+    <span style="flex:1;font-size:13px;font-weight:500">${r.name}</span>
+    <span style="font-size:11px;color:#888;width:40px">${r.unit}</span>
+    <input type="number" value="${r.amount}" step="0.01" placeholder="用量"
+      id="recipe-amt-${i}" oninput="更新商品毛利()"
+      style="width:80px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit">
+    <span id="recipe-cost-${i}" style="font-size:12px;color:#27ae60;width:70px;text-align:right">$0.0000</span>
+    <button onclick="移除配方行(${i})" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:16px">✕</button>
+  </div>`;
+}
+
+function 搜尋原物料加入(){
+  const q=(document.getElementById('pf-mat-search')?.value||'').toLowerCase();
+  const mats=window._materials_cache||[];
+  const results=q?mats.filter(m=>m.name?.toLowerCase().includes(q)||m.code?.toLowerCase().includes(q)).slice(0,8):[];
+  const el=document.getElementById('pf-mat-results');
+  if(!el)return;
+  el.innerHTML=results.map(m=>`<div onclick="加入配方原料('${m.id}','${m.name}','${m.unit}',${m.price||0},${m.spec||1},${m.yieldRate||100})"
+    style="padding:6px 10px;cursor:pointer;border-radius:6px;font-size:13px;display:flex;justify-content:space-between;align-items:center"
+    onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background=''">
+    <span>${m.name} <span style="color:#aaa;font-size:11px">${m.code||''}</span></span>
+    <span style="color:#27ae60;font-size:11px">$${(m.price&&m.spec&&m.yieldRate?(m.price/m.spec/(m.yieldRate/100)):0).toFixed(4)}/${m.unit}</span>
+  </div>`).join('');
+}
+
+function 加入配方原料(id,name,unit,price,spec,yieldRate){
+  if(!window._recipe_rows)window._recipe_rows=[];
+  const unitCost=spec&&yieldRate?price/spec/(yieldRate/100):0;
+  const idx=window._recipe_idx||window._recipe_rows.length;
+  window._recipe_rows.push({id,name,unit,unitCost,amount:1,_idx:idx});
+  window._recipe_idx=(window._recipe_idx||0)+1;
+  const list=document.getElementById('pf-recipe-list');
+  if(list)list.insertAdjacentHTML('beforeend',商品配方行({name,unit,amount:1},idx));
+  document.getElementById('pf-mat-search').value='';
+  document.getElementById('pf-mat-results').innerHTML='';
+  更新商品毛利();
+}
+
+function 移除配方行(i){
+  document.getElementById(`recipe-row-${i}`)?.remove();
+  if(window._recipe_rows)window._recipe_rows=window._recipe_rows.filter(r=>r._idx!==i);
+  更新商品毛利();
+}
+
+function 更新商品毛利(){
+  const rows=window._recipe_rows||[];
+  let total=0;
+  rows.forEach(r=>{
+    const amt=+document.getElementById(`recipe-amt-${r._idx}`)?.value||0;
+    const cost=r.unitCost*amt;
+    total+=cost;
+    const el=document.getElementById(`recipe-cost-${r._idx}`);
+    if(el)el.textContent='$'+cost.toFixed(4);
+  });
+  const price=+document.getElementById('pf-price')?.value||0;
+  const margin=price?((price-total)/price*100):0;
+  const costEl=document.getElementById('pf-cost');
+  const margEl=document.getElementById('pf-margin');
+  if(costEl)costEl.textContent='$'+total.toFixed(4);
+  if(margEl){margEl.textContent=price?(margin.toFixed(1)+'%'):'—';margEl.style.color=margin>=20?'#27ae60':margin>=10?'#e67e22':'#c0392b';}
+}
+
+async function 儲存商品(id){
+  const name=document.getElementById('pf-name')?.value?.trim();
+  if(!name){提示('請填寫商品名稱');return;}
+  const rows=window._recipe_rows||[];
+  const recipe=rows.map(r=>({
+    id:r.id,name:r.name,unit:r.unit,unitCost:r.unitCost,
+    amount:+document.getElementById(`recipe-amt-${r._idx}`)?.value||0
+  })).filter(r=>r.amount>0);
+  const cost=recipe.reduce((a,r)=>a+r.unitCost*r.amount,0);
+  const price=+document.getElementById('pf-price')?.value||0;
+  const record={
+    id:id||undefined,name,
+    spec:document.getElementById('pf-spec')?.value?.trim(),
+    category:document.getElementById('pf-cat')?.value,
+    price,cost,
+    packageSize:+document.getElementById('pf-pkg-size')?.value||0,
+    packageUnit:document.getElementById('pf-pkg-unit')?.value?.trim(),
+    note:document.getElementById('pf-note')?.value?.trim(),
+    recipe:JSON.stringify(recipe)
+  };
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'saveProduct',record});
+  載入中(false);
+  if(!res.ok){提示('儲存失敗：'+(res.error||''));return;}
+  提示('✓ 已儲存');
+  渲染商品管理();
+}
+
+async function 刪除商品(id){
+  if(!confirm('確定刪除這個商品？'))return;
+  載入中(true);
+  await 呼叫API({action:'deleteProduct',id});
+  載入中(false);
+  提示('已刪除');
+  渲染商品管理();
 }
 
 // ===== 原物料管理 =====
