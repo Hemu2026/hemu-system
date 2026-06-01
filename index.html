@@ -2101,12 +2101,20 @@ async function 渲染資金管理(){
   const el=document.getElementById('page-資金管理');
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">資金管理</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
   載入中(true);
-  const res=await 呼叫API({action:'getFundRecords'});
+  const ym=今日日期().slice(0,7);
+  const [res,resA,resB]=await Promise.all([
+    呼叫API({action:'getFundRecords'}),
+    呼叫API({action:'getRecords',brand:'a',month:ym}),
+    呼叫API({action:'getRecords',brand:'b',month:ym})
+  ]);
   載入中(false);
+  // 計算本月週結數字
+  const recsA=resA.data||[],recsB=resB.data||[];
+  const 週結資料=計算週結現金(recsA,recsB);
   const records=(res.records||res.data||[]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   // 從流水反推各帳戶餘額（以最新快照為起點）
-  const 帳戶=['富郁霖卡','南閩卡','林家涼麵現金','木谷食麵所現金'];
+  const 帳戶=['富郁霖卡','南閩卡','公司現金'];
   const 餘額={};帳戶.forEach(a=>餘額[a]=0);
   const sorted=[...records].reverse(); // 由舊到新
   // 找每個帳戶最新的快照索引
@@ -2136,7 +2144,7 @@ async function 渲染資金管理(){
     } else 餘額[r.account]+=(+r.amount||0);
   });
   const 銀行合計=餘額['富郁霖卡']+餘額['南閩卡'];
-  const 現金合計=餘額['林家涼麵現金']+餘額['木谷食麵所現金'];
+  const 現金合計=餘額['公司現金'];
   const 總資金=銀行合計+現金合計;
 
   el.innerHTML=`
@@ -2151,10 +2159,23 @@ async function 渲染資金管理(){
       ${[['富郁霖卡','富郁霖卡'],['南閩卡','南閩卡']].map(([n,k])=>`
       <div class="sum-row"><span class="sum-label">${n}</span><span style="font-weight:600;font-size:16px">$${格式化金額(餘額[k])}</span></div>`).join('')}
     </div>
-    <div class="card"><div class="card-title">店面現金</div>
-      ${[['林家涼麵','林家涼麵現金'],['木谷食麵所','木谷食麵所現金']].map(([n,k])=>`
-      <div class="sum-row"><span class="sum-label">${n}</span><span style="font-weight:600;font-size:16px">$${格式化金額(餘額[k])}</span></div>`).join('')}
+    <div class="card"><div class="card-title">公司現金</div>
+      <div class="sum-row"><span class="sum-label">現金（林家＋木谷合計）</span><span style="font-weight:600;font-size:16px">$${格式化金額(餘額['公司現金'])}</span></div>
     </div>
+  </div>
+  <div class="card" style="border:1px solid #7bb5a0">
+    <div class="card-title-lg" style="margin-bottom:6px">📋 本月週結現金（${ym}）</div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">從兩間店的每日記錄自動計算，確認後一鍵記入資金管理。</div>
+    ${週結資料.length?`<div class="table-wrap" style="margin-bottom:12px"><table style="font-size:13px">
+      <thead><tr style="color:#999;font-size:11px"><th>週期</th><th style="text-align:right">林家現金</th><th style="text-align:right">木谷現金</th><th style="text-align:right">合計</th><th></th></tr></thead>
+      <tbody>${週結資料.map((w,i)=>`<tr>
+        <td>第${i+1}週<br><small style="color:#aaa">${w.period}</small></td>
+        <td style="text-align:right">$${格式化金額(w.cashA)}</td>
+        <td style="text-align:right">$${格式化金額(w.cashB)}</td>
+        <td style="text-align:right;font-weight:600">$${格式化金額(w.cashA+w.cashB)}</td>
+        <td><button class="btn btn-sm btn-outline" onclick="記入週結現金(${w.cashA+w.cashB},'${w.period}','${w.endDate}')">記入</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`:'<div style="color:#aaa;text-align:center;padding:1rem">本月尚無每日記錄</div>'}
   </div>
   <div class="card" style="border:1px solid #c8a96e">
     <div class="card-title-lg" style="margin-bottom:14px">📸 月初對帳（設定各帳戶實際餘額）</div>
@@ -2181,8 +2202,7 @@ async function 渲染資金管理(){
     <div class="g2" style="margin-bottom:10px">
       <div class="field"><label>帳戶</label>
         <select id="fr-account" style="font-size:15px;padding:10px 12px">
-          <option value="林家涼麵現金">林家涼麵現金</option>
-          <option value="木谷食麵所現金">木谷食麵所現金</option>
+          <option value="公司現金">公司現金</option>
           <option value="富郁霖卡">富郁霖卡</option>
           <option value="南閩卡">南閩卡</option>
         </select>
@@ -2191,8 +2211,7 @@ async function 渲染資金管理(){
         <select id="fr-to-account" style="font-size:15px;padding:10px 12px">
           <option value="富郁霖卡">富郁霖卡</option>
           <option value="南閩卡">南閩卡</option>
-          <option value="林家涼麵現金">林家涼麵現金</option>
-          <option value="木谷食麵所現金">木谷食麵所現金</option>
+          <option value="公司現金">公司現金</option>
         </select>
       </div>
     </div>
@@ -2240,6 +2259,34 @@ function 切換資金類型(){
   const type=document.getElementById('fr-type')?.value;
   const w=document.getElementById('fr-to-wrap');
   if(w) w.style.display=type==='轉帳'?'':'none';
+}
+
+function 計算週結現金(recsA,recsB){
+  const allRecs=[...recsA.map(r=>({...r,brand:'a'})),...recsB.map(r=>({...r,brand:'b'}))];
+  if(!allRecs.length)return[];
+  const weeks={};
+  allRecs.forEach(r=>{
+    const d=new Date(格式化日期(r.date));
+    const day=d.getDay()||7;
+    const mon=new Date(d);mon.setDate(d.getDate()-(day-1));
+    const key=mon.toISOString().slice(0,10);
+    if(!weeks[key])weeks[key]={cashA:0,cashB:0,endDate:''};
+    if(r.brand==='a')weeks[key].cashA+=取應交現金(r);
+    else weeks[key].cashB+=取應交現金(r);
+    const end=new Date(mon);end.setDate(mon.getDate()+6);
+    weeks[key].endDate=end.toISOString().slice(0,10);
+    weeks[key].period=`${key.slice(5)} ~ ${end.toISOString().slice(5,10)}`;
+  });
+  return Object.keys(weeks).sort().map(k=>({...weeks[k]}));
+}
+
+async function 記入週結現金(amount,period,date){
+  if(!confirm(`記入週結現金 $${格式化金額(amount)}（${period}）到公司現金？`))return;
+  載入中(true,'記錄中...');
+  await 呼叫API({action:'saveFundRecord',date,type:'週收款',account:'公司現金',toAccount:'',amount,note:`週結收款 ${period}（林家＋木谷）`,created_by:目前使用者?.email});
+  載入中(false);
+  提示('✓ 已記入資金管理');
+  渲染資金管理();
 }
 
 async function 儲存月初快照(){
