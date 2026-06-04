@@ -3044,10 +3044,10 @@ async function 載入批發資料(){
     panel.innerHTML=`<div class="card"><div class="card-title">訂單列表（${list.length} 筆）</div>
     <table><thead><tr><th>日期</th><th>客戶代碼</th><th>店家</th><th>金額</th><th>備註</th></tr></thead>
     <tbody>${list.map(r=>`<tr>
-      <td>${(r.date||r.created_at||'').slice(0,10)}</td>
+      <td>${String(r.date||r.created_at||'').slice(0,10)}</td>
       <td>${r.customerCode||r.code||'—'}</td>
       <td>${r.customerName||r.shopName||'—'}</td>
-      <td>$${格式化金額(+r.total||0)}</td>
+      <td>${+r.total?'$'+格式化金額(+r.total):'—'}</td>
       <td>${r.items||r.note||'—'}</td>
     </tr>`).join('')}</tbody></table>
     </div>`;
