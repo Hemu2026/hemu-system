@@ -3042,16 +3042,26 @@ async function 載入批發資料(){
     const list=res.data||[];
     if(!list.length){panel.innerHTML=`<div class="card"><div style="color:#aaa;text-align:center;padding:1.5rem">尚無訂單記錄</div></div>`;return;}
     panel.innerHTML=`<div class="card"><div class="card-title">訂單列表（${list.length} 筆）</div>
-    <table><thead><tr><th>日期</th><th>客戶代碼</th><th>店家</th><th>金額</th><th>備註</th></tr></thead>
+    <table><thead><tr><th>日期</th><th>客戶代碼</th><th>店家</th><th>金額</th><th>備註</th><th></th></tr></thead>
     <tbody>${list.map(r=>`<tr>
       <td>${String(r.date||r.created_at||'').slice(0,10)}</td>
       <td>${r.customerCode||r.code||'—'}</td>
       <td>${r.customerName||r.shopName||'—'}</td>
       <td>${+r.total?'$'+格式化金額(+r.total):'—'}</td>
       <td>${r.items||r.note||'—'}</td>
+      <td><button class="btn btn-outline btn-sm" style="color:#c0392b;border-color:#c0392b" onclick="刪除B2B訂單('${r.orderId||r.id}')">刪除</button></td>
     </tr>`).join('')}</tbody></table>
     </div>`;
   }
+}
+async function 刪除B2B訂單(id){
+  if(!confirm('確定要刪除這筆訂單？'))return;
+  載入中(true,'刪除中...');
+  const res=await 呼叫API({action:'b2bDeleteOrder',id});
+  載入中(false);
+  if(!res.ok){提示('刪除失敗：'+(res.error||''));return;}
+  提示('✓ 已刪除');
+  載入批發資料();
 }
 async function 審核批發(id,action){
   載入中(true,'處理中...');
