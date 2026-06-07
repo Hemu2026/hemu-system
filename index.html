@@ -2381,7 +2381,7 @@ async function 刪除資金記錄(id){
 }
 
 // ===== 商品管理 =====
-const 商品分類=['麻醬系列','涼麵系列','小菜系列','飲料系列','包材','其他'];
+const 商品分類=['醬包系列','配料','真空包','其他'];
 
 async function 渲染商品管理(){
   const el=document.getElementById('page-商品管理');
@@ -2408,7 +2408,11 @@ function 渲染商品列表(products){
   if(!el)return;
   if(countEl)countEl.textContent=products.length;
   if(!products.length){el.innerHTML=`<div class="card" style="text-align:center;color:#aaa;padding:2rem">尚無商品，請點「新增商品」建立第一個商品</div>`;return;}
-  el.innerHTML=products.map(p=>{
+  const groups={};
+  products.forEach(p=>{const g=p.category||'其他';if(!groups[g])groups[g]=[];groups[g].push(p);});
+  const groupOrder=[...商品分類,'其他'];
+  const sortedGroups=Object.keys(groups).sort((a,b)=>{const ia=groupOrder.indexOf(a),ib=groupOrder.indexOf(b);return(ia===-1?99:ia)-(ib===-1?99:ib);});
+  const cardHtml=p=>{
     const cost=+p.cost||0,price=+p.price||0;
     const margin=price?((price-cost)/price*100):0;
     const recipe=p.recipe?JSON.parse(p.recipe):[];
@@ -2416,7 +2420,7 @@ function 渲染商品列表(products){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
         <div>
           <div style="font-size:16px;font-weight:700">${p.name} <span style="font-size:13px;color:#888;font-weight:400">${p.spec||''}</span></div>
-          <div style="font-size:12px;color:#888;margin-top:2px">${p.category||''} ${p.packageSize?'｜ 包裝：'+p.packageSize+' '+( p.packageUnit||''):''}  ${p.note?'｜ '+p.note:''}</div>
+          <div style="font-size:12px;color:#888;margin-top:2px">${p.packageSize?'包裝：'+p.packageSize+' '+(p.packageUnit||''):''}${p.note?'｜ '+p.note:''}</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:22px;font-weight:700;color:#27ae60">$${格式化金額(price)}</div>
@@ -2434,7 +2438,11 @@ function 渲染商品列表(products){
         <button class="btn btn-danger btn-sm" onclick="刪除商品('${p.id}')">刪除</button>
       </div>
     </div>`;
-  }).join('');
+  };
+  el.innerHTML=sortedGroups.map(g=>`
+    <div style="margin-bottom:8px;margin-top:16px;font-size:13px;font-weight:700;color:#666;letter-spacing:1px;padding:0 2px">── ${g}（${groups[g].length}）──</div>
+    ${groups[g].map(cardHtml).join('')}
+  `).join('');
 }
 
 function 篩選商品(){
