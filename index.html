@@ -2273,7 +2273,10 @@ async function 渲染資金管理(){
       <label>備註（買什麼、哪家店）</label>
       <input type="text" id="fr-note" placeholder="例：菜市場買豆乾" style="font-size:15px;padding:10px 12px">
     </div>
-    <input type="hidden" id="fr-date" value="${今日日期()}">
+    <div class="field" style="margin-bottom:14px">
+      <label>日期</label>
+      <input type="date" id="fr-date" value="${今日日期()}" style="font-size:15px;padding:10px 12px;width:100%;box-sizing:border-box">
+    </div>
     <input type="hidden" id="fr-type" value="支出">
     <button class="btn btn-hq btn-full" onclick="儲存資金記錄()" style="padding:16px;font-size:17px">記錄</button>
   </div>
