@@ -2424,6 +2424,7 @@ function 渲染商品列表(products){
         </div>
         <div style="text-align:right">
           <div style="font-size:22px;font-weight:700;color:#27ae60">$${格式化金額(price)}</div>
+          ${p.b2bEnabled&&p.b2bPrice?`<div style="font-size:12px;color:#7b5ea7;font-weight:600">批發 $${格式化金額(+p.b2bPrice)} ${p.packageSize?'/ '+p.packageSize+(p.packageUnit||'袋'):''}</div>`:''}
           <div style="font-size:12px;color:#888">成本 $${格式化金額(cost)} ｜ 毛利率 <span style="color:${margin>=20?'#27ae60':margin>=10?'#e67e22':'#c0392b'};font-weight:600">${margin.toFixed(1)}%</span></div>
         </div>
       </div>
