@@ -2533,7 +2533,7 @@ function 搜尋原物料加入(){
     style="padding:6px 10px;cursor:pointer;border-radius:6px;font-size:13px;display:flex;justify-content:space-between;align-items:center"
     onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background=''">
     <span>${m.name} <span style="color:#aaa;font-size:11px">${m.code||''}</span></span>
-    <span style="color:#27ae60;font-size:11px">$${(m.price&&m.spec&&m.yieldRate?(m.price/m.spec/(m.yieldRate/100)):0).toFixed(4)}/${m.unit}</span>
+    <span style="color:#27ae60;font-size:11px">$${(m.price&&m.spec&&m.yieldRate?(m.price/m.spec/(m.yieldRate/100)):0).toFixed(2)}/${m.unit}</span>
   </div>`).join('');
 }
 
@@ -2564,13 +2564,13 @@ function 更新商品毛利(){
     const cost=r.unitCost*amt;
     total+=cost;
     const el=document.getElementById(`recipe-cost-${r._idx}`);
-    if(el)el.textContent='$'+cost.toFixed(4);
+    if(el)el.textContent='$'+cost.toFixed(2);
   });
   const price=+document.getElementById('pf-price')?.value||0;
   const margin=price?((price-total)/price*100):0;
   const costEl=document.getElementById('pf-cost');
   const margEl=document.getElementById('pf-margin');
-  if(costEl)costEl.textContent='$'+total.toFixed(4);
+  if(costEl)costEl.textContent='$'+total.toFixed(2);
   if(margEl){margEl.textContent=price?(margin.toFixed(1)+'%'):'—';margEl.style.color=margin>=20?'#27ae60':margin>=10?'#e67e22':'#c0392b';}
 }
 
@@ -2681,7 +2681,7 @@ function 渲染原物料列表(mats){
       <td style="font-size:12px">${m.unit||'—'}</td>
       <td style="font-size:12px">${m.yieldRate||100}%</td>
       <td style="font-size:12px;color:#555">${m.spec?(m.spec*(( m.yieldRate||100)/100)).toFixed(0)+' '+(m.unit||''):'—'}</td>
-      <td style="font-weight:600;color:#27ae60;font-size:12px">$${unitCost.toFixed(4)}</td>
+      <td style="font-weight:600;color:#27ae60;font-size:12px">$${unitCost.toFixed(2)}</td>
       <td style="font-size:11px;color:#888;max-width:120px">${m.note||'—'}</td>
       <td>
         <div style="display:flex;gap:4px">
@@ -2807,7 +2807,7 @@ function 預覽得率單價(){
   if(!el)return;
   const processed=spec*(yld/100);
   const unitCost=processed?price/processed:0;
-  el.textContent=price&&spec?'$'+unitCost.toFixed(4)+' / '+unit:'—';
+  el.textContent=price&&spec?'$'+unitCost.toFixed(2)+' / '+unit:'—';
   if(el2)el2.textContent=spec?processed.toFixed(processed%1===0?0:1)+' '+unit:'—';
 }
 
@@ -3153,8 +3153,8 @@ async function 渲染成本表(){
                 <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4">${r.name}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right">${r.amount}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">${r.unit}</td>
-                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">$${r.unitCost.toFixed(4)}</td>
-                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;font-weight:500">$${sub.toFixed(4)}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">$${r.unitCost.toFixed(2)}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;font-weight:500">$${sub.toFixed(2)}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">${pct.toFixed(1)}%</td>
               </tr>`;
             }).join('')}
@@ -3162,7 +3162,7 @@ async function 渲染成本表(){
           </table>
           <div style="display:flex;justify-content:flex-end;gap:24px;font-size:13px;padding:8px 8px 0;border-top:1px solid #f0f0ec">
             <span style="color:#888">食材成本合計</span>
-            <strong>$${cost.toFixed(4)}</strong>
+            <strong>$${cost.toFixed(2)}</strong>
           </div>`:'<div style="color:#aaa;font-size:13px;padding:8px">尚未設定配方</div>'}
           ${b2bEnabled?`<div style="margin-top:12px;padding:10px 12px;background:#f0f7ff;border-radius:8px;font-size:13px;display:flex;gap:24px;flex-wrap:wrap">
             <span>🏪 批發價 <strong>$${格式化金額(b2bPrice)}/袋</strong></span>
