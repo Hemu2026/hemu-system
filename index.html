@@ -2222,20 +2222,6 @@ async function 渲染資金管理(){
       <div class="sum-row"><span class="sum-label">現金（林家＋木谷合計）</span><span style="font-weight:600;font-size:16px">$${格式化金額(餘額['公司現金'])}</span></div>
     </div>
   </div>
-  <div class="card" style="border:1px solid #7bb5a0">
-    <div class="card-title-lg" style="margin-bottom:6px">📋 本月週結現金（${ym}）</div>
-    <div style="font-size:12px;color:#888;margin-bottom:14px">從兩間店的每日記錄自動計算，確認後一鍵記入資金管理。</div>
-    ${週結資料.length?`<div class="table-wrap" style="margin-bottom:12px"><table style="font-size:13px">
-      <thead><tr style="color:#999;font-size:11px"><th>週期</th><th style="text-align:right">林家現金</th><th style="text-align:right">木谷現金</th><th style="text-align:right">合計</th><th></th></tr></thead>
-      <tbody>${週結資料.map((w,i)=>`<tr>
-        <td>第${i+1}週<br><small style="color:#aaa">${w.period}</small></td>
-        <td style="text-align:right">$${格式化金額(w.cashA)}</td>
-        <td style="text-align:right">$${格式化金額(w.cashB)}</td>
-        <td style="text-align:right;font-weight:600">$${格式化金額(w.cashA+w.cashB)}</td>
-        <td><button class="btn btn-sm btn-outline" onclick="記入週結現金(${w.cashA+w.cashB},'${w.period}','${w.endDate}')">記入</button></td>
-      </tr>`).join('')}</tbody>
-    </table></div>`:'<div style="color:#aaa;text-align:center;padding:1rem">本月尚無每日記錄</div>'}
-  </div>
   <div class="card" style="border:1px solid #c8a96e">
     <div class="card-title-lg" style="margin-bottom:14px">📸 月初對帳（設定各帳戶實際餘額）</div>
     <div style="font-size:12px;color:#888;margin-bottom:14px">填入今日各帳戶的實際餘額，系統會以此為新起點計算後續流水。</div>
