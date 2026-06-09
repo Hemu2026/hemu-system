@@ -235,8 +235,8 @@ const 角色名稱 = {staff:'員工', manager:'店長', owner:'老闆'};
 const 品牌標籤 = {a:'林家涼麵', b:'木谷食麵所', both:'兩店'};
 let 目前使用者 = null;
 let 品牌設定 = {
-  a:{rent:23000,pos:0,platform:500,phone:0,ads:0,other:0,lp_rate:3,uber_rate:31},
-  b:{rent:0,pos:0,platform:500,phone:0,ads:0,other:0,lp_rate:3,uber_rate:31}
+  a:{rent:23000,pos:0,platform:500,phone:0,ads:0,utility:0,other:0,lp_rate:3,uber_rate:31},
+  b:{rent:0,pos:0,platform:500,phone:0,ads:0,utility:0,other:0,lp_rate:3,uber_rate:31}
 };
 let claudeApiKey = '';
 
@@ -255,7 +255,7 @@ function 今日日期(){const d=new Date();return`${d.getFullYear()}-${String(d.
 function 百分比(v,t){return t?((v/t)*100).toFixed(1)+'%':'—'}
 function 數值(id){return parseFloat(document.getElementById(id)?.value)||0}
 function 文字(id){return document.getElementById(id)?.value||''}
-function 固定成本(s){return(s.rent||0)+(s.platform||0)+(s.pos||0)+(s.phone||0)+(s.ads||0)+(s.other||0)}
+function 固定成本(s){return(s.rent||0)+(s.platform||0)+(s.pos||0)+(s.phone||0)+(s.ads||0)+(s.utility||0)+(s.other||0)}
 function 取得ApiKey(){return claudeApiKey||localStorage.getItem('hm_claude_key')||''}
 function 設定ApiKey(k){localStorage.setItem('hm_claude_key',k.trim())}
 
@@ -1273,7 +1273,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[]){
     </div>
   </div>
   <div class="card"><div class="card-title-lg">💹 損益總結</div>
-    ${[['月營收',tRev,false],['食材進貨',tFood,true],['包材／餐具',tPack,true],['員工餐費',tMeal,true],['瓦斯',tGas,true],['平台手續費',tPFee,true],['其他當日雜支',tMisc,true],['薪資實發合計',pl.salary,true],['勞健退（公司負擔）',pl.nhi_co,true],['房租',s.rent||0,true],['其他固定費用',(s.platform||0)+(s.pos||0)+(s.phone||0)+(s.ads||0)+(s.other||0),true]]
+    ${[['月營收',tRev,false],['食材進貨',tFood,true],['包材／餐具',tPack,true],['員工餐費',tMeal,true],['瓦斯',tGas,true],['平台手續費',tPFee,true],['其他當日雜支',tMisc,true],['薪資實發合計',pl.salary,true],['勞健退（公司負擔）',pl.nhi_co,true],['房租',s.rent||0,true],['其他固定費用',(s.platform||0)+(s.pos||0)+(s.phone||0)+(s.ads||0)+(s.utility||0)+(s.other||0),true]]
       .map(([l,v,isE])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>${isE?'-':''}$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
     <div class="sum-row"><span>月淨利</span><span style="color:${netProfit>=0?'#27ae60':'#c0392b'}">${netProfit>=0?'+':'-'}$${格式化金額(Math.abs(netProfit))} (${profitRate.toFixed(1)}%)</span></div>
     <div class="progress-wrap">
@@ -2098,7 +2098,7 @@ function 渲染系統設定(){
   <div id="stab-b" style="display:none">${建立設定表單('b')}</div>`;
   ['a','b'].forEach(br=>{
     const s=品牌設定[br]||{};
-    const 對應={rent:'rent',pos_fee:'pos',platform_fee:'platform',phone:'phone',ads:'ads',other:'other',lp_rate:'lprate',uber_rate:'uberrate'};
+    const 對應={rent:'rent',pos_fee:'pos',platform_fee:'platform',phone:'phone',ads:'ads',utility:'utility',other:'other',lp_rate:'lprate',uber_rate:'uberrate'};
     Object.entries(對應).forEach(([sk,fk])=>{
       const el2=document.getElementById(`s${br}-${fk}`);
       if(el2)el2.value=s[sk]||'';
@@ -2114,6 +2114,7 @@ function 建立設定表單(br){
       <div class="field"><label>平台月費</label><input type="number" id="s${br}-platform" placeholder="500"></div>
       <div class="field"><label>電話費／網路費</label><input type="number" id="s${br}-phone" placeholder="0"></div>
       <div class="field"><label>廣告／文宣費</label><input type="number" id="s${br}-ads" placeholder="0"></div>
+      <div class="field"><label>水電費</label><input type="number" id="s${br}-utility" placeholder="0"></div>
       <div class="field"><label>其他固定雜支</label><input type="number" id="s${br}-other" placeholder="0"></div>
     </div></div>
   <div class="card"><div class="card-title">平台手續費率</div>
@@ -2142,12 +2143,12 @@ async function 儲存ApiKey(){
 }
 
 async function 儲存設定(br){
-  const s={brand:br,rent:數值(`s${br}-rent`),pos_fee:數值(`s${br}-pos`),platform_fee:數值(`s${br}-platform`),phone:數值(`s${br}-phone`),ads:數值(`s${br}-ads`),other:數值(`s${br}-other`),lp_rate:數值(`s${br}-lprate`),uber_rate:數值(`s${br}-uberrate`)};
+  const s={brand:br,rent:數值(`s${br}-rent`),pos_fee:數值(`s${br}-pos`),platform_fee:數值(`s${br}-platform`),phone:數值(`s${br}-phone`),ads:數值(`s${br}-ads`),utility:數值(`s${br}-utility`),other:數值(`s${br}-other`),lp_rate:數值(`s${br}-lprate`),uber_rate:數值(`s${br}-uberrate`)};
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveSettings',brand:br,settings:s});
   載入中(false);
   if(!res.ok){提示('儲存失敗：'+res.error);return}
-  品牌設定[br]={rent:s.rent,pos:s.pos_fee,platform:s.platform_fee,phone:s.phone,ads:s.ads,other:s.other,lp_rate:s.lp_rate,uber_rate:s.uber_rate};
+  品牌設定[br]={rent:s.rent,pos:s.pos_fee,platform:s.platform_fee,phone:s.phone,ads:s.ads,utility:s.utility,other:s.other,lp_rate:s.lp_rate,uber_rate:s.uber_rate};
   提示('✓ '+品牌名稱[br]+' 設定已儲存');
 }
 
