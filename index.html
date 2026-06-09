@@ -1217,15 +1217,20 @@ async function 渲染月報資料(br,ym){
   const recs=allRecs.filter(r=>r.date?.startsWith(ym));
   const s=品牌設定[br]||{};
   載入中(true);
-  const payRes=await 呼叫API({action:'getPayroll',brand:br,month:ym});
+  const [payRes,mcRes]=await Promise.all([
+    呼叫API({action:'getPayroll',brand:br,month:ym}),
+    呼叫API({action:'getMonthCost',brand:br,month:ym})
+  ]);
   載入中(false);
+  const mc=mcRes.data||{};
+  const sWithMonth={...s,phone:+mc.phone||0,ads:+mc.ads||0,utility:+mc.utility||0,other:+mc.other||0};
   const emps=payRes.data||[];
   const pl={
     salary:emps.reduce((a,e)=>a+((+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0)),0),
     nhi_co:emps.reduce((a,e)=>a+(+e.nhi_co||0),0)
   };
   pl.total=pl.salary+pl.nhi_co;
-  document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,s,pl,window[`_recs_${br}`]||[]);
+  document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,sWithMonth,pl,window[`_recs_${br}`]||[]);
 }
 
 function 建立月報HTML(recs,s,pl,allRecs=[]){
@@ -2098,31 +2103,44 @@ function 渲染系統設定(){
   <div id="stab-b" style="display:none">${建立設定表單('b')}</div>`;
   ['a','b'].forEach(br=>{
     const s=品牌設定[br]||{};
-    const 對應={rent:'rent',pos_fee:'pos',platform_fee:'platform',phone:'phone',ads:'ads',utility:'utility',other:'other',lp_rate:'lprate',uber_rate:'uberrate'};
-    Object.entries(對應).forEach(([sk,fk])=>{
+    const 固定對應={rent:'rent',pos_fee:'pos',platform_fee:'platform',lp_rate:'lprate',uber_rate:'uberrate'};
+    Object.entries(固定對應).forEach(([sk,fk])=>{
       const el2=document.getElementById(`s${br}-${fk}`);
       if(el2)el2.value=s[sk]||'';
     });
+    載入月份成本(br);
   });
 }
 
 function 建立設定表單(br){
-  return`<div class="card"><div class="card-title">每月固定費用</div>
+  const months=Array.from({length:12},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()-i);return d.toISOString().slice(0,7);});
+  return`<div class="card"><div class="card-title">固定費用（每月相同）</div>
     <div class="g2">
       <div class="field"><label>房租</label><input type="number" id="s${br}-rent" placeholder="0"></div>
       <div class="field"><label>POS 費用</label><input type="number" id="s${br}-pos" placeholder="0"></div>
       <div class="field"><label>平台月費</label><input type="number" id="s${br}-platform" placeholder="500"></div>
+    </div>
+    <button class="btn btn-${br} btn-full" style="margin-top:8px" onclick="儲存設定('${br}')">儲存固定費用</button>
+  </div>
+  <div class="card"><div class="card-title">每月變動費用</div>
+    <div class="field" style="margin-bottom:12px"><label>選擇月份</label>
+      <select id="s${br}-month" onchange="載入月份成本('${br}')" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;font-family:inherit">
+        ${months.map((m,i)=>`<option value="${m}"${i===0?' selected':''}>${m}</option>`).join('')}
+      </select>
+    </div>
+    <div class="g2">
       <div class="field"><label>電話費／網路費</label><input type="number" id="s${br}-phone" placeholder="0"></div>
       <div class="field"><label>廣告／文宣費</label><input type="number" id="s${br}-ads" placeholder="0"></div>
       <div class="field"><label>水電費</label><input type="number" id="s${br}-utility" placeholder="0"></div>
       <div class="field"><label>其他固定雜支</label><input type="number" id="s${br}-other" placeholder="0"></div>
-    </div></div>
+    </div>
+    <button class="btn btn-${br} btn-full" style="margin-top:8px" onclick="儲存月份成本('${br}')">儲存本月費用</button>
+  </div>
   <div class="card"><div class="card-title">平台手續費率</div>
     <div class="g2">
       <div class="field"><label>LINE Pay 費率 %</label><input type="number" id="s${br}-lprate" value="3" step="0.1"></div>
       <div class="field"><label>Uber Eats 費率 %</label><input type="number" id="s${br}-uberrate" value="31" step="0.1"></div>
-    </div></div>
-  <button class="btn btn-${br} btn-full" onclick="儲存設定('${br}')">儲存設定</button>`;
+    </div></div>`;
 }
 
 function 切換設定頁籤(br,btn){
@@ -2143,13 +2161,31 @@ async function 儲存ApiKey(){
 }
 
 async function 儲存設定(br){
-  const s={brand:br,rent:數值(`s${br}-rent`),pos_fee:數值(`s${br}-pos`),platform_fee:數值(`s${br}-platform`),phone:數值(`s${br}-phone`),ads:數值(`s${br}-ads`),utility:數值(`s${br}-utility`),other:數值(`s${br}-other`),lp_rate:數值(`s${br}-lprate`),uber_rate:數值(`s${br}-uberrate`)};
+  const s={brand:br,rent:數值(`s${br}-rent`),pos_fee:數值(`s${br}-pos`),platform_fee:數值(`s${br}-platform`),lp_rate:數值(`s${br}-lprate`),uber_rate:數值(`s${br}-uberrate`)};
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveSettings',brand:br,settings:s});
   載入中(false);
   if(!res.ok){提示('儲存失敗：'+res.error);return}
-  品牌設定[br]={rent:s.rent,pos:s.pos_fee,platform:s.platform_fee,phone:s.phone,ads:s.ads,utility:s.utility,other:s.other,lp_rate:s.lp_rate,uber_rate:s.uber_rate};
-  提示('✓ '+品牌名稱[br]+' 設定已儲存');
+  品牌設定[br]={...品牌設定[br],rent:s.rent,pos:s.pos_fee,platform:s.platform_fee,lp_rate:s.lp_rate,uber_rate:s.uber_rate};
+  提示('✓ '+品牌名稱[br]+' 固定費用已儲存');
+}
+async function 載入月份成本(br){
+  const month=document.getElementById(`s${br}-month`)?.value;
+  if(!month)return;
+  const res=await 呼叫API({action:'getMonthCost',brand:br,month});
+  const d=res.data||{};
+  ['phone','ads','utility','other'].forEach(f=>{
+    const el=document.getElementById(`s${br}-${f}`);
+    if(el)el.value=d[f]||0;
+  });
+}
+async function 儲存月份成本(br){
+  const month=document.getElementById(`s${br}-month`)?.value;
+  if(!month){提示('請選擇月份');return;}
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'saveMonthCost',brand:br,month,phone:數值(`s${br}-phone`),ads:數值(`s${br}-ads`),utility:數值(`s${br}-utility`),other:數值(`s${br}-other`)});
+  載入中(false);
+  提示(res.ok?'✓ '+month+' 費用已儲存':'儲存失敗：'+res.error);
 }
 
 // ===== 資金管理 =====
