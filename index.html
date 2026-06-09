@@ -1230,7 +1230,16 @@ async function 渲染月報資料(br,ym){
     nhi_co:emps.reduce((a,e)=>a+(+e.nhi_co||0),0)
   };
   pl.total=pl.salary+pl.nhi_co;
+  window._月報_br=br; window._月報_ym=ym; window._月報_mc={...mc};
   document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,sWithMonth,pl,window[`_recs_${br}`]||[]);
+}
+async function 快速儲存月份成本(val,field){
+  const br=window._月報_br,ym=window._月報_ym;
+  if(!br||!ym)return;
+  const mc={...window._月報_mc,[field]:+val||0};
+  window._月報_mc=mc;
+  await 呼叫API({action:'saveMonthCost',brand:br,month:ym,phone:mc.phone||0,ads:mc.ads||0,utility:mc.utility||0,other:mc.other||0});
+  提示('✓ 已儲存');
 }
 
 function 建立月報HTML(recs,s,pl,allRecs=[]){
@@ -1278,8 +1287,8 @@ function 建立月報HTML(recs,s,pl,allRecs=[]){
     </div>
   </div>
   <div class="card"><div class="card-title-lg">💹 損益總結</div>
-    ${[['月營收',tRev,false],['食材進貨',tFood,true],['包材／餐具',tPack,true],['員工餐費',tMeal,true],['瓦斯',tGas,true],['平台手續費',tPFee,true],['其他當日雜支',tMisc,true],['薪資實發合計',pl.salary,true],['勞健退（公司負擔）',pl.nhi_co,true],['房租',s.rent||0,true],['平台月費／POS',(s.platform||0)+(s.pos||0),true],['電話費／網路費',s.phone||0,true],['廣告／文宣費',s.ads||0,true],['水電費',s.utility||0,true],['其他固定雜支',s.other||0,true]]
-      .map(([l,v,isE])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>${isE?'-':''}$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
+    ${[['月營收',tRev,false,false],['食材進貨',tFood,true,false],['包材／餐具',tPack,true,false],['員工餐費',tMeal,true,false],['瓦斯',tGas,true,false],['平台手續費',tPFee,true,false],['其他當日雜支',tMisc,true,false],['薪資實發合計',pl.salary,true,false],['勞健退（公司負擔）',pl.nhi_co,true,false],['房租',s.rent||0,true,false],['平台月費／POS',(s.platform||0)+(s.pos||0),true,false],['電話費／網路費',s.phone||0,true,'phone'],['廣告／文宣費',s.ads||0,true,'ads'],['水電費',s.utility||0,true,'utility'],['其他固定雜支',s.other||0,true,'other']]
+      .map(([l,v,isE,field])=>field?`<div class="sum-row"><span class="sum-label">${l}</span><span style="display:flex;align-items:center;gap:6px"><input type="number" value="${v}" style="width:90px;padding:2px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right" onchange="快速儲存月份成本(this.value,'${field}')">　<small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`:`<div class="sum-row"><span class="sum-label">${l}</span><span>${isE?'-':''}$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
     <div class="sum-row"><span>月淨利</span><span style="color:${netProfit>=0?'#27ae60':'#c0392b'}">${netProfit>=0?'+':'-'}$${格式化金額(Math.abs(netProfit))} (${profitRate.toFixed(1)}%)</span></div>
     <div class="progress-wrap">
       <div style="font-size:12px;color:#888;margin-bottom:6px">損益兩平進度：$${格式化金額(tRev)} / $${格式化金額(breakeven)}</div>
@@ -2108,12 +2117,10 @@ function 渲染系統設定(){
       const el2=document.getElementById(`s${br}-${fk}`);
       if(el2)el2.value=s[sk]||'';
     });
-    載入月份成本(br);
   });
 }
 
 function 建立設定表單(br){
-  const months=Array.from({length:12},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()-i);return d.toISOString().slice(0,7);});
   return`<div class="card"><div class="card-title">固定費用（每月相同）</div>
     <div class="g2">
       <div class="field"><label>房租</label><input type="number" id="s${br}-rent" placeholder="0"></div>
@@ -2122,25 +2129,13 @@ function 建立設定表單(br){
     </div>
     <button class="btn btn-${br} btn-full" style="margin-top:8px" onclick="儲存設定('${br}')">儲存固定費用</button>
   </div>
-  <div class="card"><div class="card-title">每月變動費用</div>
-    <div class="field" style="margin-bottom:12px"><label>選擇月份</label>
-      <select id="s${br}-month" onchange="載入月份成本('${br}')" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;font-family:inherit">
-        ${months.map((m,i)=>`<option value="${m}"${i===0?' selected':''}>${m}</option>`).join('')}
-      </select>
-    </div>
-    <div class="g2">
-      <div class="field"><label>電話費／網路費</label><input type="number" id="s${br}-phone" placeholder="0"></div>
-      <div class="field"><label>廣告／文宣費</label><input type="number" id="s${br}-ads" placeholder="0"></div>
-      <div class="field"><label>水電費</label><input type="number" id="s${br}-utility" placeholder="0"></div>
-      <div class="field"><label>其他固定雜支</label><input type="number" id="s${br}-other" placeholder="0"></div>
-    </div>
-    <button class="btn btn-${br} btn-full" style="margin-top:8px" onclick="儲存月份成本('${br}')">儲存本月費用</button>
-  </div>
   <div class="card"><div class="card-title">平台手續費率</div>
     <div class="g2">
       <div class="field"><label>LINE Pay 費率 %</label><input type="number" id="s${br}-lprate" value="3" step="0.1"></div>
       <div class="field"><label>Uber Eats 費率 %</label><input type="number" id="s${br}-uberrate" value="31" step="0.1"></div>
-    </div></div>`;
+    </div>
+    <button class="btn btn-${br} btn-full" style="margin-top:8px" onclick="儲存設定('${br}')">儲存費率</button>
+  </div>`;
 }
 
 function 切換設定頁籤(br,btn){
