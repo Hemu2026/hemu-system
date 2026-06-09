@@ -552,7 +552,7 @@ function 渲染每日表單(br){
       </div>
       <div>
         <div class="field">
-          <label>員工實際上繳</label>
+          <label>實際上繳</label>
           <input type="number" id="d${br}-handover-actual" placeholder="0" oninput="計算表單('${br}')">
         </div>
         <div style="font-size:13px;margin-top:6px">差異：<span id="d${br}-handover-diff" style="font-weight:600;color:#aaa">—</span></div>
@@ -884,7 +884,7 @@ async function 渲染確認頁(br){
         <div style="font-size:12px;color:#aaa;margin-top:4px">現金 − 現場進貨 − 餐具/包材 − 餐費 − 瓦斯</div>
       </div>
       ${data.handover_actual?`<div>
-        <div style="font-size:11px;color:#aaa;margin-bottom:2px">員工實際上繳</div>
+        <div style="font-size:11px;color:#aaa;margin-bottom:2px">實際上繳</div>
         <div style="font-size:24px;font-weight:700;color:#27ae60">$${格式化金額(data.handover_actual)}</div>
         <div style="font-size:12px;margin-top:4px;color:${Math.abs((+data.handover_actual)-(+data.handover||0))<=50?'#27ae60':'#c0392b'}">
           差異：${((+data.handover_actual)-(+data.handover||0))>=0?'+':''}${格式化金額((+data.handover_actual)-(+data.handover||0))}
@@ -1123,7 +1123,7 @@ function 編輯記錄(r){
   </div>
   <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">應交現金核對</div>
   <div class="g2">
-    ${f('handover_actual','員工實際上繳',r.handover_actual)}
+    ${f('handover_actual','實際上繳',r.handover_actual)}
   </div>
   <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">備註</div>
   <div class="field"><input type="text" id="edit-note" value="${r.note||''}" placeholder="備註"></div>
@@ -1293,7 +1293,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[]){
       const lsKey=`ws-${recs[0]?.brand||''}-${ym}`;
       const saved=JSON.parse(localStorage.getItem(lsKey)||'{}');
       return`<div class="table-wrap"><table>
-        <thead><tr><th>週期</th><th>天數</th><th>系統應交現金</th><th>員工實際上繳</th><th>老闆結算金額</th><th>差異</th><th>狀態</th></tr></thead>
+        <thead><tr><th>週期</th><th>天數</th><th>系統應交現金</th><th>實際上繳</th><th>老闆結算金額</th><th>差異</th><th>狀態</th></tr></thead>
         <tbody>${weekKeys.map((key,i)=>{
           const wRecs=weeks[key];
           const endDate=new Date(key);endDate.setDate(endDate.getDate()+6);
