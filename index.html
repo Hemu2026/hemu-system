@@ -977,6 +977,14 @@ function 顯示快速補填歷史(br){
   顯示快速補填(br,recs);
 }
 
+async function 週結記入資金(period,amount,account){
+  if(!confirm(`確定將 ${period} 週結 $${格式化金額(+amount)} 記入資金管理（${account}）？`))return;
+  載入中(true,'記入中...');
+  const res=await 呼叫API({action:'saveFundRecord',date:今日日期(),type:'週收款',account,toAccount:'',amount:+amount,note:`週結收款 ${period}`,created_by:目前使用者?.email});
+  載入中(false);
+  if(!res.ok){提示('記入失敗：'+(res.error||''));return;}
+  提示('✓ 已記入資金管理');
+}
 function 儲存週結算(lsKey,weekKey,val){
   const data=JSON.parse(localStorage.getItem(lsKey)||'{}');
   if(val)data[weekKey]=+val;else delete data[weekKey];
@@ -1293,7 +1301,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[]){
       const lsKey=`ws-${recs[0]?.brand||''}-${ym}`;
       const saved=JSON.parse(localStorage.getItem(lsKey)||'{}');
       return`<div class="table-wrap"><table>
-        <thead><tr><th>週期</th><th>天數</th><th>系統應交現金</th><th>實際上繳</th><th>老闆結算金額</th><th>差異</th><th>狀態</th></tr></thead>
+        <thead><tr><th>週期</th><th>天數</th><th>系統應交現金</th><th>實際上繳</th><th>老闆結算金額</th><th>差異</th><th>狀態</th><th></th></tr></thead>
         <tbody>${weekKeys.map((key,i)=>{
           const wRecs=weeks[key];
           const endDate=new Date(key);endDate.setDate(endDate.getDate()+6);
@@ -1317,6 +1325,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[]){
               oninput="儲存週結算('${lsKey}','${key}',this.value)"></td>
             <td style="color:${bossDiff===null?'#aaa':bossOk?'#27ae60':'#c0392b'}">${bossDiff===null?'—':(bossDiff>=0?'+':'')+格式化金額(bossDiff)}</td>
             <td>${bossDiff===null?'<span style="color:#aaa">待填寫</span>':bossOk?'<span style="color:#27ae60">✓ 正確</span>':'<span style="color:#c0392b">⚠ 異常</span>'}</td>
+            <td>${bossVal?`<button class="btn btn-sm" style="background:#2a6b58;color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;white-space:nowrap" onclick="週結記入資金('${period}','${bossVal}','公司現金')">記入資金</button>`:'—'}</td>
           </tr>`;
         }).join('')}</tbody>
         <tfoot><tr style="font-weight:600;background:#f8f8f8">
