@@ -1278,7 +1278,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[]){
     </div>
   </div>
   <div class="card"><div class="card-title-lg">💹 損益總結</div>
-    ${[['月營收',tRev,false],['食材進貨',tFood,true],['包材／餐具',tPack,true],['員工餐費',tMeal,true],['瓦斯',tGas,true],['平台手續費',tPFee,true],['其他當日雜支',tMisc,true],['薪資實發合計',pl.salary,true],['勞健退（公司負擔）',pl.nhi_co,true],['房租',s.rent||0,true],['其他固定費用',(s.platform||0)+(s.pos||0)+(s.phone||0)+(s.ads||0)+(s.utility||0)+(s.other||0),true]]
+    ${[['月營收',tRev,false],['食材進貨',tFood,true],['包材／餐具',tPack,true],['員工餐費',tMeal,true],['瓦斯',tGas,true],['平台手續費',tPFee,true],['其他當日雜支',tMisc,true],['薪資實發合計',pl.salary,true],['勞健退（公司負擔）',pl.nhi_co,true],['房租',s.rent||0,true],['平台月費／POS',(s.platform||0)+(s.pos||0),true],['電話費／網路費',s.phone||0,true],['廣告／文宣費',s.ads||0,true],['水電費',s.utility||0,true],['其他固定雜支',s.other||0,true]]
       .map(([l,v,isE])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>${isE?'-':''}$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
     <div class="sum-row"><span>月淨利</span><span style="color:${netProfit>=0?'#27ae60':'#c0392b'}">${netProfit>=0?'+':'-'}$${格式化金額(Math.abs(netProfit))} (${profitRate.toFixed(1)}%)</span></div>
     <div class="progress-wrap">
