@@ -2549,6 +2549,7 @@ function 顯示商品表單(p={}){
   window._recipe_rows=recipe.map((r,i)=>({...r,_idx:i}));
   window._recipe_idx=recipe.length;
   更新商品毛利();
+  更新內部毛利();
 }
 
 function 商品配方行(r,i){
@@ -3240,7 +3241,7 @@ async function 渲染內部訂購(br){
     呼叫API({action:'getProducts'}),
     呼叫API({action:'getInternalOrders',brand:br})
   ]);
-  const products=(resP.products||[]).filter(p=>p.category==='醬包系列'&&+p.internalPrice>0);
+  const products=(resP.products||[]).filter(p=>+p.internalPrice>0);
   const orders=(resO.orders||[]).sort((a,b)=>b.date>a.date?1:-1);
 
   const today=今日日期();
