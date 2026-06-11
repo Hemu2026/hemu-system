@@ -2451,7 +2451,8 @@ function 渲染商品列表(products){
         </div>
         <div style="text-align:right">
           <div style="font-size:22px;font-weight:700;color:#27ae60">$${格式化金額(price)}</div>
-          ${p.b2bEnabled&&p.b2bPrice?`<div style="font-size:12px;color:#7b5ea7;font-weight:600">批發 $${格式化金額(+p.b2bPrice)} ${p.packageSize?'/ '+p.packageSize+(p.packageUnit||'袋'):''}</div>`:''}
+          ${p.b2bEnabled&&p.b2bPrice?`<div style="font-size:12px;color:#7b5ea7;font-weight:600">外部批發 $${格式化金額(+p.b2bPrice)} ${p.packageSize?'/ '+p.packageSize+(p.packageUnit||'袋'):''}</div>`:''}
+          ${p.internalPrice?`<div style="font-size:12px;color:#b07d2a;font-weight:600">🏠 內部 $${格式化金額(+p.internalPrice)} / 袋</div>`:''}
           <div style="font-size:12px;color:#888">成本 $${格式化金額(cost)} ｜ 毛利率 <span style="color:${margin>=20?'#27ae60':margin>=10?'#e67e22':'#c0392b'};font-weight:600">${margin.toFixed(1)}%</span></div>
         </div>
       </div>
@@ -2510,10 +2511,14 @@ function 顯示商品表單(p={}){
         <div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="pf-b2b-enabled" ${p.b2bEnabled==='true'||p.b2bEnabled===true?'checked':''} style="width:16px;height:16px">
           開放批發下單</label></div>
-        <div class="field"><label>批發售價（元/袋）</label>
+        <div class="field"><label>外部批發價（元/袋）</label>
           <input type="number" id="pf-b2b-price" value="${p.b2bPrice||''}" placeholder="600" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
         <div class="field"><label>每袋數量（包/袋）</label>
           <input type="number" id="pf-b2b-pkg" value="${p.packageSize||''}" placeholder="100" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="field"><label>🏠 內部供應價（元/袋，供林家/木谷）</label>
+          <input type="number" id="pf-internal-price" value="${p.internalPrice||''}" placeholder="請填內部供應單價" style="width:100%;padding:7px 10px;border:1px solid #e8d5a3;border-radius:6px;font-family:inherit;font-size:13px;background:#fffbf0"></div>
       </div>
     </div>
     <div style="background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:14px">
@@ -2623,6 +2628,7 @@ async function 儲存商品(id){
     recipe:JSON.stringify(recipe),
     b2bEnabled:document.getElementById('pf-b2b-enabled')?.checked?'true':'false',
     b2bPrice:+document.getElementById('pf-b2b-price')?.value||0,
+    internalPrice:+document.getElementById('pf-internal-price')?.value||0,
   };
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveProduct',record});
