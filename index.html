@@ -370,6 +370,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="每日-${brand}"><span class="nav-dot dot-${brand}"></span>每日輸入</div>
       <div class="nav-item" data-page="歷史-${brand}"><span class="nav-dot dot-${brand}"></span>歷史記錄</div>
       <div class="nav-item" data-page="月報-${brand}"><span class="nav-dot dot-${brand}"></span>月報表</div>
+      <div class="nav-item" data-page="內部訂購-${brand}"><span class="nav-dot dot-${brand}"></span>內部訂購</div>
     </div>`;
   } else {
     ['a','b'].forEach(br=>{
@@ -379,6 +380,7 @@ function 建立導覽列(role,brand){
         <div class="nav-item" data-page="歷史-${br}"><span class="nav-dot dot-${br}"></span>歷史記錄</div>
         <div class="nav-item" data-page="月報-${br}"><span class="nav-dot dot-${br}"></span>月報表</div>
         <div class="nav-item" data-page="薪資-${br}"><span class="nav-dot dot-${br}"></span>員工薪資</div>
+        <div class="nav-item" data-page="內部訂購-${br}"><span class="nav-dot dot-${br}"></span>內部訂購</div>
       </div>`;
     });
     html+=`<div class="nav-group">
@@ -406,9 +408,9 @@ function 建立頁面(role,brand){
   if(role==='staff'){
     pages=[`上傳-${brand}`,`確認-${brand}`];
   } else if(role==='manager'){
-    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`];
+    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`];
   } else {
-    ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`));
+    ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`內部訂購-${br}`));
     pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
@@ -463,6 +465,7 @@ function 切換頁面(page){
   else if(page==='原物料管理')渲染原物料管理();
   else if(page==='商品管理')渲染商品管理();
   else if(page==='成本表')渲染成本表();
+  else if(page.startsWith('內部訂購-'))渲染內部訂購(br);
 }
 
 // ===== 每日輸入（店長/老闆）=====
@@ -3209,6 +3212,113 @@ async function 渲染成本表(){
     html+='</div>';
   });
   el.innerHTML=html;
+}
+
+// ===== 內部訂購 =====
+async function 渲染內部訂購(br){
+  const el=document.getElementById(`page-內部訂購-${br}`);
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">內部訂購</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  const [resP,resO]=await Promise.all([
+    呼叫API({action:'getProducts'}),
+    呼叫API({action:'getInternalOrders',brand:br})
+  ]);
+  const products=(resP.products||[]).filter(p=>p.category==='醬包系列'&&+p.internalPrice>0);
+  const orders=(resO.orders||[]).sort((a,b)=>b.date>a.date?1:-1);
+
+  const today=今日日期();
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">內部訂購</span></div>
+  <div class="card">
+    <div class="card-title">📦 新增訂購</div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px;color:#666;display:block;margin-bottom:4px">日期</label>
+      <input type="date" id="io-date-${br}" value="${today}" style="padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px">
+    </div>
+    <div id="io-items-${br}">
+      ${products.map(p=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0e9e1">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${p.name} <span style="font-size:12px;color:#888">${p.spec||''}</span></div>
+          <div style="font-size:12px;color:#b07d2a">內部 $${格式化金額(+p.internalPrice)} / 包　成本 $${格式化金額(+p.cost)}</div>
+        </div>
+        <input type="number" min="0" placeholder="0" data-pid="${p.id}" data-name="${p.name}" data-spec="${p.spec||''}" data-cost="${p.cost}" data-iprice="${p.internalPrice}"
+          style="width:70px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;text-align:center;font-size:15px"
+          id="io-qty-${br}-${p.id}" oninput="更新訂購小計('${br}')">
+        <div style="width:60px;text-align:right;font-size:13px;color:#555" id="io-sub-${br}-${p.id}">—</div>
+      </div>`).join('')}
+    </div>
+    <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:15px;font-weight:600">合計：<span id="io-total-${br}" style="color:#6b3d1e">$0</span></div>
+      <button class="btn btn-dark" onclick="送出內部訂購('${br}')">送出訂購</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📋 訂購記錄</div>
+    <div id="io-history-${br}">
+      ${orders.length===0?'<div style="color:#aaa;text-align:center;padding:1rem">尚無記錄</div>':
+        orders.map(o=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f0e8;font-size:13px">
+          <div>
+            <span style="color:#888">${o.date}</span>
+            <span style="margin-left:8px;font-weight:600">${o.productName} ${o.spec||''}</span>
+            <span style="margin-left:6px;color:#666">× ${o.qty}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="color:#6b3d1e;font-weight:600">$${格式化金額(+o.totalCost)}</span>
+            <button onclick="刪除內部訂購('${br}','${o.id}')" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:12px">刪除</button>
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function 更新訂購小計(br){
+  let total=0;
+  document.querySelectorAll(`#io-items-${br} input[type=number]`).forEach(inp=>{
+    const qty=+inp.value||0;
+    const cost=+inp.dataset.cost||0;
+    const sub=qty*cost;
+    total+=sub;
+    const subEl=document.getElementById(`io-sub-${br}-${inp.dataset.pid}`);
+    if(subEl)subEl.textContent=qty>0?'$'+格式化金額(sub):'—';
+  });
+  const totalEl=document.getElementById(`io-total-${br}`);
+  if(totalEl)totalEl.textContent='$'+格式化金額(total);
+}
+
+async function 送出內部訂購(br){
+  const date=document.getElementById(`io-date-${br}`)?.value;
+  if(!date){提示('請選擇日期');return;}
+  const items=[];
+  document.querySelectorAll(`#io-items-${br} input[type=number]`).forEach(inp=>{
+    const qty=+inp.value||0;
+    if(qty<=0)return;
+    items.push({
+      productId:inp.dataset.pid,
+      productName:inp.dataset.name,
+      spec:inp.dataset.spec,
+      qty,
+      unitCost:+inp.dataset.cost,
+      totalCost:qty*(+inp.dataset.cost)
+    });
+  });
+  if(items.length===0){提示('請至少輸入一項數量');return;}
+  載入中(true,'送出中...');
+  const results=await Promise.all(items.map(item=>
+    呼叫API({action:'saveInternalOrder',record:{brand:br,date,...item}})
+  ));
+  載入中(false);
+  if(results.every(r=>r.ok)){提示('✓ 訂購已記錄');渲染內部訂購(br);}
+  else 提示('部分儲存失敗，請重試');
+}
+
+async function 刪除內部訂購(br,id){
+  if(!confirm('確定刪除這筆記錄？'))return;
+  載入中(true);
+  await 呼叫API({action:'deleteInternalOrder',id});
+  載入中(false);
+  提示('已刪除');
+  渲染內部訂購(br);
 }
 
 // ===== 啟動 =====
