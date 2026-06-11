@@ -1221,9 +1221,10 @@ async function 渲染月報資料(br,ym){
   const recs=allRecs.filter(r=>r.date?.startsWith(ym));
   const s=品牌設定[br]||{};
   載入中(true);
-  const [payRes,mcRes]=await Promise.all([
+  const [payRes,mcRes,ioRes]=await Promise.all([
     呼叫API({action:'getPayroll',brand:br,month:ym}),
-    呼叫API({action:'getMonthCost',brand:br,month:ym})
+    呼叫API({action:'getMonthCost',brand:br,month:ym}),
+    呼叫API({action:'getInternalOrders',brand:br})
   ]);
   載入中(false);
   const mc=mcRes.data||{};
@@ -1234,8 +1235,10 @@ async function 渲染月報資料(br,ym){
     nhi_co:emps.reduce((a,e)=>a+(+e.nhi_co||0),0)
   };
   pl.total=pl.salary+pl.nhi_co;
+  const ioOrders=(ioRes.orders||[]).filter(o=>o.date?.startsWith(ym));
+  const tInternalCost=ioOrders.reduce((s,o)=>s+(+o.totalCost||0),0);
   window._月報_br=br; window._月報_ym=ym; window._月報_mc={...mc};
-  document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,sWithMonth,pl,window[`_recs_${br}`]||[]);
+  document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,sWithMonth,pl,window[`_recs_${br}`]||[],tInternalCost);
 }
 async function 快速儲存月份成本(val,field){
   const br=window._月報_br,ym=window._月報_ym;
@@ -1246,11 +1249,12 @@ async function 快速儲存月份成本(val,field){
   提示('✓ 已儲存');
 }
 
-function 建立月報HTML(recs,s,pl,allRecs=[]){
+function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0){
   if(!recs.length)return'<div style="color:#aaa;padding:1rem;text-align:center">該月尚無記錄</div>';
   const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
   const tRev=n('total'),tCash=n('cash'),tLP=n('lp'),tTW=n('tw'),tUber=n('uber'),tPFee=n('p_fee');
-  const tFood=n('food_cost'),tPack=n('pack'),tMeal=n('meal'),tGas=n('gas'),tMisc=n('misc');
+  const tFoodRaw=n('food_cost'),tPack=n('pack'),tMeal=n('meal'),tGas=n('gas'),tMisc=n('misc');
+  const tFood=tFoodRaw+tInternalCost;
   const tGuests=n('guests'),tHours=n('hours'),laborTotal=pl.total;
   const fxC=固定成本(s),tCost=fxC+tFood+tPack+tMeal+tGas+tMisc+tPFee+laborTotal,netProfit=tRev-tCost;
   const aov=tGuests?tRev/tGuests:0,productivity=tHours?tRev/tHours:0;
@@ -1291,7 +1295,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[]){
     </div>
   </div>
   <div class="card"><div class="card-title-lg">💹 損益總結</div>
-    ${[['月營收',tRev,false,false],['食材進貨',tFood,true,false],['包材／餐具',tPack,true,false],['員工餐費',tMeal,true,false],['瓦斯',tGas,true,false],['平台手續費',tPFee,true,false],['其他當日雜支',tMisc,true,false],['薪資實發合計',pl.salary,true,false],['勞健退（公司負擔）',pl.nhi_co,true,false],['房租',s.rent||0,true,false],['平台月費／POS',(s.platform||0)+(s.pos||0),true,false],['電話費／網路費',s.phone||0,true,'phone'],['廣告／文宣費',s.ads||0,true,'ads'],['水電費',s.utility||0,true,'utility'],['其他固定雜支',s.other||0,true,'other']]
+    ${[['月營收',tRev,false,false],['食材進貨（外購）',tFoodRaw,true,false],['內部醬料成本',tInternalCost,true,false],['包材／餐具',tPack,true,false],['員工餐費',tMeal,true,false],['瓦斯',tGas,true,false],['平台手續費',tPFee,true,false],['其他當日雜支',tMisc,true,false],['薪資實發合計',pl.salary,true,false],['勞健退（公司負擔）',pl.nhi_co,true,false],['房租',s.rent||0,true,false],['平台月費／POS',(s.platform||0)+(s.pos||0),true,false],['電話費／網路費',s.phone||0,true,'phone'],['廣告／文宣費',s.ads||0,true,'ads'],['水電費',s.utility||0,true,'utility'],['其他固定雜支',s.other||0,true,'other']]
       .map(([l,v,isE,field])=>field?`<div class="sum-row"><span class="sum-label">${l}</span><span style="display:flex;align-items:center;gap:6px"><input type="number" value="${v}" style="width:90px;padding:2px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right" onchange="快速儲存月份成本(this.value,'${field}')">　<small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`:`<div class="sum-row"><span class="sum-label">${l}</span><span>${isE?'-':''}$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
     <div class="sum-row"><span>月淨利</span><span style="color:${netProfit>=0?'#27ae60':'#c0392b'}">${netProfit>=0?'+':'-'}$${格式化金額(Math.abs(netProfit))} (${profitRate.toFixed(1)}%)</span></div>
     <div class="progress-wrap">
@@ -1957,16 +1961,20 @@ async function 渲染總部報表(ym){
   const recsA=(window._allHQRecs?.a||[]).filter(r=>r.date?.startsWith(ym));
   const recsB=(window._allHQRecs?.b||[]).filter(r=>r.date?.startsWith(ym));
   載入中(true);
-  const [payResA,payResB]=await Promise.all([
+  const [payResA,payResB,ioResA,ioResB]=await Promise.all([
     呼叫API({action:'getPayroll',brand:'a',month:ym}),
-    呼叫API({action:'getPayroll',brand:'b',month:ym})
+    呼叫API({action:'getPayroll',brand:'b',month:ym}),
+    呼叫API({action:'getInternalOrders',brand:'a'}),
+    呼叫API({action:'getInternalOrders',brand:'b'})
   ]);
   載入中(false);
   const sA=品牌設定['a']||{},sB=品牌設定['b']||{};
+  const ioA=(ioResA.orders||[]).filter(o=>o.date?.startsWith(ym)).reduce((s,o)=>s+(+o.totalCost||0),0);
+  const ioB=(ioResB.orders||[]).filter(o=>o.date?.startsWith(ym)).reduce((s,o)=>s+(+o.totalCost||0),0);
 
-  function 計算品牌(recs,s,emps){
+  function 計算品牌(recs,s,emps,tInternalCost=0){
     const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
-    const tRev=n('total'),tFood=n('food_cost'),tPack=n('pack'),tMeal=n('meal'),tGas=n('gas'),tMisc=n('misc'),tPFee=n('p_fee');
+    const tRev=n('total'),tFoodRaw=n('food_cost'),tFood=tFoodRaw+tInternalCost,tPack=n('pack'),tMeal=n('meal'),tGas=n('gas'),tMisc=n('misc'),tPFee=n('p_fee');
     const tGuests=n('guests'),tHours=n('hours');
     const nhiCo=emps.reduce((a,e)=>a+(+e.nhi_co||0),0);
     const salary=emps.reduce((a,e)=>a+((+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0)),0);
@@ -1979,7 +1987,7 @@ async function 渲染總部報表(ym){
       foodRate,laborRate,rentRate,profitRate,days:recs.length,rent:s.rent||0,fixedOther:fxC-(s.rent||0)};
   }
 
-  const A=計算品牌(recsA,sA,payResA.data||[]),B=計算品牌(recsB,sB,payResB.data||[]);
+  const A=計算品牌(recsA,sA,payResA.data||[],ioA),B=計算品牌(recsB,sB,payResB.data||[],ioB);
   const tRev=A.tRev+B.tRev,tCost=A.tCost+B.tCost,tProfit=A.netProfit+B.netProfit;
   const tGuests=A.tGuests+B.tGuests,tFood=A.tFood+B.tFood,tPFee=A.tPFee+B.tPFee;
   const tLabor=A.laborTotal+B.laborTotal,tRent=A.rent+B.rent;
