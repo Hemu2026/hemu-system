@@ -3241,7 +3241,9 @@ async function 渲染內部訂購(br){
     呼叫API({action:'getProducts'}),
     呼叫API({action:'getInternalOrders',brand:br})
   ]);
-  const products=(resP.products||[]).filter(p=>+p.internalPrice>0);
+  const allP=resP.products||[];
+  const products=allP.filter(p=>+p.internalPrice>0);
+  console.log('getProducts total:',allP.length,'with internalPrice:',products.length,allP.map(p=>p.name+'='+p.internalPrice));
   const orders=(resO.orders||[]).sort((a,b)=>b.date>a.date?1:-1);
 
   const today=今日日期();
