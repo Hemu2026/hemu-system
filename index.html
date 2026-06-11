@@ -231,7 +231,7 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
 const API = 'https://script.google.com/macros/s/AKfycbw-G6nMGsOQeqCTM9GgMWkzNk4bwB5ABBAEiF9ynzdQgqWWmxfe0ulgdxUnuFaK523m/exec';
 const GOOGLE_CLIENT_ID = '356556784698-cprpmi8ht0r2qn4fuprrptls4ffubfuc.apps.googleusercontent.com';
 const 品牌名稱 = {a:'林家涼麵', b:'木谷食麵所'};
-const 角色名稱 = {staff:'員工', manager:'店長', owner:'老闆'};
+const 角色名稱 = {staff:'員工', manager:'店長', owner:'老闆', sauce:'醬料員'};
 const 品牌標籤 = {a:'林家涼麵', b:'木谷食麵所', both:'兩店'};
 let 目前使用者 = null;
 let 品牌設定 = {
@@ -349,7 +349,7 @@ function 顯示主介面(){
   document.getElementById('sb-role').textContent=角色名稱[role]||role;
   建立導覽列(role,brand);
   建立頁面(role,brand);
-  const 預設頁面=role==='staff'?`上傳-${brand}`:role==='manager'?`每日-${brand}`:`每日-a`;
+  const 預設頁面=role==='staff'?`上傳-${brand}`:role==='sauce'?`內部訂購-${brand}`:role==='manager'?`每日-${brand}`:`每日-a`;
   const 上次頁面=localStorage.getItem('hm_last_page');
   切換頁面(上次頁面&&document.getElementById('page-'+上次頁面)?上次頁面:預設頁面);
 }
@@ -358,7 +358,12 @@ function 顯示主介面(){
 function 建立導覽列(role,brand){
   const nav=document.getElementById('nav-container');
   let html='';
-  if(role==='staff'){
+  if(role==='sauce'){
+    html+=`<div class="nav-group">
+      <div class="nav-group-label">${品牌名稱[brand]}</div>
+      <div class="nav-item" data-page="內部訂購-${brand}"><span class="nav-dot dot-${brand}"></span>內部訂購</div>
+    </div>`;
+  } else if(role==='staff'){
     html+=`<div class="nav-group">
       <div class="nav-group-label">${品牌名稱[brand]}</div>
       <div class="nav-item" data-page="上傳-${brand}"><span class="nav-dot dot-${brand}"></span>上傳結帳單</div>
@@ -406,7 +411,9 @@ function 建立導覽列(role,brand){
 function 建立頁面(role,brand){
   const main=document.getElementById('main-content');
   let pages=[];
-  if(role==='staff'){
+  if(role==='sauce'){
+    pages=[`內部訂購-${brand}`];
+  } else if(role==='staff'){
     pages=[`上傳-${brand}`,`確認-${brand}`,`內部訂購-${brand}`];
   } else if(role==='manager'){
     pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`];
@@ -2075,7 +2082,7 @@ async function 渲染帳號管理(){
       <div class="field"><label>電子郵件</label><input type="email" id="nu-email" placeholder="staff@example.com"></div>
       <div class="field"><label>姓名</label><input type="text" id="nu-name" placeholder="王秀珍"></div>
       <div class="field"><label>登入密碼</label><input type="password" id="nu-pass" placeholder="設定初始密碼"></div>
-      <div class="field"><label>角色</label><select id="nu-role"><option value="staff">員工</option><option value="manager">店長</option><option value="owner">老闆</option></select></div>
+      <div class="field"><label>角色</label><select id="nu-role"><option value="staff">員工</option><option value="sauce">醬料員（僅內部訂購）</option><option value="manager">店長</option><option value="owner">老闆</option></select></div>
       <div class="field"><label>所屬品牌</label><select id="nu-brand"><option value="a">林家涼麵</option><option value="b">木谷食麵所</option><option value="both">兩店（老闆用）</option></select></div>
     </div>
     <button class="btn btn-hq btn-full" onclick="新增帳號()">建立帳號</button>
