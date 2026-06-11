@@ -363,6 +363,7 @@ function 建立導覽列(role,brand){
       <div class="nav-group-label">${品牌名稱[brand]}</div>
       <div class="nav-item" data-page="上傳-${brand}"><span class="nav-dot dot-${brand}"></span>上傳結帳單</div>
       <div class="nav-item" data-page="確認-${brand}"><span class="nav-dot dot-${brand}"></span>今日確認</div>
+      <div class="nav-item" data-page="內部訂購-${brand}"><span class="nav-dot dot-${brand}"></span>內部訂購</div>
     </div>`;
   } else if(role==='manager'){
     html+=`<div class="nav-group">
@@ -406,7 +407,7 @@ function 建立頁面(role,brand){
   const main=document.getElementById('main-content');
   let pages=[];
   if(role==='staff'){
-    pages=[`上傳-${brand}`,`確認-${brand}`];
+    pages=[`上傳-${brand}`,`確認-${brand}`,`內部訂購-${brand}`];
   } else if(role==='manager'){
     pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`];
   } else {
