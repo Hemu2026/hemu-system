@@ -181,6 +181,7 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
 .detail-row:last-child{border:none}
 .detail-section{font-size:11px;font-weight:600;color:#999;margin:1rem 0 4px;text-transform:uppercase}</style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -400,6 +401,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="原物料管理"><span class="nav-dot dot-hq"></span>原物料管理</div>
       <div class="nav-item" data-page="商品管理"><span class="nav-dot dot-hq"></span>商品管理</div>
       <div class="nav-item" data-page="成本表"><span class="nav-dot dot-hq"></span>成本表</div>
+      <div class="nav-item" data-page="數據分析"><span class="nav-dot dot-hq"></span>數據分析</div>
     </div>`;
   }
   nav.innerHTML=html;
@@ -419,7 +421,7 @@ function 建立頁面(role,brand){
     pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`];
   } else {
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`內部訂購-${br}`));
-    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表');
+    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -474,6 +476,7 @@ function 切換頁面(page){
   else if(page==='商品管理')渲染商品管理();
   else if(page==='成本表')渲染成本表();
   else if(page.startsWith('內部訂購-'))渲染內部訂購(br);
+  else if(page==='數據分析')渲染數據分析();
 }
 
 // ===== 每日輸入（店長/老闆）=====
@@ -3354,6 +3357,132 @@ async function 刪除內部訂購(br,id){
   載入中(false);
   提示('已刪除');
   渲染內部訂購(br);
+}
+
+// ===== 數據分析 =====
+const _charts={};
+function _destroyChart(id){if(_charts[id]){_charts[id].destroy();delete _charts[id];}}
+
+async function 渲染數據分析(){
+  const el=document.getElementById('page-數據分析');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">數據分析</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  const [resA,resB]=await Promise.all([
+    呼叫API({action:'getRecords',brand:'a',role:'owner'}),
+    呼叫API({action:'getRecords',brand:'b',role:'owner'})
+  ]);
+  const rA=(resA.data||[]).sort((a,b)=>a.date>b.date?1:-1);
+  const rB=(resB.data||[]).sort((a,b)=>a.date>b.date?1:-1);
+  const all=[...rA.map(r=>({...r,brand:'a'})),...rB.map(r=>({...r,brand:'b'}))].sort((a,b)=>a.date>b.date?1:-1);
+
+  // 時間範圍選擇
+  const ranges=[{label:'近30天',days:30},{label:'近60天',days:60},{label:'近90天',days:90},{label:'全部',days:9999}];
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">數據分析</span></div>
+  <div style="display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap">
+    ${ranges.map((r,i)=>`<button onclick="切換分析範圍(${r.days})" id="range-btn-${r.days}" class="btn ${i===0?'btn-dark':'btn-outline'}" style="font-size:13px;padding:6px 14px">${r.label}</button>`).join('')}
+  </div>
+  <div class="card"><div class="card-title">📈 每日營收趨勢</div><div style="position:relative;height:260px"><canvas id="chart-rev"></canvas></div></div>
+  <div class="card"><div class="card-title">📅 星期幾平均營收</div><div style="position:relative;height:240px"><canvas id="chart-dow"></canvas></div></div>
+  <div class="card"><div class="card-title">🥩 食材成本率走勢（月）</div><div style="position:relative;height:240px"><canvas id="chart-food"></canvas></div></div>
+  <div class="card"><div class="card-title">👥 每日來客數趨勢</div><div style="position:relative;height:240px"><canvas id="chart-guest"></canvas></div></div>
+  <div class="card"><div class="card-title">⚖️ 雙店月營收對比</div><div style="position:relative;height:240px"><canvas id="chart-compare"></canvas></div></div>`;
+
+  window._ana_rA=rA; window._ana_rB=rB;
+  繪製分析圖表(30);
+}
+
+function 切換分析範圍(days){
+  document.querySelectorAll('[id^="range-btn-"]').forEach(b=>{
+    b.className=b.id===`range-btn-${days}`?'btn btn-dark':'btn btn-outline';
+    b.style.fontSize='13px'; b.style.padding='6px 14px';
+  });
+  繪製分析圖表(days);
+}
+
+function 繪製分析圖表(days){
+  const rA=window._ana_rA||[], rB=window._ana_rB||[];
+  const cutoff=days<9999?new Date(Date.now()-days*86400000).toISOString().slice(0,10):'0000-00-00';
+  const fA=rA.filter(r=>r.date>=cutoff), fB=rB.filter(r=>r.date>=cutoff);
+
+  // ① 每日營收趨勢
+  _destroyChart('rev');
+  const revDates=[...new Set([...fA,...fB].map(r=>r.date))].sort();
+  const revMapA=Object.fromEntries(fA.map(r=>[r.date,+r.total||0]));
+  const revMapB=Object.fromEntries(fB.map(r=>[r.date,+r.total||0]));
+  _charts['rev']=new Chart(document.getElementById('chart-rev'),{
+    type:'line',
+    data:{labels:revDates,datasets:[
+      {label:'林家涼麵',data:revDates.map(d=>revMapA[d]||0),borderColor:'#c49a6c',backgroundColor:'rgba(196,154,108,0.1)',tension:0.3,fill:true,pointRadius:2},
+      {label:'木谷食麵所',data:revDates.map(d=>revMapB[d]||0),borderColor:'#6b8f71',backgroundColor:'rgba(107,143,113,0.1)',tension:0.3,fill:true,pointRadius:2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:false,ticks:{callback:v=>'$'+格式化金額(v)}}}}
+  });
+
+  // ② 星期幾平均營收
+  _destroyChart('dow');
+  const dowLabels=['週一','週二','週三','週四','週五','週六','週日'];
+  function avgByDow(recs){
+    const sum=[0,0,0,0,0,0,0],cnt=[0,0,0,0,0,0,0];
+    recs.forEach(r=>{const d=new Date(r.date).getDay();const idx=(d+6)%7;sum[idx]+=(+r.total||0);cnt[idx]++;});
+    return sum.map((s,i)=>cnt[i]?Math.round(s/cnt[i]):0);
+  }
+  _charts['dow']=new Chart(document.getElementById('chart-dow'),{
+    type:'bar',
+    data:{labels:dowLabels,datasets:[
+      {label:'林家涼麵',data:avgByDow(fA),backgroundColor:'rgba(196,154,108,0.7)',borderRadius:6},
+      {label:'木谷食麵所',data:avgByDow(fB),backgroundColor:'rgba(107,143,113,0.7)',borderRadius:6}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+格式化金額(v)}}}}
+  });
+
+  // ③ 食材成本率走勢（月）
+  _destroyChart('food');
+  const allRecs=[...fA.map(r=>({...r,brand:'a'})),...fB.map(r=>({...r,brand:'b'}))];
+  const months=[...new Set(allRecs.map(r=>r.date?.slice(0,7)))].filter(Boolean).sort();
+  function monthFoodRate(brand,ym){
+    const r=allRecs.filter(x=>x.brand===brand&&x.date?.startsWith(ym));
+    const rev=r.reduce((s,x)=>s+(+x.total||0),0);
+    const food=r.reduce((s,x)=>s+(+x.food_cost||0),0);
+    return rev?+(food/rev*100).toFixed(1):null;
+  }
+  _charts['food']=new Chart(document.getElementById('chart-food'),{
+    type:'line',
+    data:{labels:months,datasets:[
+      {label:'林家涼麵',data:months.map(m=>monthFoodRate('a',m)),borderColor:'#c49a6c',tension:0.3,pointRadius:4,spanGaps:true},
+      {label:'木谷食麵所',data:months.map(m=>monthFoodRate('b',m)),borderColor:'#6b8f71',tension:0.3,pointRadius:4,spanGaps:true},
+      {label:'警戒線 38%',data:months.map(()=>38),borderColor:'#e74c3c',borderDash:[6,4],pointRadius:0,borderWidth:1.5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{min:0,max:60,ticks:{callback:v=>v+'%'}}}}
+  });
+
+  // ④ 每日來客數趨勢
+  _destroyChart('guest');
+  const guestMapA=Object.fromEntries(fA.map(r=>[r.date,+r.guests||0]));
+  const guestMapB=Object.fromEntries(fB.map(r=>[r.date,+r.guests||0]));
+  function movingAvg(arr,n=7){return arr.map((_,i)=>i<n-1?null:+(arr.slice(i-n+1,i+1).reduce((a,b)=>a+b,0)/n).toFixed(0));}
+  const gA=revDates.map(d=>guestMapA[d]||0), gB=revDates.map(d=>guestMapB[d]||0);
+  _charts['guest']=new Chart(document.getElementById('chart-guest'),{
+    type:'bar',
+    data:{labels:revDates,datasets:[
+      {label:'林家涼麵',data:gA,backgroundColor:'rgba(196,154,108,0.5)',borderRadius:3,yAxisID:'y'},
+      {label:'木谷食麵所',data:gB,backgroundColor:'rgba(107,143,113,0.5)',borderRadius:3,yAxisID:'y'},
+      {label:'林家7日均',data:movingAvg(gA),type:'line',borderColor:'#c49a6c',pointRadius:0,tension:0.3,yAxisID:'y',borderWidth:2},
+      {label:'木谷7日均',data:movingAvg(gB),type:'line',borderColor:'#6b8f71',pointRadius:0,tension:0.3,yAxisID:'y',borderWidth:2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true}}}
+  });
+
+  // ⑤ 雙店月營收對比
+  _destroyChart('compare');
+  function monthRev(brand,ym){return allRecs.filter(x=>x.brand===brand&&x.date?.startsWith(ym)).reduce((s,x)=>s+(+x.total||0),0);}
+  _charts['compare']=new Chart(document.getElementById('chart-compare'),{
+    type:'bar',
+    data:{labels:months,datasets:[
+      {label:'林家涼麵',data:months.map(m=>monthRev('a',m)),backgroundColor:'rgba(196,154,108,0.8)',borderRadius:6},
+      {label:'木谷食麵所',data:months.map(m=>monthRev('b',m)),backgroundColor:'rgba(107,143,113,0.8)',borderRadius:6}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+格式化金額(v)}}}}
+  });
 }
 
 // ===== 啟動 =====
