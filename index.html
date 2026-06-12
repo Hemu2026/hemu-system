@@ -3407,11 +3407,12 @@ function 繪製分析圖表(days){
   // ① 每日營收趨勢
   _destroyChart('rev');
   const revDates=[...new Set([...fA,...fB].map(r=>r.date))].sort();
+  const revLabels=revDates.map(d=>d.slice(5).replace('-','/'));
   const revMapA=Object.fromEntries(fA.map(r=>[r.date,+r.total||0]));
   const revMapB=Object.fromEntries(fB.map(r=>[r.date,+r.total||0]));
   _charts['rev']=new Chart(document.getElementById('chart-rev'),{
     type:'line',
-    data:{labels:revDates,datasets:[
+    data:{labels:revLabels,datasets:[
       {label:'林家涼麵',data:revDates.map(d=>revMapA[d]||0),borderColor:'#c49a6c',backgroundColor:'rgba(196,154,108,0.1)',tension:0.3,fill:true,pointRadius:2},
       {label:'木谷食麵所',data:revDates.map(d=>revMapB[d]||0),borderColor:'#6b8f71',backgroundColor:'rgba(107,143,113,0.1)',tension:0.3,fill:true,pointRadius:2}
     ]},
@@ -3423,7 +3424,12 @@ function 繪製分析圖表(days){
   const dowLabels=['週一','週二','週三','週四','週五','週六','週日'];
   function avgByDow(recs){
     const sum=[0,0,0,0,0,0,0],cnt=[0,0,0,0,0,0,0];
-    recs.forEach(r=>{const d=new Date(r.date).getDay();const idx=(d+6)%7;sum[idx]+=(+r.total||0);cnt[idx]++;});
+    recs.forEach(r=>{
+      const[y,m,d]=r.date.split('-').map(Number);
+      const dow=new Date(y,m-1,d).getDay();
+      const idx=(dow+6)%7;
+      sum[idx]+=(+r.total||0);cnt[idx]++;
+    });
     return sum.map((s,i)=>cnt[i]?Math.round(s/cnt[i]):0);
   }
   _charts['dow']=new Chart(document.getElementById('chart-dow'),{
@@ -3463,7 +3469,7 @@ function 繪製分析圖表(days){
   const gA=revDates.map(d=>guestMapA[d]||0), gB=revDates.map(d=>guestMapB[d]||0);
   _charts['guest']=new Chart(document.getElementById('chart-guest'),{
     type:'bar',
-    data:{labels:revDates,datasets:[
+    data:{labels:revLabels,datasets:[
       {label:'林家涼麵',data:gA,backgroundColor:'rgba(196,154,108,0.5)',borderRadius:3,yAxisID:'y'},
       {label:'木谷食麵所',data:gB,backgroundColor:'rgba(107,143,113,0.5)',borderRadius:3,yAxisID:'y'},
       {label:'林家7日均',data:movingAvg(gA),type:'line',borderColor:'#c49a6c',pointRadius:0,tension:0.3,yAxisID:'y',borderWidth:2},
