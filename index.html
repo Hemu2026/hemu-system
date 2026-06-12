@@ -2766,11 +2766,11 @@ function 渲染原物料列表(mats){
     const cat=m.category||'其他';
     const stockVal=m.currentStock!=null&&m.currentStock!==''?+m.currentStock:null;
     return`<tr>
-      <td><span style="padding:2px 6px;border-radius:4px;font-size:11px;background:${catColor[cat]||'#eee'};color:${catText[cat]||'#888'}">${cat}</span></td>
-      <td style="font-size:12px;color:#888">${m.supplier||'—'}</td>
-      <td style="font-weight:600">${m.name}<br><span style="font-size:11px;color:#aaa;font-weight:400">${m.code?'#'+m.code:''}</span></td>
-      <td style="font-weight:600;color:#27ae60;font-size:12px">$${unitCost.toFixed(2)}/${m.unit||''}</td>
-      <td style="font-size:12px;font-weight:600;color:${stockVal!==null&&stockVal<100?'#e74c3c':'#27ae60'}">${stockVal!==null?格式化金額(stockVal)+(m.unit||''):'—'}</td>
+      <td><span style="padding:3px 8px;border-radius:4px;font-size:13px;background:${catColor[cat]||'#eee'};color:${catText[cat]||'#888'}">${cat}</span></td>
+      <td style="font-size:14px;color:#666">${m.supplier||'—'}</td>
+      <td style="font-weight:600;font-size:15px">${m.name}<br><span style="font-size:12px;color:#aaa;font-weight:400">${m.code?'#'+m.code:''}</span></td>
+      <td style="font-weight:600;color:#27ae60;font-size:14px">$${unitCost.toFixed(2)}/${m.unit||''}</td>
+      <td style="font-size:14px;font-weight:600;color:${stockVal!==null&&stockVal<100?'#e74c3c':'#27ae60'}">${stockVal!==null?格式化金額(stockVal)+(m.unit||''):'—'}</td>
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn btn-sm btn-outline" onclick="顯示原物料表單(${JSON.stringify(m).replace(/"/g,'&quot;')})">編輯</button>
