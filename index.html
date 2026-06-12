@@ -3425,7 +3425,7 @@ function 繪製分析圖表(days){
   const dowLabels=['週一','週二','週三','週四','週五','週六','週日'];
   function avgByDow(recs){
     const sum=[0,0,0,0,0,0,0],cnt=[0,0,0,0,0,0,0];
-    recs.forEach(r=>{
+    recs.filter(r=>(+r.total||0)>0).forEach(r=>{
       const ymd=toYMD(r.date);
       const[y,m,d]=ymd.split('-').map(Number);
       const dow=new Date(y,m-1,d).getDay();
