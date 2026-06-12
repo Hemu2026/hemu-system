@@ -970,7 +970,7 @@ function 渲染歷史月份(br){
     <thead><tr><th>日期</th><th>星期</th><th>天氣</th><th>來客數</th><th>總營收</th><th>現金短溢</th><th>操作</th></tr></thead>
     <tbody>${recs.map(r=>{
       const so=+r.cash_short_over||0;
-      const _ymd=toYMD(r.date);const[_y,_m,_d]=_ymd.split('-').map(Number);
+      const _ymd=格式化日期(r.date);const[_y,_m,_d]=_ymd.split('-').map(Number);
       const _dow=['週日','週一','週二','週三','週四','週五','週六'][new Date(_y,_m-1,_d).getDay()];
       return`<tr>
         <td>${格式化日期(r.date)}</td><td style="color:#888">${_dow}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
