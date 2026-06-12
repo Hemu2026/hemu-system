@@ -2744,8 +2744,7 @@ async function 渲染原物料管理(){
     <div class="table-wrap">
       <table id="mat-table">
         <thead><tr>
-          <th>分類</th><th>貨號</th><th>供應商</th><th>材料名稱</th>
-          <th>進價</th><th>規格</th><th>單位</th><th>得率%</th><th>已處理</th><th>得率單價</th><th>庫存</th><th>備註</th><th></th>
+          <th>分類</th><th>供應商</th><th>材料名稱</th><th>得率單價</th><th>庫存</th><th></th>
         </tr></thead>
         <tbody id="mat-tbody"></tbody>
       </table>
@@ -2759,25 +2758,19 @@ function 渲染原物料列表(mats){
   const countEl=document.getElementById('mat-count');
   if(!tbody)return;
   if(countEl)countEl.textContent=mats.length;
-  if(!mats.length){tbody.innerHTML=`<tr><td colspan="11" style="text-align:center;color:#aaa;padding:2rem">尚無符合的原物料資料</td></tr>`;return;}
+  if(!mats.length){tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;color:#aaa;padding:2rem">尚無符合的原物料資料</td></tr>`;return;}
   const catColor={'調味料':'#f5ead8','配料':'#d9ede8','蔬菜':'#e8f5e9','包材':'#e8e4f5','肉類':'#fce4e4','乾貨':'#fff3e0','其他':'#f5f5f5'};
   const catText={'調味料':'#8a6a2a','配料':'#2a6b58','蔬菜':'#2e7d32','包材':'#4a3a8a','肉類':'#c0392b','乾貨':'#e67e22','其他':'#888'};
   tbody.innerHTML=mats.map(m=>{
     const unitCost=m.spec&&m.yieldRate?(m.price/m.spec/(m.yieldRate/100)):0;
     const cat=m.category||'其他';
+    const stockVal=m.currentStock!=null&&m.currentStock!==''?+m.currentStock:null;
     return`<tr>
-      <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${catColor[cat]||'#eee'};color:${catText[cat]||'#888'}">${cat}</span></td>
-      <td style="font-size:12px;color:#888">${m.code||'—'}</td>
-      <td style="font-size:12px">${m.supplier||'—'}</td>
-      <td style="font-weight:600">${m.name}</td>
-      <td>$${格式化金額(m.price)}</td>
-      <td style="font-size:12px">${格式化金額(m.spec)}</td>
-      <td style="font-size:12px">${m.unit||'—'}</td>
-      <td style="font-size:12px">${m.yieldRate||100}%</td>
-      <td style="font-size:12px;color:#555">${m.spec?(m.spec*(( m.yieldRate||100)/100)).toFixed(0)+' '+(m.unit||''):'—'}</td>
-      <td style="font-weight:600;color:#27ae60;font-size:12px">$${unitCost.toFixed(2)}</td>
-      <td style="font-size:12px;color:${(+m.currentStock||0)<100?'#e74c3c':'#27ae60'};font-weight:600">${m.currentStock!=null&&m.currentStock!==''?格式化金額(m.currentStock)+(m.unit||''):'—'}</td>
-      <td style="font-size:11px;color:#888;max-width:120px">${m.note||'—'}</td>
+      <td><span style="padding:2px 6px;border-radius:4px;font-size:11px;background:${catColor[cat]||'#eee'};color:${catText[cat]||'#888'}">${cat}</span></td>
+      <td style="font-size:12px;color:#888">${m.supplier||'—'}</td>
+      <td style="font-weight:600">${m.name}<br><span style="font-size:11px;color:#aaa;font-weight:400">${m.code?'#'+m.code:''}</span></td>
+      <td style="font-weight:600;color:#27ae60;font-size:12px">$${unitCost.toFixed(2)}/${m.unit||''}</td>
+      <td style="font-size:12px;font-weight:600;color:${stockVal!==null&&stockVal<100?'#e74c3c':'#27ae60'}">${stockVal!==null?格式化金額(stockVal)+(m.unit||''):'—'}</td>
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn btn-sm btn-outline" onclick="顯示原物料表單(${JSON.stringify(m).replace(/"/g,'&quot;')})">編輯</button>
