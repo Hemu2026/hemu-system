@@ -2745,7 +2745,7 @@ async function 渲染原物料管理(){
       <table id="mat-table">
         <thead><tr>
           <th>分類</th><th>貨號</th><th>供應商</th><th>材料名稱</th>
-          <th>進價</th><th>規格</th><th>單位</th><th>得率%</th><th>已處理</th><th>得率單價</th><th>備註</th><th></th>
+          <th>進價</th><th>規格</th><th>單位</th><th>得率%</th><th>已處理</th><th>得率單價</th><th>庫存</th><th>備註</th><th></th>
         </tr></thead>
         <tbody id="mat-tbody"></tbody>
       </table>
@@ -2776,6 +2776,7 @@ function 渲染原物料列表(mats){
       <td style="font-size:12px">${m.yieldRate||100}%</td>
       <td style="font-size:12px;color:#555">${m.spec?(m.spec*(( m.yieldRate||100)/100)).toFixed(0)+' '+(m.unit||''):'—'}</td>
       <td style="font-weight:600;color:#27ae60;font-size:12px">$${unitCost.toFixed(2)}</td>
+      <td style="font-size:12px;color:${(+m.currentStock||0)<100?'#e74c3c':'#27ae60'};font-weight:600">${m.currentStock!=null&&m.currentStock!==''?格式化金額(m.currentStock)+(m.unit||''):'—'}</td>
       <td style="font-size:11px;color:#888;max-width:120px">${m.note||'—'}</td>
       <td>
         <div style="display:flex;gap:4px">
@@ -2820,6 +2821,14 @@ function 顯示原物料表單(m={}){
       <div class="field"><label>得率%</label><input type="number" id="mf-yield" value="${m.yieldRate||100}" min="1" max="200" oninput="預覽得率單價()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field" style="display:flex;align-items:flex-end"><div style="width:100%;padding:7px 10px;background:#f0fff4;border:1px solid #a8e6b8;border-radius:6px;font-size:13px">得率單價：<strong id="mf-preview" style="color:#27ae60">—</strong><br><span style="font-size:11px;color:#888">已處理：<strong id="mf-processed">—</strong></span></div></div>
       <div class="field full"><label>備註</label><input type="text" id="mf-note" value="${m.note||''}" placeholder="例：一箱/6包" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+    </div>
+    <div style="background:#f0f8ff;border:1px solid #b8d4e8;border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:600;color:#2c6e9e;margin-bottom:8px">📦 庫存設定</div>
+      <div class="g4" style="gap:10px">
+        <div class="field"><label>進貨單位</label><input type="text" id="mf-purUnit" value="${m.purchaseUnit||''}" placeholder="例：桶" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+        <div class="field"><label>1進貨單位 = ? ${m.unit||'基本單位'}</label><input type="number" id="mf-purQty" value="${m.purchaseUnitQty||1}" placeholder="例：18000" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+        <div class="field"><label>目前庫存（${m.unit||'基本單位'}）</label><input type="number" id="mf-stock" value="${m.currentStock||0}" placeholder="0" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      </div>
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-hq" onclick="儲存原物料('${m.id||''}')">儲存</button>
@@ -2918,7 +2927,10 @@ async function 儲存原物料(id){
     spec:+document.getElementById('mf-spec')?.value||0,
     unit:document.getElementById('mf-unit')?.value,
     yieldRate:+document.getElementById('mf-yield')?.value||100,
-    note:document.getElementById('mf-note')?.value?.trim()
+    note:document.getElementById('mf-note')?.value?.trim(),
+    purchaseUnit:document.getElementById('mf-purUnit')?.value?.trim()||'',
+    purchaseUnitQty:+document.getElementById('mf-purQty')?.value||1,
+    currentStock:+document.getElementById('mf-stock')?.value||0
   };
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveMaterial',record});
@@ -3513,9 +3525,14 @@ function 繪製分析圖表(days){
 }
 
 // ===== 進貨申報 =====
-function 渲染進貨申報(){
+async function 渲染進貨申報(){
   const el=document.getElementById('page-進貨申報');
   if(!el)return;
+  // 載入原物料清單供下拉用
+  if(!window._materials||!window._materials.length){
+    const res=await 呼叫API({action:'getMaterials'});
+    if(res.ok)window._materials=res.data||[];
+  }
   el.innerHTML=`
   <div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">進貨申報</span></div>
   <div class="card">
@@ -3536,8 +3553,8 @@ function 渲染進貨申報(){
     <div class="card-title">📋 進貨明細</div>
     <div class="field"><label>進貨日期</label><input type="date" id="pr-date" value="${今日日期()}"></div>
     <div id="pr-items-wrap">
-      <div style="display:grid;grid-template-columns:1fr 80px 80px 90px 36px;gap:6px;font-size:12px;color:#999;margin-bottom:4px;padding:0 4px">
-        <span>品項名稱</span><span style="text-align:center">數量</span><span style="text-align:center">單位</span><span style="text-align:right">金額</span><span></span>
+      <div style="display:grid;grid-template-columns:1fr 1fr 80px 90px 36px;gap:6px;font-size:12px;color:#999;margin-bottom:4px;padding:0 4px">
+        <span>AI辨識品名</span><span>對應原物料</span><span style="text-align:center">進貨數量</span><span style="text-align:right">金額</span><span></span>
       </div>
       <div id="pr-items"></div>
     </div>
@@ -3561,16 +3578,21 @@ function 新增進貨品項(name='',qty='',unit='',amount=''){
 
 function 渲染進貨品項列表(){
   const items=window._prItems||[];
+  const mats=window._materials||[];
+  const matOptions=`<option value="">— 選擇原物料 —</option>`+mats.map(m=>`<option value="${m.id}">${m.name}${m.purchaseUnit?'（'+m.purchaseUnit+'）':''}</option>`).join('');
   const wrap=document.getElementById('pr-items');
   if(!wrap)return;
-  wrap.innerHTML=items.map((it,i)=>`
-  <div style="display:grid;grid-template-columns:1fr 80px 80px 90px 36px;gap:6px;margin-bottom:6px;align-items:center">
-    <input value="${it.name}" oninput="window._prItems[${i}].name=this.value;更新進貨合計()" placeholder="品項名稱" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit">
-    <input value="${it.qty}" oninput="window._prItems[${i}].qty=this.value;更新進貨合計()" placeholder="數量" type="number" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:center;font-family:inherit">
-    <input value="${it.unit}" oninput="window._prItems[${i}].unit=this.value" placeholder="單位" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:center;font-family:inherit">
-    <input value="${it.amount}" oninput="window._prItems[${i}].amount=this.value;更新進貨合計()" placeholder="金額" type="number" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:right;font-family:inherit">
-    <button onclick="window._prItems.splice(${i},1);渲染進貨品項列表()" style="width:30px;height:30px;border:1px solid #fdd;border-radius:8px;background:#fff;color:#e74c3c;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
-  </div>`).join('');
+  wrap.innerHTML=items.map((it,i)=>{
+    const mat=mats.find(m=>m.id===it.materialId);
+    const unitHint=mat&&mat.purchaseUnit?`<div style="font-size:11px;color:#888;text-align:center">${mat.purchaseUnit}</div>`:'';
+    return`<div style="display:grid;grid-template-columns:1fr 1fr 80px 90px 36px;gap:6px;margin-bottom:8px;align-items:start">
+      <input value="${it.name}" oninput="window._prItems[${i}].name=this.value" placeholder="AI辨識品名" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit">
+      <select onchange="window._prItems[${i}].materialId=this.value;渲染進貨品項列表()" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit">${matOptions.replace(`value="${it.materialId||''}"`,`value="${it.materialId||''}" selected`)}</select>
+      <div><input value="${it.qty}" oninput="window._prItems[${i}].qty=this.value;更新進貨合計()" placeholder="數量" type="number" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:center;font-family:inherit">${unitHint}</div>
+      <input value="${it.amount}" oninput="window._prItems[${i}].amount=this.value;更新進貨合計()" placeholder="金額" type="number" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:right;font-family:inherit">
+      <button onclick="window._prItems.splice(${i},1);渲染進貨品項列表()" style="width:30px;height:30px;border:1px solid #fdd;border-radius:8px;background:#fff;color:#e74c3c;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>`;
+  }).join('');
   更新進貨合計();
 }
 
@@ -3683,7 +3705,7 @@ async function 確認進貨結算(id,amount){
   const res=await 呼叫API({action:'confirmPurchaseReport',id,paymentAmount:+pay||0});
   載入中(false);
   if(!res.ok){提示('結算失敗：'+(res.error||''));return;}
-  提示('✓ 已結算');
+  提示('✓ 已結算，庫存已更新');
   渲染進貨結算();
 }
 
