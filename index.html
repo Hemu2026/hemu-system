@@ -232,6 +232,7 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
 const API = 'https://script.google.com/macros/s/AKfycbw-G6nMGsOQeqCTM9GgMWkzNk4bwB5ABBAEiF9ynzdQgqWWmxfe0ulgdxUnuFaK523m/exec';
 const GOOGLE_CLIENT_ID = '356556784698-cprpmi8ht0r2qn4fuprrptls4ffubfuc.apps.googleusercontent.com';
 const 品牌名稱 = {a:'林家涼麵', b:'木谷食麵所'};
+const toYMD=d=>typeof d==='string'?d.slice(0,10):(d instanceof Date?d.toISOString().slice(0,10):'');
 const 角色名稱 = {staff:'員工', manager:'店長', owner:'老闆', sauce:'醬料員'};
 const 品牌標籤 = {a:'林家涼麵', b:'木谷食麵所', both:'兩店'};
 let 目前使用者 = null;
@@ -3408,7 +3409,7 @@ function 繪製分析圖表(days){
 
   // ① 每日營收趨勢
   _destroyChart('rev');
-  const toYMD=d=>typeof d==='string'?d.slice(0,10):(d instanceof Date?d.toISOString().slice(0,10):'');
+
   const revDates=[...new Set([...fA,...fB].map(r=>toYMD(r.date)))].filter(Boolean).sort();
   const revLabels=revDates.map(d=>d.slice(5).replace('-','/'));
   const revMapA=Object.fromEntries(fA.map(r=>[toYMD(r.date),+r.total||0]));
