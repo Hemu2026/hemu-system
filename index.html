@@ -966,11 +966,13 @@ function 渲染歷史月份(br){
     <div class="metric"><div class="metric-label">記錄天數</div><div class="metric-value">${recs.length} 天</div></div>
   </div>`;
   document.getElementById(`hist-table-${br}`).innerHTML=recs.length?`<div class="card"><div class="table-wrap"><table>
-    <thead><tr><th>日期</th><th>天氣</th><th>來客數</th><th>總營收</th><th>現金短溢</th><th>操作</th></tr></thead>
+    <thead><tr><th>日期</th><th>星期</th><th>天氣</th><th>來客數</th><th>總營收</th><th>現金短溢</th><th>操作</th></tr></thead>
     <tbody>${recs.map(r=>{
       const so=+r.cash_short_over||0;
+      const _ymd=toYMD(r.date);const[_y,_m,_d]=_ymd.split('-').map(Number);
+      const _dow=['週日','週一','週二','週三','週四','週五','週六'][new Date(_y,_m-1,_d).getDay()];
       return`<tr>
-        <td>${格式化日期(r.date)}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
+        <td>${格式化日期(r.date)}</td><td style="color:#888">${_dow}</td><td>${r.weather||'—'}</td><td>${r.guests||0}</td>
         <td>$${格式化金額(r.total)}</td>
         <td style="color:${so<-50?'#c0392b':so>50?'#2980b9':'#27ae60'}">${(r.cash_should||r.cash_actual)?(so>=0?'+':'')+格式化金額(so):'—'}</td>
         <td style="display:flex;gap:6px">
