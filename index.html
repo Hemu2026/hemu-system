@@ -3406,17 +3406,18 @@ function 繪製分析圖表(days){
 
   // ① 每日營收趨勢
   _destroyChart('rev');
-  const revDates=[...new Set([...fA,...fB].map(r=>r.date))].sort();
+  const toYMD=d=>typeof d==='string'?d.slice(0,10):(d instanceof Date?d.toISOString().slice(0,10):'');
+  const revDates=[...new Set([...fA,...fB].map(r=>toYMD(r.date)))].filter(Boolean).sort();
   const revLabels=revDates.map(d=>d.slice(5).replace('-','/'));
-  const revMapA=Object.fromEntries(fA.map(r=>[r.date,+r.total||0]));
-  const revMapB=Object.fromEntries(fB.map(r=>[r.date,+r.total||0]));
+  const revMapA=Object.fromEntries(fA.map(r=>[toYMD(r.date),+r.total||0]));
+  const revMapB=Object.fromEntries(fB.map(r=>[toYMD(r.date),+r.total||0]));
   _charts['rev']=new Chart(document.getElementById('chart-rev'),{
     type:'line',
     data:{labels:revLabels,datasets:[
       {label:'林家涼麵',data:revDates.map(d=>revMapA[d]||0),borderColor:'#c49a6c',backgroundColor:'rgba(196,154,108,0.1)',tension:0.3,fill:true,pointRadius:2},
       {label:'木谷食麵所',data:revDates.map(d=>revMapB[d]||0),borderColor:'#6b8f71',backgroundColor:'rgba(107,143,113,0.1)',tension:0.3,fill:true,pointRadius:2}
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:false,ticks:{callback:v=>'$'+格式化金額(v)}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:false,ticks:{callback:v=>v>=10000?(v/10000).toFixed(1)+'萬':'$'+v}}}}
   });
 
   // ② 星期幾平均營收
@@ -3425,7 +3426,8 @@ function 繪製分析圖表(days){
   function avgByDow(recs){
     const sum=[0,0,0,0,0,0,0],cnt=[0,0,0,0,0,0,0];
     recs.forEach(r=>{
-      const[y,m,d]=r.date.split('-').map(Number);
+      const ymd=toYMD(r.date);
+      const[y,m,d]=ymd.split('-').map(Number);
       const dow=new Date(y,m-1,d).getDay();
       const idx=(dow+6)%7;
       sum[idx]+=(+r.total||0);cnt[idx]++;
@@ -3438,15 +3440,15 @@ function 繪製分析圖表(days){
       {label:'林家涼麵',data:avgByDow(fA),backgroundColor:'rgba(196,154,108,0.7)',borderRadius:6},
       {label:'木谷食麵所',data:avgByDow(fB),backgroundColor:'rgba(107,143,113,0.7)',borderRadius:6}
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+格式化金額(v)}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v>=10000?(v/10000).toFixed(1)+'萬':'$'+v}}}}
   });
 
   // ③ 食材成本率走勢（月）
   _destroyChart('food');
-  const allRecs=[...fA.map(r=>({...r,brand:'a'})),...fB.map(r=>({...r,brand:'b'}))];
-  const months=[...new Set(allRecs.map(r=>r.date?.slice(0,7)))].filter(Boolean).sort();
+  const allRecs=[...fA.map(r=>({...r,brand:'a',_ymd:toYMD(r.date)})),...fB.map(r=>({...r,brand:'b',_ymd:toYMD(r.date)}))];
+  const months=[...new Set(allRecs.map(r=>r._ymd?.slice(0,7)))].filter(Boolean).sort();
   function monthFoodRate(brand,ym){
-    const r=allRecs.filter(x=>x.brand===brand&&x.date?.startsWith(ym));
+    const r=allRecs.filter(x=>x.brand===brand&&x._ymd?.startsWith(ym));
     const rev=r.reduce((s,x)=>s+(+x.total||0),0);
     const food=r.reduce((s,x)=>s+(+x.food_cost||0),0);
     return rev?+(food/rev*100).toFixed(1):null;
@@ -3463,8 +3465,8 @@ function 繪製分析圖表(days){
 
   // ④ 每日來客數趨勢
   _destroyChart('guest');
-  const guestMapA=Object.fromEntries(fA.map(r=>[r.date,+r.guests||0]));
-  const guestMapB=Object.fromEntries(fB.map(r=>[r.date,+r.guests||0]));
+  const guestMapA=Object.fromEntries(fA.map(r=>[toYMD(r.date),+r.guests||0]));
+  const guestMapB=Object.fromEntries(fB.map(r=>[toYMD(r.date),+r.guests||0]));
   function movingAvg(arr,n=7){return arr.map((_,i)=>i<n-1?null:+(arr.slice(i-n+1,i+1).reduce((a,b)=>a+b,0)/n).toFixed(0));}
   const gA=revDates.map(d=>guestMapA[d]||0), gB=revDates.map(d=>guestMapB[d]||0);
   _charts['guest']=new Chart(document.getElementById('chart-guest'),{
@@ -3480,14 +3482,14 @@ function 繪製分析圖表(days){
 
   // ⑤ 雙店月營收對比
   _destroyChart('compare');
-  function monthRev(brand,ym){return allRecs.filter(x=>x.brand===brand&&x.date?.startsWith(ym)).reduce((s,x)=>s+(+x.total||0),0);}
+  function monthRev(brand,ym){return allRecs.filter(x=>x.brand===brand&&x._ymd?.startsWith(ym)).reduce((s,x)=>s+(+x.total||0),0);}
   _charts['compare']=new Chart(document.getElementById('chart-compare'),{
     type:'bar',
     data:{labels:months,datasets:[
       {label:'林家涼麵',data:months.map(m=>monthRev('a',m)),backgroundColor:'rgba(196,154,108,0.8)',borderRadius:6},
       {label:'木谷食麵所',data:months.map(m=>monthRev('b',m)),backgroundColor:'rgba(107,143,113,0.8)',borderRadius:6}
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+格式化金額(v)}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v>=10000?(v/10000).toFixed(1)+'萬':'$'+v}}}}
   });
 }
 
