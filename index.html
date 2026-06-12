@@ -371,6 +371,10 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="上傳-${brand}"><span class="nav-dot dot-${brand}"></span>上傳結帳單</div>
       <div class="nav-item" data-page="確認-${brand}"><span class="nav-dot dot-${brand}"></span>今日確認</div>
       <div class="nav-item" data-page="內部訂購-${brand}"><span class="nav-dot dot-${brand}"></span>內部訂購</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">央廚</div>
+      <div class="nav-item" data-page="進貨申報"><span class="nav-dot dot-hq"></span>進貨申報</div>
     </div>`;
   } else if(role==='manager'){
     html+=`<div class="nav-group">
@@ -379,6 +383,11 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="歷史-${brand}"><span class="nav-dot dot-${brand}"></span>歷史記錄</div>
       <div class="nav-item" data-page="月報-${brand}"><span class="nav-dot dot-${brand}"></span>月報表</div>
       <div class="nav-item" data-page="內部訂購-${brand}"><span class="nav-dot dot-${brand}"></span>內部訂購</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">央廚</div>
+      <div class="nav-item" data-page="進貨申報"><span class="nav-dot dot-hq"></span>進貨申報</div>
+      <div class="nav-item" data-page="進貨結算"><span class="nav-dot dot-hq"></span>進貨結算</div>
     </div>`;
   } else {
     ['a','b'].forEach(br=>{
@@ -403,6 +412,11 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="商品管理"><span class="nav-dot dot-hq"></span>商品管理</div>
       <div class="nav-item" data-page="成本表"><span class="nav-dot dot-hq"></span>成本表</div>
       <div class="nav-item" data-page="數據分析"><span class="nav-dot dot-hq"></span>數據分析</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">央廚</div>
+      <div class="nav-item" data-page="進貨申報"><span class="nav-dot dot-hq"></span>進貨申報</div>
+      <div class="nav-item" data-page="進貨結算"><span class="nav-dot dot-hq"></span>進貨結算</div>
     </div>`;
   }
   nav.innerHTML=html;
@@ -417,12 +431,12 @@ function 建立頁面(role,brand){
   if(role==='sauce'){
     pages=[`內部訂購-${brand}`];
   } else if(role==='staff'){
-    pages=[`上傳-${brand}`,`確認-${brand}`,`內部訂購-${brand}`];
+    pages=[`上傳-${brand}`,`確認-${brand}`,`內部訂購-${brand}`,'進貨申報'];
   } else if(role==='manager'){
-    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`];
+    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,'進貨申報','進貨結算'];
   } else {
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`內部訂購-${br}`));
-    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析');
+    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -478,6 +492,8 @@ function 切換頁面(page){
   else if(page==='成本表')渲染成本表();
   else if(page.startsWith('內部訂購-'))渲染內部訂購(br);
   else if(page==='數據分析')渲染數據分析();
+  else if(page==='進貨申報')渲染進貨申報();
+  else if(page==='進貨結算')渲染進貨結算();
 }
 
 // ===== 每日輸入（店長/老闆）=====
@@ -3494,6 +3510,190 @@ function 繪製分析圖表(days){
     ]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v>=10000?(v/10000).toFixed(1)+'萬':'$'+v}}}}
   });
+}
+
+// ===== 進貨申報 =====
+function 渲染進貨申報(){
+  const el=document.getElementById('page-進貨申報');
+  if(!el)return;
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">進貨申報</span></div>
+  <div class="card">
+    <div class="card-title">📷 拍照上傳進貨單 <span class="ai-badge">AI</span></div>
+    <div class="scan-zone" onclick="document.getElementById('pr-photo').click()" style="border:2px dashed #ddd;border-radius:12px;padding:2rem;text-align:center;cursor:pointer;background:#fafafa;margin-bottom:1rem">
+      <div style="font-size:32px;margin-bottom:.5rem">📄</div>
+      <div style="font-size:15px;font-weight:600;color:#555">點擊拍照或上傳進貨單</div>
+      <div style="font-size:13px;color:#aaa;margin-top:4px">手機可直接開啟相機拍照</div>
+    </div>
+    <input type="file" id="pr-photo" accept="image/*" capture="environment" style="display:none" onchange="document.getElementById('pr-preview').src=URL.createObjectURL(this.files[0]);document.getElementById('pr-preview-wrap').style.display='block';document.getElementById('pr-ai-btn').disabled=false">
+    <div id="pr-preview-wrap" style="display:none;margin-bottom:1rem">
+      <img id="pr-preview" style="max-width:100%;border-radius:8px;border:1px solid #ddd">
+    </div>
+    <button id="pr-ai-btn" class="btn btn-dark btn-full" onclick="執行進貨AI辨識()" disabled style="margin-bottom:.5rem">AI 辨識進貨單</button>
+    <div id="pr-ai-status"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📋 進貨明細</div>
+    <div class="field"><label>進貨日期</label><input type="date" id="pr-date" value="${今日日期()}"></div>
+    <div id="pr-items-wrap">
+      <div style="display:grid;grid-template-columns:1fr 80px 80px 90px 36px;gap:6px;font-size:12px;color:#999;margin-bottom:4px;padding:0 4px">
+        <span>品項名稱</span><span style="text-align:center">數量</span><span style="text-align:center">單位</span><span style="text-align:right">金額</span><span></span>
+      </div>
+      <div id="pr-items"></div>
+    </div>
+    <button onclick="新增進貨品項()" style="width:100%;padding:8px;border:1px dashed #ddd;border-radius:8px;background:none;cursor:pointer;color:#888;font-size:13px;margin-top:8px">＋ 新增品項</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid #f0f0f0">
+      <span style="font-weight:600">合計金額</span>
+      <span id="pr-total" style="font-size:20px;font-weight:700">$0</span>
+    </div>
+    <div class="field" style="margin-top:1rem"><label>備註</label><textarea id="pr-note" rows="2" placeholder="供應商、特殊說明等..."></textarea></div>
+    <button class="btn btn-primary" onclick="送出進貨申報()" style="margin-top:.5rem">送出申報</button>
+  </div>`;
+  window._prItems=[];
+  渲染進貨品項列表();
+}
+
+function 新增進貨品項(name='',qty='',unit='',amount=''){
+  window._prItems=window._prItems||[];
+  window._prItems.push({name,qty,unit,amount});
+  渲染進貨品項列表();
+}
+
+function 渲染進貨品項列表(){
+  const items=window._prItems||[];
+  const wrap=document.getElementById('pr-items');
+  if(!wrap)return;
+  wrap.innerHTML=items.map((it,i)=>`
+  <div style="display:grid;grid-template-columns:1fr 80px 80px 90px 36px;gap:6px;margin-bottom:6px;align-items:center">
+    <input value="${it.name}" oninput="window._prItems[${i}].name=this.value;更新進貨合計()" placeholder="品項名稱" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit">
+    <input value="${it.qty}" oninput="window._prItems[${i}].qty=this.value;更新進貨合計()" placeholder="數量" type="number" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:center;font-family:inherit">
+    <input value="${it.unit}" oninput="window._prItems[${i}].unit=this.value" placeholder="單位" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:center;font-family:inherit">
+    <input value="${it.amount}" oninput="window._prItems[${i}].amount=this.value;更新進貨合計()" placeholder="金額" type="number" style="padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:right;font-family:inherit">
+    <button onclick="window._prItems.splice(${i},1);渲染進貨品項列表()" style="width:30px;height:30px;border:1px solid #fdd;border-radius:8px;background:#fff;color:#e74c3c;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
+  </div>`).join('');
+  更新進貨合計();
+}
+
+function 更新進貨合計(){
+  const total=(window._prItems||[]).reduce((s,it)=>s+(+it.amount||0),0);
+  const el=document.getElementById('pr-total');
+  if(el)el.textContent='$'+格式化金額(total);
+}
+
+async function 執行進貨AI辨識(){
+  const apiKey=取得ApiKey();
+  if(!apiKey){提示('請先設定 Claude API 金鑰');return;}
+  const file=document.getElementById('pr-photo')?.files[0];
+  if(!file){提示('請先上傳照片');return;}
+  const statusEl=document.getElementById('pr-ai-status');
+  statusEl.innerHTML='<div style="color:#888;font-size:13px;padding:.5rem 0">⏳ AI 辨識中，請稍候...</div>';
+  try{
+    const base64=await 壓縮照片(file);
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
+        {type:'text',text:'這是一張台灣餐廳的食材進貨單，請辨識所有品項並只回傳JSON陣列，格式：[{"name":"品項名稱","qty":數量,"unit":"單位","amount":金額},...]。找不到的欄位設空字串或0。只回傳JSON不要其他文字。'}
+      ]}]})
+    });
+    if(!resp.ok)throw new Error(`API錯誤 ${resp.status}`);
+    const data=await resp.json();
+    const match=data.content[0].text.match(/\[[\s\S]*\]/);
+    if(!match)throw new Error('無法解析回應');
+    const items=JSON.parse(match[0]);
+    window._prItems=items.map(it=>({name:it.name||'',qty:String(it.qty||''),unit:it.unit||'',amount:String(it.amount||'')}));
+    渲染進貨品項列表();
+    statusEl.innerHTML=`<div style="color:#27ae60;font-size:13px;padding:.5rem 0">✓ 辨識完成，共 ${items.length} 項，請確認後送出</div>`;
+  }catch(err){
+    statusEl.innerHTML=`<div style="color:#e74c3c;font-size:13px;padding:.5rem 0">✗ 辨識失敗：${err.message}，請手動輸入</div>`;
+  }
+}
+
+async function 送出進貨申報(){
+  const date=document.getElementById('pr-date')?.value;
+  if(!date){提示('請選擇日期');return;}
+  const items=(window._prItems||[]).filter(it=>it.name);
+  if(!items.length){提示('請至少填一筆品項');return;}
+  const totalAmount=items.reduce((s,it)=>s+(+it.amount||0),0);
+  載入中(true,'送出中...');
+  const res=await 呼叫API({action:'savePurchaseReport',
+    date,items,totalAmount,
+    note:document.getElementById('pr-note')?.value||'',
+    createdBy:目前使用者?.name||''
+  });
+  載入中(false);
+  if(!res.ok){提示('送出失敗：'+(res.error||'請稍後再試'));return;}
+  提示('✓ 進貨申報已送出');
+  渲染進貨申報();
+}
+
+// ===== 進貨結算 =====
+async function 渲染進貨結算(){
+  const el=document.getElementById('page-進貨結算');
+  if(!el)return;
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">進貨結算</span></div><div style="color:#aaa;text-align:center;padding:2rem">載入中...</div>`;
+  const res=await 呼叫API({action:'getPurchaseReports',status:'pending'});
+  if(!res.ok){el.querySelector('div:last-child').textContent='載入失敗';return;}
+  const list=res.data||[];
+  const total=list.reduce((s,r)=>s+(+r.totalAmount||0),0);
+  const rows=list.sort((a,b)=>b.date?.localeCompare(a.date||'')||0).map(r=>{
+    const items=Array.isArray(r.items)?r.items:(typeof r.items==='string'?JSON.parse(r.items||'[]'):[]);
+    const summary=items.slice(0,3).map(it=>it.name).join('、')+(items.length>3?'...':'');
+    return`<div class="card" style="margin-bottom:.8rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.8rem">
+        <div>
+          <div style="font-weight:600">${r.date||''}</div>
+          <div style="font-size:13px;color:#888;margin-top:2px">${summary||'無品項'}</div>
+          ${r.createdBy?`<div style="font-size:12px;color:#aaa">申報人：${r.createdBy}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:700">$${格式化金額(r.totalAmount)}</div>
+          <div style="font-size:11px;color:#aaa">${items.length} 項</div>
+        </div>
+      </div>
+      <details style="margin-bottom:.8rem">
+        <summary style="font-size:13px;color:#888;cursor:pointer">查看明細</summary>
+        <div style="margin-top:.5rem;font-size:13px">
+          ${items.map(it=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f5f5f5"><span>${it.name} ${it.qty||''}${it.unit||''}</span><span>$${it.amount||0}</span></div>`).join('')}
+        </div>
+      </details>
+      ${r.note?`<div style="font-size:13px;color:#888;margin-bottom:.8rem">備註：${r.note}</div>`:''}
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="確認進貨結算('${r.id}',${r.totalAmount})">確認結算</button>
+        <button class="btn btn-danger btn-sm" onclick="刪除進貨申報('${r.id}')">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">進貨結算</span></div>
+  ${list.length?`<div class="card" style="background:#fff3cd;border:1.5px solid #e8c84a;margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><div style="font-size:13px;color:#856404">待結算筆數</div><div style="font-size:22px;font-weight:700">${list.length} 筆</div></div>
+      <div style="text-align:right"><div style="font-size:13px;color:#856404">待結算總額</div><div style="font-size:22px;font-weight:700">$${格式化金額(total)}</div></div>
+    </div>
+  </div>`:''}
+  ${rows||'<div style="color:#aaa;text-align:center;padding:3rem">目前無待結算進貨單</div>'}`;
+}
+
+async function 確認進貨結算(id,amount){
+  const pay=prompt(`確認結算這筆進貨（$${格式化金額(amount)}）\n本次補入金額（留空則不補錢）：`);
+  if(pay===null)return;
+  載入中(true,'結算中...');
+  const res=await 呼叫API({action:'confirmPurchaseReport',id,paymentAmount:+pay||0});
+  載入中(false);
+  if(!res.ok){提示('結算失敗：'+(res.error||''));return;}
+  提示('✓ 已結算');
+  渲染進貨結算();
+}
+
+async function 刪除進貨申報(id){
+  if(!confirm('確定刪除這筆申報？'))return;
+  載入中(true);
+  await 呼叫API({action:'deletePurchaseReport',id});
+  載入中(false);
+  提示('已刪除');
+  渲染進貨結算();
 }
 
 // ===== 啟動 =====
