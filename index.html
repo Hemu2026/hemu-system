@@ -3658,7 +3658,7 @@ async function 渲染進貨結算(){
     return`<div class="card" style="margin-bottom:.8rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.8rem">
         <div>
-          <div style="font-weight:600">${r.date||''}</div>
+          <div style="font-weight:600">${格式化日期(r.date)}</div>
           <div style="font-size:13px;color:#888;margin-top:2px">${summary||'無品項'}</div>
           ${r.createdBy?`<div style="font-size:12px;color:#aaa">申報人：${r.createdBy}</div>`:''}
         </div>
