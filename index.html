@@ -2240,7 +2240,7 @@ async function 渲染資金管理(){
   const recsA=(resA.data||[]).filter(r=>格式化日期(r.date).startsWith(ym));
   const recsB=(resB.data||[]).filter(r=>格式化日期(r.date).startsWith(ym));
   const 週結資料=計算週結現金(recsA,recsB);
-  const records=(res.records||res.data||[]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const records=(res.records||res.data||[]).sort((a,b)=>{const d=(b.date||'').localeCompare(a.date||'');return d!==0?d:(b.id||'').localeCompare(a.id||'');});
 
   // 從流水反推各帳戶餘額（以最新快照為起點）
   const 帳戶=['富郁霖卡','南閩卡','公司現金'];
@@ -3658,7 +3658,7 @@ async function 渲染進貨結算(){
     return`<div class="card" style="margin-bottom:.8rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.8rem">
         <div>
-          <div style="font-weight:600">${格式化日期(r.date)}</div>
+          <div style="font-weight:600">${r.date||''}</div>
           <div style="font-size:13px;color:#888;margin-top:2px">${summary||'無品項'}</div>
           ${r.createdBy?`<div style="font-size:12px;color:#aaa">申報人：${r.createdBy}</div>`:''}
         </div>
