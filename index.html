@@ -273,10 +273,17 @@ function 載入中(顯示,訊息='處理中...'){
 }
 
 async function 呼叫API(參數){
-  const res=await fetch(API+'?t='+Date.now(),{method:'POST',body:JSON.stringify(參數)});
-  const text=await res.text();
-  try{return JSON.parse(text);}
-  catch(e){console.error('API回傳非JSON:',text.slice(0,500));throw new Error(text.slice(0,200));}
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),30000);
+  try{
+    const res=await fetch(API+'?t='+Date.now(),{method:'POST',body:JSON.stringify(參數),signal:ctrl.signal});
+    const text=await res.text();
+    try{return JSON.parse(text);}
+    catch(e){console.error('API回傳非JSON:',text.slice(0,500));throw new Error(text.slice(0,200));}
+  }catch(e){
+    if(e.name==='AbortError')throw new Error('API 逾時（30秒），請重新整理再試');
+    throw e;
+  }finally{clearTimeout(timer);}
 }
 
 // ===== 登入登出 =====
@@ -2230,11 +2237,18 @@ async function 渲染資金管理(){
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">資金管理</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
   載入中(true);
   const ym=今日日期().slice(0,7);
-  const [res,resA,resB]=await Promise.all([
-    呼叫API({action:'getFundRecords'}),
-    呼叫API({action:'getRecords',brand:'a',role:'owner',month:ym}),
-    呼叫API({action:'getRecords',brand:'b',role:'owner',month:ym})
-  ]);
+  let res,resA,resB;
+  try{
+    [res,resA,resB]=await Promise.all([
+      呼叫API({action:'getFundRecords'}),
+      呼叫API({action:'getRecords',brand:'a',role:'owner',month:ym}),
+      呼叫API({action:'getRecords',brand:'b',role:'owner',month:ym})
+    ]);
+  }catch(e){
+    載入中(false);
+    el.innerHTML+=`<div style="color:#c0392b;padding:1rem;text-align:center">載入失敗：${e.message}<br><button class="btn" onclick="渲染資金管理()" style="margin-top:8px">重試</button></div>`;
+    return;
+  }
   載入中(false);
   // 只取本月記錄計算週結
   const recsA=(resA.data||[]).filter(r=>格式化日期(r.date).startsWith(ym));
