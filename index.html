@@ -2249,6 +2249,7 @@ async function 渲染資金管理(){
     return;
   }
   載入中(false);
+  try{
   // 只取本月記錄計算週結
   const recsA=(resA.data||[]).filter(r=>格式化日期(r.date).startsWith(ym));
   const recsB=(resB.data||[]).filter(r=>格式化日期(r.date).startsWith(ym));
@@ -2378,6 +2379,10 @@ async function 渲染資金管理(){
       </tbody>
     </table></div>
   </div>`;
+  }catch(e){
+    console.error('渲染資金管理錯誤:',e);
+    el.innerHTML+=`<div style="color:#c0392b;padding:1rem;text-align:center">顯示錯誤：${e.message}<br><button class="btn" onclick="渲染資金管理()" style="margin-top:8px">重試</button></div>`;
+  }
 }
 
 function 選擇類型(type){
