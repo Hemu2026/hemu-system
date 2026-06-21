@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>醬醬人 SauceMan｜批發專區</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f9f5f0;color:#2c1a0e;min-height:100vh}
+
+  /* Topbar */
+  .topbar{background:#6b3d1e;color:#fff;padding:0 24px;display:flex;align-items:center;gap:14px;height:60px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .topbar img{height:38px;border-radius:6px}
+  .topbar-title{font-size:18px;font-weight:700;letter-spacing:.05em}
+  .topbar-sub{font-size:12px;opacity:.7;margin-top:2px}
+
+  /* Hero */
+  .hero{background:linear-gradient(135deg,#6b3d1e 0%,#9b5a2a 60%,#c47a3a 100%);color:#fff;padding:48px 24px 52px;text-align:center}
+  .hero h2{font-size:28px;font-weight:700;margin-bottom:10px;letter-spacing:.08em}
+  .hero p{font-size:14px;opacity:.85;max-width:480px;margin:0 auto;line-height:1.7}
+
+  /* Container */
+  .container{max-width:860px;margin:0 auto;padding:0 16px}
+
+  /* Section title */
+  .section-title{font-size:16px;font-weight:700;color:#6b3d1e;margin:32px 0 14px;padding-left:10px;border-left:4px solid #c47a3a}
+
+  /* Category group */
+  .cat-group{margin-bottom:10px}
+  .cat-label{font-size:12px;font-weight:600;color:#9b5a2a;background:#f0e4d4;display:inline-block;padding:3px 10px;border-radius:20px;margin-bottom:10px}
+
+  /* Product card */
+  .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:20px}
+  .product-card{background:#fff;border-radius:14px;padding:18px 16px;box-shadow:0 2px 8px rgba(107,61,30,.08);border:1px solid #ede0d0;display:flex;flex-direction:column;gap:6px}
+  .product-name{font-size:15px;font-weight:700;color:#3d1f06}
+  .product-spec{font-size:12px;color:#a07050}
+  .product-note{font-size:12px;color:#bba090;margin-top:2px}
+  .product-price{margin-top:auto;padding-top:10px;border-top:1px solid #f5e8d8}
+  .price-main{font-size:16px;font-weight:700;color:#6b3d1e}
+  .price-sub{font-size:11px;color:#b07a50;margin-top:3px}
+
+  /* Loading / error */
+  .state-box{text-align:center;padding:60px 20px;color:#b07a50}
+  .state-box .icon{font-size:36px;margin-bottom:12px}
+  .state-box p{font-size:14px}
+
+  /* Apply form */
+  .apply-section{background:#fff;border-radius:16px;padding:28px 24px;margin:32px 0 48px;box-shadow:0 2px 12px rgba(107,61,30,.09);border:1px solid #ede0d0}
+  .apply-section h3{font-size:17px;font-weight:700;color:#6b3d1e;margin-bottom:6px}
+  .apply-section .apply-desc{font-size:13px;color:#a07050;margin-bottom:20px;line-height:1.65}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  @media(max-width:500px){.field-row{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:12px;color:#9b5a2a;font-weight:600}
+  .field input,.field textarea,.field select{padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px;color:#2c1a0e;background:#fdfaf7;outline:none;transition:border .2s}
+  .field input:focus,.field textarea:focus,.field select:focus{border-color:#c47a3a}
+  .field textarea{resize:vertical;min-height:70px}
+  .field.full{grid-column:1/-1}
+  .btn-apply{width:100%;padding:13px;background:#6b3d1e;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.05em;margin-top:8px;transition:background .2s}
+  .btn-apply:hover{background:#9b5a2a}
+  .btn-apply:disabled{background:#c8b4a4;cursor:not-allowed}
+
+  /* Toast */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#3d1f06;color:#fff;padding:12px 24px;border-radius:30px;font-size:14px;opacity:0;pointer-events:none;transition:all .3s;z-index:999}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* Footer */
+  footer{background:#3d1f06;color:#c8a880;text-align:center;padding:18px;font-size:12px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <img src="logo.png" alt="醬醬人" onerror="this.style.display='none'">
+  <div>
+    <div class="topbar-title">醬醬人 SauceMan</div>
+    <div class="topbar-sub">批發專區</div>
+  </div>
+</div>
+
+<div class="hero">
+  <h2>🧄 醬料批發直訂</h2>
+  <p>嚴選在地食材，手工調製各式醬料。歡迎餐廳、早午餐店、小吃業者洽談批發合作。</p>
+</div>
+
+<div class="container">
+
+  <div class="section-title">📦 批發商品目錄</div>
+  <div id="product-list"><div class="state-box"><div class="icon">⏳</div><p>商品載入中...</p></div></div>
+
+  <div class="section-title">🤝 申請批發合作</div>
+  <div class="apply-section">
+    <h3>填寫申請資料</h3>
+    <p class="apply-desc">請填寫以下資料，我們會在 1-2 個工作天內與您聯繫確認，審核通過後提供帳號密碼即可下單。</p>
+    <div class="field-row">
+      <div class="field"><label>店家名稱 *</label><input type="text" id="a-name" placeholder="例：好吃早午餐"></div>
+      <div class="field"><label>聯絡人姓名 *</label><input type="text" id="a-contact" placeholder="您的姓名"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>聯絡電話 *</label><input type="tel" id="a-phone" placeholder="0912-345-678"></div>
+      <div class="field"><label>自訂帳號代碼 *</label><input type="text" id="a-code" placeholder="例：HAPPY01（英數，好記即可）"></div>
+    </div>
+    <div class="field-row">
+      <div class="field full"><label>店家地址</label><input type="text" id="a-address" placeholder="（選填）"></div>
+    </div>
+    <div class="field-row">
+      <div class="field full"><label>感興趣商品 / 備註</label><textarea id="a-note" placeholder="例：主要想訂椒麻醬，每次大約 __ 袋，有其他問題也可在此說明"></textarea></div>
+    </div>
+    <button class="btn-apply" id="apply-btn" onclick="送出申請()">送出申請</button>
+  </div>
+
+</div>
+
+<footer>醬醬人 SauceMan｜和木餐飲｜富郁霖企業社</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbw-G6nMGsOQeqCTM9GgMWkzNk4bwB5ABBAEiF9ynzdQgqWWmxfe0ulgdxUnuFaK523m/exec';
+
+async function 呼叫API(params){
+  const res = await fetch(API + '?t=' + Date.now(), {method:'POST', body:JSON.stringify(params)});
+  const text = await res.text();
+  return JSON.parse(text);
+}
+
+function 提示(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+function 格式化金額(v){ return Math.round(v||0).toLocaleString('zh-TW') }
+
+async function 載入商品(){
+  const el = document.getElementById('product-list');
+  try{
+    const res = await 呼叫API({action:'getB2BProducts'});
+    const products = (res.data||res.products||[]).filter(p=>p.b2bEnabled==='true'||p.b2bEnabled===true);
+    if(!products.length){
+      el.innerHTML = `<div class="state-box"><div class="icon">📭</div><p>商品目錄準備中，敬請期待</p></div>`;
+      return;
+    }
+    // 依分類分組
+    const groups = {};
+    products.forEach(p=>{
+      const g = p.category||'其他';
+      if(!groups[g]) groups[g]=[];
+      groups[g].push(p);
+    });
+    let html = '';
+    Object.entries(groups).forEach(([cat,prods])=>{
+      html += `<div class="cat-group"><div class="cat-label">${cat}</div><div class="product-grid">`;
+      prods.forEach(p=>{
+        const pkgSize = +p.packageSize||0;
+        const b2bPrice = +p.b2bPrice||0;
+        const perUnit = pkgSize && b2bPrice ? (b2bPrice/pkgSize).toFixed(0) : null;
+        html += `<div class="product-card">
+          <div class="product-name">${p.name}</div>
+          ${p.spec?`<div class="product-spec">${p.spec}</div>`:''}
+          ${p.note?`<div class="product-note">${p.note}</div>`:''}
+          <div class="product-price">
+            <div class="price-main">$${格式化金額(b2bPrice)} / 袋</div>
+            ${pkgSize?`<div class="price-sub">每袋 ${pkgSize} ${p.packageUnit||'包'}${perUnit?`　每${p.packageUnit||'包'} $${perUnit}`:''}</div>`:''}
+          </div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+    el.innerHTML = html;
+  }catch(e){
+    el.innerHTML = `<div class="state-box"><div class="icon">⚠️</div><p>商品載入失敗，請重新整理頁面</p></div>`;
+  }
+}
+
+async function 送出申請(){
+  const name    = document.getElementById('a-name').value.trim();
+  const contact = document.getElementById('a-contact').value.trim();
+  const phone   = document.getElementById('a-phone').value.trim();
+  const code    = document.getElementById('a-code').value.trim().toUpperCase();
+  const address = document.getElementById('a-address').value.trim();
+  const note    = document.getElementById('a-note').value.trim();
+
+  if(!name||!contact||!phone||!code){ 提示('請填寫所有必填欄位（*）'); return; }
+  if(!/^[A-Z0-9]{2,20}$/.test(code)){ 提示('帳號代碼只能使用英文大寫與數字，2~20 個字元'); return; }
+
+  const btn = document.getElementById('apply-btn');
+  btn.disabled = true; btn.textContent = '送出中...';
+  try{
+    const res = await 呼叫API({action:'b2bApply', name, contact, phone, code, address, note});
+    if(res.ok){
+      提示('✅ 申請成功！我們會盡快與您聯繫');
+      ['a-name','a-contact','a-phone','a-code','a-address','a-note'].forEach(id=>document.getElementById(id).value='');
+    } else {
+      提示('❌ ' + (res.error||'申請失敗，請稍後再試'));
+    }
+  }catch(e){
+    提示('❌ 網路錯誤，請稍後再試');
+  }finally{
+    btn.disabled = false; btn.textContent = '送出申請';
+  }
+}
+
+載入商品();
+</script>
+</body>
+</html>
