@@ -2567,8 +2567,6 @@ function 顯示商品表單(p={}){
         </select></div>
       <div class="field"><label>售價（元）</label>
         <input type="number" id="pf-price" value="${p.price||''}" placeholder="6" oninput="更新商品毛利()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
-      <div class="field"><label>包裝數量</label>
-        <input type="number" id="pf-pkg-size" value="${p.packageSize||''}" placeholder="100" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field"><label>包裝單位</label>
         <input type="text" id="pf-pkg-unit" value="${p.packageUnit||''}" placeholder="包/袋" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field full"><label>備註</label>
@@ -2728,7 +2726,7 @@ async function 儲存商品(id){
     spec:document.getElementById('pf-spec')?.value?.trim(),
     category:document.getElementById('pf-cat')?.value,
     price,cost,
-    packageSize:+document.getElementById('pf-pkg-size')?.value||+document.getElementById('pf-b2b-pkg')?.value||0,
+    packageSize:+document.getElementById('pf-b2b-pkg')?.value||0,
     packageUnit:document.getElementById('pf-pkg-unit')?.value?.trim(),
     note:document.getElementById('pf-note')?.value?.trim(),
     recipe:JSON.stringify(recipe),
