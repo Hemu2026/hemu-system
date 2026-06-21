@@ -2581,9 +2581,12 @@ function 顯示商品表單(p={}){
           <input type="checkbox" id="pf-b2b-enabled" ${p.b2bEnabled==='true'||p.b2bEnabled===true?'checked':''} style="width:16px;height:16px">
           開放批發下單</label></div>
         <div class="field"><label>外部批發價（元/袋）</label>
-          <input type="number" id="pf-b2b-price" value="${p.b2bPrice||''}" placeholder="600" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="number" id="pf-b2b-price" value="${p.b2bPrice||''}" placeholder="600" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px" oninput="更新批發毛利()">
+            <div id="pf-b2b-margin" style="font-size:12px;font-weight:600;white-space:nowrap;min-width:60px;text-align:right;color:#888">${(()=>{const bp=+p.b2bPrice||0;const pkg=+p.packageSize||1;const c=+p.cost||0;if(bp>0&&c>0){const m=(bp/pkg-c)/(bp/pkg)*100;return`<span style="color:${m>=25?'#27ae60':m>=15?'#e67e22':'#c0392b'}">${m.toFixed(1)}%</span>`;}return'';})()}</div>
+          </div></div>
         <div class="field"><label>每袋數量（包/袋）</label>
-          <input type="number" id="pf-b2b-pkg" value="${p.packageSize||''}" placeholder="100" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+          <input type="number" id="pf-b2b-pkg" value="${p.packageSize||''}" placeholder="100" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px" oninput="更新批發毛利()"></div>
       </div>
       <div style="margin-top:10px">
         <div class="field"><label>🏠 內部供應價（元/袋，供林家/木谷）</label>
@@ -2616,6 +2619,7 @@ function 顯示商品表單(p={}){
   window._recipe_idx=recipe.length;
   更新商品毛利();
   更新內部毛利();
+  更新批發毛利();
 }
 
 function 商品配方行(r,i){
@@ -2661,6 +2665,20 @@ function 移除配方行(i){
   document.getElementById(`recipe-row-${i}`)?.remove();
   if(window._recipe_rows)window._recipe_rows=window._recipe_rows.filter(r=>r._idx!==i);
   更新商品毛利();
+}
+
+function 更新批發毛利(){
+  const bp=+document.getElementById('pf-b2b-price')?.value||0;
+  const pkg=+document.getElementById('pf-b2b-pkg')?.value||1;
+  const cost=+(document.getElementById('pf-cost')?.textContent?.replace('$','')||0);
+  const el=document.getElementById('pf-b2b-margin');
+  if(!el)return;
+  if(bp>0&&cost>0){
+    const m=(bp/pkg-cost)/(bp/pkg)*100;
+    el.innerHTML=`<span style="color:${m>=25?'#27ae60':m>=15?'#e67e22':'#c0392b'}">${m.toFixed(1)}%</span>`;
+  } else {
+    el.innerHTML='';
+  }
 }
 
 function 更新內部毛利(){
