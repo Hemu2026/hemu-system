@@ -2880,6 +2880,7 @@ function 顯示原物料表單(m={}){
       </div>
     </div>
     <div style="display:flex;gap:8px">
+      <input type="hidden" id="mf-old-name" value="${m.name||''}">
       <button class="btn btn-hq" onclick="儲存原物料('${m.id||''}')">儲存</button>
       <button class="btn btn-outline" onclick="document.getElementById('mat-form-wrap').innerHTML=''">取消</button>
     </div>
@@ -2981,11 +2982,31 @@ async function 儲存原物料(id){
     purchaseUnitQty:+document.getElementById('mf-purQty')?.value||1,
     currentStock:+document.getElementById('mf-stock')?.value||0
   };
+  const oldName=(document.getElementById('mf-old-name')?.value||'').trim();
+  const newName=name;
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveMaterial',record});
   載入中(false);
   if(!res.ok){提示('儲存失敗：'+(res.error||''));return;}
-  提示('✓ 已儲存');
+  // 名稱有改→自動同步所有商品配方
+  if(oldName&&newName&&oldName!==newName){
+    try{
+      const resP=await 呼叫API({action:'getProducts'});
+      const prods=resP.data||resP.products||[];
+      const toUpdate=prods.filter(p=>{
+        try{return JSON.parse(p.recipe||'[]').some(i=>i.name===oldName);}catch{return false;}
+      });
+      for(const p of toUpdate){
+        const recipe=JSON.parse(p.recipe);
+        recipe.forEach(i=>{if(i.name===oldName)i.name=newName;});
+        await 呼叫API({action:'saveProduct',record:{...p,recipe:JSON.stringify(recipe)}});
+      }
+      if(toUpdate.length)提示(`✓ 已儲存，並同步更新 ${toUpdate.length} 筆商品配方`);
+      else 提示('✓ 已儲存');
+    }catch{提示('✓ 已儲存（配方同步失敗，請手動確認）');}
+  }else{
+    提示('✓ 已儲存');
+  }
   渲染原物料管理();
 }
 
