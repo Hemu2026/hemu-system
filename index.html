@@ -2374,7 +2374,7 @@ async function 渲染資金管理(){
           <td>${r.account}${r.to_account?'→'+r.to_account:''}</td>
           <td style="font-weight:600;color:${r.type==='支出'?'#c0392b':'#1a1a1a'}">${r.type==='支出'?'-':''}$${格式化金額(r.amount)}</td>
           <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;color:#666">${r.note||'—'}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="刪除資金記錄('${r.id}',${JSON.stringify(r.note||'').replace(/"/g,'&quot;')},${+r.amount||0})">刪除</button></td>
+          <td><button class="btn btn-danger btn-sm" onclick="刪除資金記錄('${r.id}',${JSON.stringify(r.note||'')},${+r.amount||0})">刪除</button></td>
         </tr>`;}).join(''):'<tr><td colspan="6" style="text-align:center;color:#aaa;padding:2rem">尚無記錄，請先設定各帳戶初始餘額</td></tr>'}
       </tbody>
     </table></div>
@@ -2787,13 +2787,26 @@ function 渲染原物料列表(mats){
   if(!tbody)return;
   if(countEl)countEl.textContent=mats.length;
   if(!mats.length){tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;color:#aaa;padding:2rem">尚無符合的原物料資料</td></tr>`;return;}
-  const catColor={'醬料':'#fde8d0','配料':'#d9ede8','蔬菜':'#e8f5e9','包材':'#e8e4f5','肉類':'#fce4e4','乾貨':'#fff3e0','其他':'#f5f5f5'};
-  const catText={'醬料':'#a0470d','配料':'#2a6b58','蔬菜':'#2e7d32','包材':'#4a3a8a','肉類':'#c0392b','乾貨':'#e67e22','其他':'#888'};
-  tbody.innerHTML=mats.map(m=>{
+  const catColor={'醬料':'#fde8d0','配料':'#d9ede8','蔬菜':'#e8f5e9','包材':'#e8e4f5','肉類':'#fce4e4','乾貨':'#fff3e0','湯品':'#e3f4fb','飲品':'#fce8f5','其他':'#f5f5f5'};
+  const catText={'醬料':'#a0470d','配料':'#2a6b58','蔬菜':'#2e7d32','包材':'#4a3a8a','肉類':'#c0392b','乾貨':'#e67e22','湯品':'#0a7da0','飲品':'#8a2a6a','其他':'#888'};
+  const catOrder=['醬料','配料','蔬菜','包材','湯品','飲品','肉類','乾貨','其他'];
+  const sorted=[...mats].sort((a,b)=>{
+    const ai=catOrder.indexOf(a.category||'其他'); const bi=catOrder.indexOf(b.category||'其他');
+    if(ai!==bi)return(ai<0?99:ai)-(bi<0?99:bi);
+    return(a.code||'').localeCompare(b.code||'','zh-TW');
+  });
+  let lastCat=null;
+  tbody.innerHTML=sorted.map(m=>{
+    const cat=m.category||'其他';
+    let header='';
+    if(cat!==lastCat){
+      lastCat=cat;
+      header=`<tr><td colspan="6" style="background:${catColor[cat]||'#eee'};color:${catText[cat]||'#888'};font-weight:700;font-size:12px;padding:6px 12px;letter-spacing:.05em">${cat}　<span style="font-weight:400;opacity:.7">${sorted.filter(x=>(x.category||'其他')===cat).length} 筆</span></td></tr>`;
+    }
     const unitCost=m.spec&&m.yieldRate?(m.price/m.spec/(m.yieldRate/100)):0;
     const cat=m.category||'其他';
     const stockVal=m.currentStock!=null&&m.currentStock!==''?+m.currentStock:null;
-    return`<tr>
+    return header+`<tr>
       <td><span style="padding:3px 8px;border-radius:4px;font-size:13px;background:${catColor[cat]||'#eee'};color:${catText[cat]||'#888'}">${cat}</span></td>
       <td style="font-size:14px;color:#666">${m.supplier||'—'}</td>
       <td style="font-weight:600;font-size:15px">${m.name}<br><span style="font-size:12px;color:#aaa;font-weight:400">${m.code?'#'+m.code:''}</span></td>
