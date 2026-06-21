@@ -2804,7 +2804,6 @@ function 渲染原物料列表(mats){
       header=`<tr><td colspan="6" style="background:${catColor[cat]||'#eee'};color:${catText[cat]||'#888'};font-weight:700;font-size:12px;padding:6px 12px;letter-spacing:.05em">${cat}　<span style="font-weight:400;opacity:.7">${sorted.filter(x=>(x.category||'其他')===cat).length} 筆</span></td></tr>`;
     }
     const unitCost=m.spec&&m.yieldRate?(m.price/m.spec/(m.yieldRate/100)):0;
-    const cat=m.category||'其他';
     const stockVal=m.currentStock!=null&&m.currentStock!==''?+m.currentStock:null;
     return header+`<tr>
       <td><span style="padding:3px 8px;border-radius:4px;font-size:13px;background:${catColor[cat]||'#eee'};color:${catText[cat]||'#888'}">${cat}</span></td>
