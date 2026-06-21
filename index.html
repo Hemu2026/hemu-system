@@ -382,6 +382,7 @@ function 建立導覽列(role,brand){
     <div class="nav-group">
       <div class="nav-group-label">央廚</div>
       <div class="nav-item" data-page="進貨申報"><span class="nav-dot dot-hq"></span>進貨申報</div>
+      <div class="nav-item" data-page="生產紀錄"><span class="nav-dot dot-hq"></span>生產紀錄</div>
     </div>`;
   } else if(role==='manager'){
     html+=`<div class="nav-group">
@@ -395,6 +396,7 @@ function 建立導覽列(role,brand){
       <div class="nav-group-label">央廚</div>
       <div class="nav-item" data-page="進貨申報"><span class="nav-dot dot-hq"></span>進貨申報</div>
       <div class="nav-item" data-page="進貨結算"><span class="nav-dot dot-hq"></span>進貨結算</div>
+      <div class="nav-item" data-page="生產紀錄"><span class="nav-dot dot-hq"></span>生產紀錄</div>
     </div>`;
   } else {
     ['a','b'].forEach(br=>{
@@ -424,6 +426,7 @@ function 建立導覽列(role,brand){
       <div class="nav-group-label">央廚</div>
       <div class="nav-item" data-page="進貨申報"><span class="nav-dot dot-hq"></span>進貨申報</div>
       <div class="nav-item" data-page="進貨結算"><span class="nav-dot dot-hq"></span>進貨結算</div>
+      <div class="nav-item" data-page="生產紀錄"><span class="nav-dot dot-hq"></span>生產紀錄</div>
     </div>`;
   }
   nav.innerHTML=html;
@@ -438,12 +441,12 @@ function 建立頁面(role,brand){
   if(role==='sauce'){
     pages=[`內部訂購-${brand}`];
   } else if(role==='staff'){
-    pages=[`上傳-${brand}`,`確認-${brand}`,`內部訂購-${brand}`,'進貨申報'];
+    pages=[`上傳-${brand}`,`確認-${brand}`,`內部訂購-${brand}`,'進貨申報','生產紀錄'];
   } else if(role==='manager'){
-    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,'進貨申報','進貨結算'];
+    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,'進貨申報','進貨結算','生產紀錄'];
   } else {
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`內部訂購-${br}`));
-    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算');
+    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -501,6 +504,7 @@ function 切換頁面(page){
   else if(page==='數據分析')渲染數據分析();
   else if(page==='進貨申報')渲染進貨申報();
   else if(page==='進貨結算')渲染進貨結算();
+  else if(page==='生產紀錄')渲染生產紀錄();
 }
 
 // ===== 每日輸入（店長/老闆）=====
@@ -3786,6 +3790,134 @@ async function 刪除進貨申報(id){
   載入中(false);
   提示('已刪除');
   渲染進貨結算();
+}
+
+// ===== 生產紀錄 =====
+let _prodProducts=[], _prodMaterials=[];
+
+async function 渲染生產紀錄(){
+  const el=document.getElementById('page-生產紀錄');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">生產紀錄</span></div><div style="color:#aaa;text-align:center;padding:2rem">載入中...</div>`;
+  載入中(true);
+  const [resP,resM,resR]=await Promise.all([
+    呼叫API({action:'getProducts'}),
+    呼叫API({action:'getMaterials'}),
+    呼叫API({action:'getProductionRecords'})
+  ]);
+  載入中(false);
+  _prodProducts=(resP.data||[]).filter(p=>p.recipe&&JSON.parse(p.recipe).length>0);
+  _prodMaterials=resM.data||[];
+  const records=resR.data||[];
+
+  const prodOptions=_prodProducts.map(p=>`<option value="${p.id}">${p.name}（${p.spec||''}）</option>`).join('');
+
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">生產紀錄</span></div>
+  <div style="background:#fff;border-radius:12px;padding:1rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+    <div style="font-size:14px;font-weight:600;margin-bottom:.75rem">新增生產批次</div>
+    <div class="field"><label>生產日期</label>
+      <input type="date" id="prod-date" value="${今日日期()}" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+    </div>
+    <div class="field"><label>生產商品</label>
+      <select id="prod-product" onchange="更新生產預覽()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+        <option value="">— 請選擇商品 —</option>${prodOptions}
+      </select>
+    </div>
+    <div class="field"><label>生產數量（份/包）</label>
+      <input type="number" id="prod-qty" min="1" value="1" oninput="更新生產預覽()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+    </div>
+    <div id="prod-preview" style="display:none;background:#f8f8f8;border-radius:8px;padding:.75rem;margin-top:.5rem">
+      <div style="font-size:12px;font-weight:600;color:#666;margin-bottom:.5rem">📦 原物料消耗預覽</div>
+      <div id="prod-preview-list"></div>
+      <div id="prod-stock-warn" style="margin-top:.5rem;font-size:12px;color:#e74c3c"></div>
+    </div>
+    <div class="field" style="margin-top:.75rem"><label>備註</label>
+      <input type="text" id="prod-note" placeholder="選填" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+    </div>
+    <button class="btn btn-primary" onclick="送出生產紀錄()" style="margin-top:.25rem">✔ 送出生產</button>
+  </div>
+  <div style="background:#fff;border-radius:12px;padding:1rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+    <div style="font-size:14px;font-weight:600;margin-bottom:.75rem">生產歷史</div>
+    ${records.length===0?'<div style="color:#aaa;text-align:center;padding:1rem">尚無紀錄</div>':
+      `<table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:#f5f5f5">
+          <th style="padding:8px;text-align:left;width:90px">日期</th>
+          <th style="padding:8px;text-align:left">商品</th>
+          <th style="padding:8px;text-align:center;width:50px">數量</th>
+          <th style="padding:8px;text-align:left">消耗原料</th>
+          <th style="padding:8px;width:60px"></th>
+        </tr></thead>
+        <tbody>${records.map(r=>`<tr style="border-bottom:1px solid #f0f0f0">
+          <td style="padding:8px">${格式化日期(r.date)}</td>
+          <td style="padding:8px">${r.productName}</td>
+          <td style="padding:8px;text-align:center">${r.qty}</td>
+          <td style="padding:8px;color:#555;font-size:12px">${渲染消耗摘要(r.ingredients)}</td>
+          <td style="padding:8px"><button class="btn btn-sm btn-danger" onclick="刪除生產紀錄('${r.id}','${(r.productName||'').replace(/'/g,"\\'")}')">刪除</button></td>
+        </tr>`).join('')}</tbody>
+      </table>`
+    }
+  </div>`;
+}
+
+function 渲染消耗摘要(ingredientsJson){
+  try{
+    const arr=typeof ingredientsJson==='string'?JSON.parse(ingredientsJson):ingredientsJson;
+    return arr.map(i=>`${i.name} ${i.totalAmount}${i.unit}`).join('、');
+  }catch(e){return '';}
+}
+
+function 更新生產預覽(){
+  const pid=document.getElementById('prod-product').value;
+  const qty=+document.getElementById('prod-qty').value||0;
+  const preview=document.getElementById('prod-preview');
+  if(!pid||qty<=0){preview.style.display='none';return;}
+  const p=_prodProducts.find(x=>x.id===pid);
+  if(!p){preview.style.display='none';return;}
+  const recipe=JSON.parse(p.recipe||'[]');
+  const items=recipe.map(r=>{
+    const total=Math.round(r.amount*qty*100)/100;
+    const mat=_prodMaterials.find(m=>m.name===r.name);
+    const stock=mat&&mat.currentStock!=null?+mat.currentStock:null;
+    const short=stock!==null&&total>stock;
+    return{name:r.name,unit:r.unit,totalAmount:total,stock,short};
+  });
+  document.getElementById('prod-preview-list').innerHTML=items.map(i=>
+    `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;${i.short?'color:#e74c3c':''}">
+      <span>${i.name}</span>
+      <span>${i.totalAmount}${i.unit}${i.stock!==null?`（庫存：${i.stock}${i.unit}）${i.short?' ⚠️不足':''}`:'（庫存未設定）'}</span>
+    </div>`
+  ).join('');
+  const warns=items.filter(i=>i.short);
+  document.getElementById('prod-stock-warn').textContent=warns.length?`⚠️ ${warns.map(i=>i.name).join('、')} 庫存不足，確認後仍可送出`:'';
+  preview.style.display='';
+}
+
+async function 送出生產紀錄(){
+  const date=document.getElementById('prod-date').value;
+  const pid=document.getElementById('prod-product').value;
+  const qty=+document.getElementById('prod-qty').value||0;
+  const note=document.getElementById('prod-note').value;
+  if(!pid)return alert('請選擇商品');
+  if(qty<=0)return alert('請輸入數量');
+  const p=_prodProducts.find(x=>x.id===pid);
+  const recipe=JSON.parse(p.recipe||'[]');
+  const ingredients=recipe.map(r=>({name:r.name,unit:r.unit,amountEach:r.amount,totalAmount:Math.round(r.amount*qty*100)/100}));
+  載入中(true);
+  const res=await 呼叫API({action:'saveProductionRecord',record:{date,productId:pid,productName:p.name,qty,ingredients:JSON.stringify(ingredients),note}});
+  載入中(false);
+  if(res.error)return alert('錯誤：'+res.error);
+  提示('✓ 生產紀錄已儲存，庫存已更新');
+  渲染生產紀錄();
+}
+
+async function 刪除生產紀錄(id,name){
+  if(!confirm(`確定刪除「${name}」這筆生產紀錄？\n（會退回原物料庫存）`))return;
+  載入中(true);
+  const res=await 呼叫API({action:'deleteProductionRecord',id});
+  載入中(false);
+  if(res.error)return alert('錯誤：'+res.error);
+  提示('已刪除，庫存已退回');
+  渲染生產紀錄();
 }
 
 // ===== 啟動 =====
