@@ -3401,11 +3401,17 @@ async function aiGenSOP(type,btn){
   const recipe=rows.map(r=>{
     const tds=r.querySelectorAll('td');
     if(tds.length<3)return null;
-    const n=tds[0].querySelector('input')?.value||tds[0].textContent;
-    const u=tds[1].querySelector('select,input')?.value||tds[1].textContent;
-    const a=tds[2].querySelector('input')?.value||tds[2].textContent;
-    return n?`${n} ${a}${u}`:null;
+    const n=tds[0].querySelector('input')?.value||tds[0].textContent.trim();
+    const u=tds[1].querySelector('select,input')?.value||tds[1].textContent.trim();
+    const a=parseFloat(tds[2].querySelector('input')?.value||tds[2].textContent)||0;
+    if(!n)return null;
+    const total=Math.round(a*qty*100)/100;
+    return `${n} ${total}${u}`;
   }).filter(Boolean);
+
+  const qtyStr=prompt(`生成 SOP 的製作數量是幾份？\n（例如：1桶麻醬=16份，4桶=64份）`,'1');
+  if(qtyStr===null)return;
+  const qty=+qtyStr||1;
 
   const isPT=type==='pt';
   const textarea=document.getElementById(isPT?'pf-sop-pt':'pf-sop');
@@ -3416,9 +3422,10 @@ async function aiGenSOP(type,btn){
     ?`你是食品工廠的SOP撰寫專家。請幫我寫一份給兼職員工看的操作說明。
 
 商品：${name}${spec?` ${spec}`:''}
+本次製作：${qty} 份
 ${note?`備註：${note}`:''}
 
-完整配方（員工不需知道詳細比例，老闆會預先備料）：
+完整配方（本次用量，員工不需知道詳細比例，老闆會預先備料好）：
 ${recipe.join('\n')}
 
 要求：
@@ -3431,12 +3438,13 @@ ${recipe.join('\n')}
     :`你是食品工廠的SOP撰寫專家。請幫我寫一份完整製作說明。
 
 商品：${name}${spec?` ${spec}`:''}
+本次製作：${qty} 份
 ${note?`備註：${note}`:''}
 
-配方材料（每份用量）：
+配方材料（本次總用量）：
 ${recipe.join('\n')}
 
-請包含：備料清單、製作步驟、品質確認、包裝標示、注意事項。
+請包含：備料清單（含本次用量）、製作步驟、品質確認、包裝與標示、注意事項。
 
 要求：
 - 繁體中文
