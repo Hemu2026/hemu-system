@@ -3389,11 +3389,10 @@ async function 渲染成本表(){
 
 // ===== AI 生成 SOP =====
 async function AI生成SOP(type,btn){
-  let key=localStorage.getItem('hemu_claude_key');
+  let key=取得ApiKey();
   if(!key){
-    key=prompt('請輸入 Anthropic API Key（只需輸入一次，儲存在此裝置）：');
-    if(!key)return;
-    localStorage.setItem('hemu_claude_key',key.trim());
+    alert('請先到「系統設定」→「Claude API 金鑰」填入 API Key。');
+    return;
   }
   const name=document.getElementById('pf-name')?.value||'';
   const spec=document.getElementById('pf-spec')?.value||'';
@@ -3463,8 +3462,8 @@ ${recipe.join('\n')}
     const data=await res.json();
     if(data.error){
       if(data.error.type==='authentication_error'){
-        localStorage.removeItem('hemu_claude_key');
-        alert('API Key 無效，請重新輸入');
+        localStorage.removeItem('hm_claude_key');
+        alert('API Key 無效，請到「系統設定」重新填入。');
       } else {
         alert('錯誤：'+data.error.message);
       }
