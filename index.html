@@ -397,6 +397,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="進貨申報"><span class="nav-dot dot-hq"></span>進貨申報</div>
       <div class="nav-item" data-page="進貨結算"><span class="nav-dot dot-hq"></span>進貨結算</div>
       <div class="nav-item" data-page="生產紀錄"><span class="nav-dot dot-hq"></span>生產紀錄</div>
+      <div class="nav-item" data-page="庫存盤點"><span class="nav-dot dot-hq"></span>庫存盤點</div>
     </div>`;
   } else {
     ['a','b'].forEach(br=>{
@@ -427,6 +428,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="進貨申報"><span class="nav-dot dot-hq"></span>進貨申報</div>
       <div class="nav-item" data-page="進貨結算"><span class="nav-dot dot-hq"></span>進貨結算</div>
       <div class="nav-item" data-page="生產紀錄"><span class="nav-dot dot-hq"></span>生產紀錄</div>
+      <div class="nav-item" data-page="庫存盤點"><span class="nav-dot dot-hq"></span>庫存盤點</div>
     </div>`;
   }
   nav.innerHTML=html;
@@ -443,10 +445,10 @@ function 建立頁面(role,brand){
   } else if(role==='staff'){
     pages=[`上傳-${brand}`,`確認-${brand}`,`內部訂購-${brand}`,'進貨申報','生產紀錄'];
   } else if(role==='manager'){
-    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,'進貨申報','進貨結算','生產紀錄'];
+    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,'進貨申報','進貨結算','生產紀錄','庫存盤點'];
   } else {
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`內部訂購-${br}`));
-    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄');
+    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -505,6 +507,7 @@ function 切換頁面(page){
   else if(page==='進貨申報')渲染進貨申報();
   else if(page==='進貨結算')渲染進貨結算();
   else if(page==='生產紀錄')渲染生產紀錄();
+  else if(page==='庫存盤點')渲染庫存盤點();
 }
 
 // ===== 每日輸入（店長/老闆）=====
@@ -3918,6 +3921,119 @@ async function 刪除生產紀錄(id,name){
   if(res.error)return alert('錯誤：'+res.error);
   提示('已刪除，庫存已退回');
   渲染生產紀錄();
+}
+
+// ===== 庫存盤點 =====
+let _stockMaterials=[];
+
+async function 渲染庫存盤點(){
+  const el=document.getElementById('page-庫存盤點');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">庫存盤點</span></div><div style="color:#aaa;text-align:center;padding:2rem">載入中...</div>`;
+  載入中(true);
+  const res=await 呼叫API({action:'getMaterials'});
+  載入中(false);
+  _stockMaterials=(res.data||[]).filter(m=>m.name);
+
+  const 類別清單=[...new Set(_stockMaterials.map(m=>m.category||'其他'))].sort();
+
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">庫存盤點</span></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+      <div style="font-size:13px;color:#888">填入實際盤點數量，差異欄自動計算。</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="sc-cat-filter" onchange="盤點篩選()" style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit">
+          <option value="">全部類別</option>
+          ${類別清單.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+        <input id="sc-search" type="text" placeholder="搜尋材料名稱" oninput="盤點篩選()" style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;width:140px">
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="stock-table" style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:#f5f4f0">
+          <th style="padding:8px 10px;text-align:left;color:#666">類別</th>
+          <th style="padding:8px 10px;text-align:left;color:#666">材料名稱</th>
+          <th style="padding:8px 10px;text-align:center;color:#666;width:60px">單位</th>
+          <th style="padding:8px 10px;text-align:right;color:#666;width:90px">系統庫存</th>
+          <th style="padding:8px 10px;text-align:center;color:#666;width:110px">實際數量</th>
+          <th style="padding:8px 10px;text-align:right;color:#666;width:80px">差異</th>
+        </tr></thead>
+        <tbody id="stock-tbody">${_渲染盤點列(_stockMaterials)}</tbody>
+      </table>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:2rem">
+    <button class="btn btn-outline" onclick="盤點清除()">清除填入</button>
+    <button class="btn btn-dark" onclick="送出盤點()">✔ 更新庫存</button>
+  </div>`;
+}
+
+function _渲染盤點列(materials){
+  return materials.map(m=>`
+    <tr data-id="${m.id}" data-cat="${m.category||'其他'}" data-name="${m.name}" style="border-bottom:1px solid #f0f0ec">
+      <td style="padding:8px 10px;color:#999;font-size:12px">${m.category||'其他'}</td>
+      <td style="padding:8px 10px;font-weight:500">${m.name}</td>
+      <td style="padding:8px 10px;text-align:center;color:#888">${m.unit||''}</td>
+      <td style="padding:8px 10px;text-align:right;color:#555">${m.currentStock!=null?m.currentStock:'—'}</td>
+      <td style="padding:8px 4px;text-align:center">
+        <input type="number" data-mid="${m.id}" class="sc-actual" placeholder="填入" oninput="計算差異(this,'${m.currentStock||0}')"
+          style="width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right;font-family:inherit">
+      </td>
+      <td class="sc-diff-${m.id}" style="padding:8px 10px;text-align:right;color:#aaa;font-weight:600">—</td>
+    </tr>`).join('');
+}
+
+function 計算差異(input, sysStock){
+  const actual=parseFloat(input.value);
+  const sys=parseFloat(sysStock)||0;
+  const tr=input.closest('tr');
+  const mid=input.dataset.mid;
+  const diffCell=document.querySelector(`.sc-diff-${mid}`);
+  if(!diffCell)return;
+  if(isNaN(actual)){diffCell.textContent='—';diffCell.style.color='#aaa';tr.style.background='';return;}
+  const diff=actual-sys;
+  diffCell.textContent=(diff>=0?'+':'')+diff;
+  if(diff===0){diffCell.style.color='#27ae60';tr.style.background='';}
+  else if(Math.abs(diff)<=sys*0.05||Math.abs(diff)<=2){diffCell.style.color='#c8a96e';tr.style.background='#fffdf5';}
+  else{diffCell.style.color='#c0392b';tr.style.background='#fff5f5';}
+}
+
+function 盤點篩選(){
+  const cat=document.getElementById('sc-cat-filter')?.value||'';
+  const kw=(document.getElementById('sc-search')?.value||'').toLowerCase();
+  document.querySelectorAll('#stock-tbody tr').forEach(tr=>{
+    const trCat=tr.dataset.cat||'';
+    const trName=(tr.dataset.name||'').toLowerCase();
+    const show=(!cat||trCat===cat)&&(!kw||trName.includes(kw));
+    tr.style.display=show?'':'none';
+  });
+}
+
+function 盤點清除(){
+  document.querySelectorAll('.sc-actual').forEach(i=>{i.value='';});
+  document.querySelectorAll('[class^="sc-diff-"]').forEach(el=>{el.textContent='—';el.style.color='#aaa';});
+  document.querySelectorAll('#stock-tbody tr').forEach(tr=>tr.style.background='');
+}
+
+async function 送出盤點(){
+  const inputs=[...document.querySelectorAll('.sc-actual')].filter(i=>i.value!=='');
+  if(!inputs.length){提示('請先填入至少一筆實際數量');return;}
+  if(!confirm(`確定更新 ${inputs.length} 筆原物料庫存？`))return;
+  載入中(true,`更新中 0/${inputs.length}...`);
+  let ok=0;
+  for(let i=0;i<inputs.length;i++){
+    const mid=inputs[i].dataset.mid;
+    const mat=_stockMaterials.find(m=>m.id===mid);
+    if(!mat)continue;
+    const record={...mat,currentStock:parseFloat(inputs[i].value)};
+    const res=await 呼叫API({action:'saveMaterial',record});
+    if(res.ok)ok++;
+    document.querySelector('.loading-text').textContent=`更新中 ${i+1}/${inputs.length}...`;
+  }
+  載入中(false);
+  提示(`✓ 成功更新 ${ok} 筆庫存`);
+  渲染庫存盤點();
 }
 
 // ===== 啟動 =====
