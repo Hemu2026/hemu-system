@@ -2604,6 +2604,11 @@ function 顯示商品表單(p={}){
         </div>
       </div>
     </div>
+    <div style="background:#f0f9f0;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #c8e6c9">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px">📄 製作 SOP</div>
+      <div style="font-size:12px;color:#888;margin-bottom:8px">將製作步驟、機器設定等貼在這裡儲存，成本表可查看。</div>
+      <textarea id="pf-sop" rows="8" style="width:100%;padding:10px;border:1px solid #c8e6c9;border-radius:6px;font-family:'Noto Sans TC',monospace;font-size:13px;line-height:1.8;resize:vertical;background:#fff;box-sizing:border-box" placeholder="貼上或輸入製作 SOP 內容...">${p.sop||''}</textarea>
+    </div>
     <div style="background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-size:13px;font-weight:600">📋 配方原料</div>
@@ -2743,6 +2748,7 @@ async function 儲存商品(id){
     b2bPrice:+document.getElementById('pf-b2b-price')?.value||0,
     internalPrice:+document.getElementById('pf-internal-price')?.value||0,
     currentStock:+document.getElementById('pf-stock')?.value||0,
+    sop:document.getElementById('pf-sop')?.value?.trim()||'',
   };
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveProduct',record});
@@ -3357,8 +3363,8 @@ async function 渲染成本表(){
             ${pkgSize?`<span>每袋 <strong>${pkgSize} 包</strong>　單包均攤 $${pkgSize?(b2bPrice/pkgSize).toFixed(2):'—'}</span>`:''}
             <span>批發毛利率 <strong style="color:${b2bPrice&&pkgSize&&cost?(((b2bPrice/pkgSize-cost)/(b2bPrice/pkgSize)*100)>=20?'#27ae60':'#e67e22'):'#888'}">${b2bPrice&&pkgSize&&cost?(((b2bPrice/pkgSize-cost)/(b2bPrice/pkgSize)*100).toFixed(1)+'%'):'—'}</strong></span>
           </div>`:''}
-          ${recipe.length?`<div style="margin-top:12px;text-align:right">
-            <button class="btn btn-sm btn-outline" onclick="生成SOP('${p.id}')">📋 生成製作 SOP</button>
+          ${p.sop?`<div style="margin-top:12px;text-align:right">
+            <button class="btn btn-sm btn-outline" onclick="查看SOP('${p.id}')">📄 查看製作 SOP</button>
           </div>`:''}
         </div>
       </div>`;
@@ -3368,7 +3374,48 @@ async function 渲染成本表(){
   el.innerHTML=html;
 }
 
-// ===== SOP 生成 =====
+// ===== SOP 查看 =====
+function 查看SOP(id){
+  const p=_costProducts.find(x=>x.id===id);
+  if(!p||!p.sop)return;
+  const title=p.name+(p.spec?`（${p.spec}）`:'');
+  let modal=document.getElementById('sop-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='sop-modal';
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    modal.onclick=e=>{if(e.target===modal)modal.remove();};
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML=`
+  <div style="background:#fff;border-radius:14px;width:100%;max-width:640px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;max-height:90vh">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-size:11px;color:#aaa">製作標準作業程序 SOP</div>
+        <div style="font-size:17px;font-weight:700">${title}</div>
+      </div>
+      <button style="background:none;border:none;font-size:20px;cursor:pointer;color:#aaa" onclick="document.getElementById('sop-modal').remove()">✕</button>
+    </div>
+    <pre style="flex:1;overflow-y:auto;white-space:pre-wrap;font-family:'Noto Sans TC',monospace;font-size:13px;line-height:1.9;background:#faf7f2;border-radius:8px;padding:16px;border:1px solid #e8e0cc;margin:0">${p.sop.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+    <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">
+      <button class="btn btn-sm btn-outline" onclick="列印SOP_查看()">🖨️ 列印</button>
+      <button class="btn btn-sm btn-dark" onclick="document.getElementById('sop-modal').remove()">關閉</button>
+    </div>
+  </div>`;
+  modal.style.display='flex';
+}
+
+function 列印SOP_查看(){
+  const content=document.querySelector('#sop-modal pre').textContent;
+  const win=window.open('','_blank','width=700,height=900');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SOP</title>
+  <style>body{font-family:'Noto Sans TC',monospace;padding:32px;max-width:620px;margin:0 auto;white-space:pre-wrap;line-height:1.9;font-size:14px}</style></head>
+  <body>${content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(),300);
+}
+
+// ===== SOP 生成（保留備用）=====
 let _sopProduct=null;
 
 function _產生SOP文字(p, qty){
