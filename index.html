@@ -2578,6 +2578,8 @@ function 顯示商品表單(p={}){
         <input type="text" id="pf-pkg-unit" value="${p.packageUnit||''}" placeholder="包/袋" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field full"><label>備註</label>
         <input type="text" id="pf-note" value="${p.note||''}" placeholder="例：冷藏品" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>目前庫存（份/包）</label>
+        <input type="number" id="pf-stock" value="${p.currentStock||0}" placeholder="0" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
     </div>
     <div style="background:#f0f7ff;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #cce0ff">
       <div style="font-size:13px;font-weight:600;margin-bottom:10px">🏪 B2B 批發設定</div>
@@ -2740,6 +2742,7 @@ async function 儲存商品(id){
     b2bEnabled:document.getElementById('pf-b2b-enabled')?.checked?'true':'false',
     b2bPrice:+document.getElementById('pf-b2b-price')?.value||0,
     internalPrice:+document.getElementById('pf-internal-price')?.value||0,
+    currentStock:+document.getElementById('pf-stock')?.value||0,
   };
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveProduct',record});
@@ -3454,8 +3457,19 @@ async function 送出內部訂購(br){
     呼叫API({action:'saveInternalOrder',record:{brand:br,date,...item}})
   ));
   載入中(false);
-  if(results.every(r=>r.ok)){提示('✓ 訂購已記錄');渲染內部訂購(br);}
-  else 提示('部分儲存失敗，請重試');
+  if(results.every(r=>r.ok)){
+    // 扣商品庫存
+    const resP=await 呼叫API({action:'getProducts'});
+    const prods=resP.data||[];
+    await Promise.all(items.map(item=>{
+      const prod=prods.find(p=>p.id===item.productId);
+      if(!prod)return;
+      const newStock=Math.max(0,(+prod.currentStock||0)-item.qty);
+      return 呼叫API({action:'saveProduct',record:{...prod,currentStock:newStock}});
+    }));
+    提示('✓ 訂購已記錄，商品庫存已扣減');
+    渲染內部訂購(br);
+  } else 提示('部分儲存失敗，請重試');
 }
 
 async function 刪除內部訂購(br,id){
@@ -3855,7 +3869,7 @@ async function 渲染生產紀錄(){
           <td style="padding:8px">${r.productName}</td>
           <td style="padding:8px;text-align:center">${r.qty}</td>
           <td style="padding:8px;color:#555;font-size:12px">${渲染消耗摘要(r.ingredients)}</td>
-          <td style="padding:8px"><button class="btn btn-sm btn-danger" onclick="刪除生產紀錄('${r.id}','${(r.productName||'').replace(/'/g,"\\'")}')">刪除</button></td>
+          <td style="padding:8px"><button class="btn btn-sm btn-danger" onclick="刪除生產紀錄('${r.id}','${(r.productName||'').replace(/'/g,"\\'")}','${r.productId}',${r.qty||0})">刪除</button></td>
         </tr>`).join('')}</tbody>
       </table>`
     }
@@ -3907,19 +3921,31 @@ async function 送出生產紀錄(){
   const ingredients=recipe.map(r=>({name:r.name,unit:r.unit,amountEach:r.amount,totalAmount:Math.round(r.amount*qty*100)/100}));
   載入中(true);
   const res=await 呼叫API({action:'saveProductionRecord',record:{date,productId:pid,productName:p.name,qty,ingredients:JSON.stringify(ingredients),note}});
+  if(res.error){載入中(false);return alert('錯誤：'+res.error);}
+  // 更新商品庫存（+qty）
+  const newStock=(+p.currentStock||0)+qty;
+  await 呼叫API({action:'saveProduct',record:{...p,currentStock:newStock}});
   載入中(false);
-  if(res.error)return alert('錯誤：'+res.error);
-  提示('✓ 生產紀錄已儲存，庫存已更新');
+  提示('✓ 生產紀錄已儲存，原物料與商品庫存已更新');
   渲染生產紀錄();
 }
 
-async function 刪除生產紀錄(id,name){
-  if(!confirm(`確定刪除「${name}」這筆生產紀錄？\n（會退回原物料庫存）`))return;
+async function 刪除生產紀錄(id,name,productId,qty){
+  if(!confirm(`確定刪除「${name}」這筆生產紀錄？\n（會退回原物料與商品庫存）`))return;
   載入中(true);
   const res=await 呼叫API({action:'deleteProductionRecord',id});
+  if(res.error){載入中(false);return alert('錯誤：'+res.error);}
+  // 退回商品庫存（-qty）
+  if(productId&&qty>0){
+    const resP=await 呼叫API({action:'getProducts'});
+    const prod=(resP.data||[]).find(p=>p.id===productId);
+    if(prod){
+      const newStock=Math.max(0,(+prod.currentStock||0)-qty);
+      await 呼叫API({action:'saveProduct',record:{...prod,currentStock:newStock}});
+    }
+  }
   載入中(false);
-  if(res.error)return alert('錯誤：'+res.error);
-  提示('已刪除，庫存已退回');
+  提示('已刪除，原物料與商品庫存已退回');
   渲染生產紀錄();
 }
 
