@@ -3394,7 +3394,7 @@ async function aiGenSOP(type,btn){
     alert('請先到「系統設定」→「Claude API 金鑰」填入 API Key。');
     return;
   }
-  const qtyStr=prompt(`生成 SOP 的製作數量是幾份？\n（例如：1桶麻醬=16份，4桶=64份）`,'1');
+  const qtyStr=window.prompt(`生成 SOP 的製作數量是幾份？\n（例如：1桶麻醬=16份，4桶=64份）`,'1');
   if(qtyStr===null)return;
   const qty=+qtyStr||1;
 
@@ -3418,7 +3418,7 @@ async function aiGenSOP(type,btn){
   btn.textContent='生成中...';
   btn.disabled=true;
 
-  const prompt=isPT
+  const aiPrompt=isPT
     ?`你是食品工廠的SOP撰寫專家。請幫我寫一份給兼職員工看的操作說明。
 
 商品：${name}${spec?` ${spec}`:''}
@@ -3464,7 +3464,7 @@ ${recipe.join('\n')}
       body:JSON.stringify({
         model:'claude-haiku-4-5-20251001',
         max_tokens:1500,
-        messages:[{role:'user',content:prompt}]
+        messages:[{role:'user',content:aiPrompt}]
       })
     });
     const data=await res.json();
