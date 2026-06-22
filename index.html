@@ -2556,7 +2556,9 @@ function 篩選商品(){
   渲染商品列表(list);
 }
 
+let _editingProduct={};
 function 顯示商品表單(p={}){
+  _editingProduct=p;
   const wrap=document.getElementById('prod-form-wrap');
   if(!wrap)return;
   const isEdit=!!p.id;
@@ -3398,19 +3400,13 @@ async function aiGenSOP(type,btn){
   if(qtyStr===null)return;
   const qty=+qtyStr||1;
 
-  const name=document.getElementById('pf-name')?.value||'';
-  const spec=document.getElementById('pf-spec')?.value||'';
-  const note=document.getElementById('pf-note')?.value||'';
-  const rows=[...document.querySelectorAll('#recipe-rows tr')];
-  const recipe=rows.map(r=>{
-    const tds=r.querySelectorAll('td');
-    if(tds.length<3)return null;
-    const n=tds[0].querySelector('input')?.value||tds[0].textContent.trim();
-    const u=tds[1].querySelector('select,input')?.value||tds[1].textContent.trim();
-    const a=parseFloat(tds[2].querySelector('input')?.value||tds[2].textContent)||0;
-    if(!n)return null;
-    const total=Math.round(a*qty*100)/100;
-    return `${n} ${total}${u}`;
+  const name=document.getElementById('pf-name')?.value||_editingProduct.name||'';
+  const spec=document.getElementById('pf-spec')?.value||_editingProduct.spec||'';
+  const note=document.getElementById('pf-note')?.value||_editingProduct.note||'';
+  const rawRecipe=_editingProduct.recipe?JSON.parse(_editingProduct.recipe):[];
+  const recipe=rawRecipe.map(r=>{
+    const total=Math.round(r.amount*qty*100)/100;
+    return `${r.name} ${total}${r.unit}`;
   }).filter(Boolean);
 
   const isPT=type==='pt';
