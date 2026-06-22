@@ -3355,12 +3355,100 @@ async function 渲染成本表(){
             ${pkgSize?`<span>每袋 <strong>${pkgSize} 包</strong>　單包均攤 $${pkgSize?(b2bPrice/pkgSize).toFixed(2):'—'}</span>`:''}
             <span>批發毛利率 <strong style="color:${b2bPrice&&pkgSize&&cost?(((b2bPrice/pkgSize-cost)/(b2bPrice/pkgSize)*100)>=20?'#27ae60':'#e67e22'):'#888'}">${b2bPrice&&pkgSize&&cost?(((b2bPrice/pkgSize-cost)/(b2bPrice/pkgSize)*100).toFixed(1)+'%'):'—'}</strong></span>
           </div>`:''}
+          ${recipe.length?`<div style="margin-top:12px;text-align:right">
+            <button class="btn btn-sm btn-outline" onclick="生成SOP('${p.id}','${p.name.replace(/'/g,"\\'")}','${(p.spec||'').replace(/'/g,"\\'")}',${JSON.stringify(recipe).replace(/'/g,"\\'")})">🤖 AI 生成製作 SOP</button>
+          </div>`:''}
         </div>
       </div>`;
     });
     html+='</div>';
   });
   el.innerHTML=html;
+}
+
+// ===== SOP 生成 =====
+function 生成SOP(id,name,spec,recipe){
+  const r=typeof recipe==='string'?JSON.parse(recipe):recipe;
+  const title=name+(spec?`（${spec}）`:'');
+  const today=今日日期();
+  const sorted=[...r].sort((a,b)=>b.unitCost*b.amount-a.unitCost*a.amount);
+  const totalCost=r.reduce((s,x)=>s+x.unitCost*x.amount,0);
+  const names=r.map(x=>x.name);
+  const isSauce=names.some(n=>/醬|醋|油/.test(n));
+  const hasPowder=names.some(n=>n.includes('粉'));
+  const hasWater=names.some(n=>n.includes('水'));
+  let steps=[];
+  steps.push({title:'備料',content:`依照下方配方逐一稱量所有材料，確認重量正確後備用。建議使用電子秤，精準至 0.1g。`});
+  if(hasPowder)steps.push({title:'乾料混合',content:`將粉類材料（${r.filter(x=>x.name.includes('粉')).map(x=>x.name).join('、')}）先乾拌均勻，避免結塊。`});
+  if(isSauce)steps.push({title:'醬料調配',content:`將液態材料（醬油、醋、油類）依序加入容器，再加入稠狀材料，以攪拌棒充分拌勻至質地均一、無分層。`});
+  if(hasWater)steps.push({title:'加水調整',content:`依配方加入水分，攪拌均勻，視需要調整濃稠度。`});
+  if(!isSauce&&!hasPowder)steps.push({title:'製作',content:`依配方比例將所有材料混合，充分攪拌至均勻。`});
+  steps.push({title:'品質確認',content:`觀察色澤、氣味是否符合標準。如有異常請停止並通報。`});
+  steps.push({title:'包裝',content:`使用標準容器包裝，每份 ${spec||'依規格'}。貼上品名、日期標籤後放入冷藏／待出貨區。`});
+  steps.push({title:'紀錄',content:`於系統「生產紀錄」頁面填入今日生產數量，完成庫存更新。`});
+  const stepsHtml=steps.map((s,i)=>`
+    <div style="display:flex;gap:12px;margin-bottom:14px">
+      <div style="width:28px;height:28px;border-radius:50%;background:#3d2b1f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${i+1}</div>
+      <div><div style="font-weight:600;margin-bottom:3px">${s.title}</div><div style="font-size:13px;color:#555;line-height:1.6">${s.content}</div></div>
+    </div>`).join('');
+  const ingredientRows=sorted.map(x=>`
+    <tr>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0ece4">${x.name}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0ece4;text-align:right;font-weight:500">${x.amount} ${x.unit}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0ece4;text-align:right;color:#888">${totalCost>0?(x.unitCost*x.amount/totalCost*100).toFixed(1)+'%':'—'}</td>
+    </tr>`).join('');
+  const html=`
+  <div style="max-height:80vh;overflow-y:auto;padding:4px">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:11px;color:#aaa;margin-bottom:4px">製作標準作業程序 SOP</div>
+      <div style="font-size:20px;font-weight:700">${title}</div>
+      <div style="font-size:12px;color:#aaa;margin-top:4px">建立日期：${today}　食材成本：$${totalCost.toFixed(2)}/份</div>
+    </div>
+    <div style="background:#faf7f2;border-radius:10px;padding:14px;margin-bottom:18px">
+      <div style="font-weight:600;margin-bottom:10px">📋 配方材料（每份用量）</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="color:#999;font-size:11px">
+          <th style="text-align:left;padding:4px 10px;border-bottom:2px solid #e8e0d0">材料名稱</th>
+          <th style="text-align:right;padding:4px 10px;border-bottom:2px solid #e8e0d0">用量</th>
+          <th style="text-align:right;padding:4px 10px;border-bottom:2px solid #e8e0d0">成本佔比</th>
+        </tr></thead>
+        <tbody>${ingredientRows}</tbody>
+      </table>
+    </div>
+    <div style="font-weight:600;margin-bottom:14px">📝 製作步驟</div>
+    ${stepsHtml}
+    <div style="background:#fff8e1;border-radius:8px;padding:12px;margin-top:4px;font-size:12px;color:#6d4c00">
+      ⚠️ <strong>注意事項：</strong>操作前洗手、穿戴手套。所有原料請存放於正確溫度區。如配方有異動請更新系統後重新列印 SOP。
+    </div>
+  </div>`;
+  let modal=document.getElementById('sop-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='sop-modal';
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    modal.onclick=e=>{if(e.target===modal)modal.remove();};
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML=`
+  <div style="background:#fff;border-radius:14px;width:100%;max-width:560px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    ${html}
+    <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-sm btn-outline" onclick="列印SOP()">🖨️ 列印</button>
+      <button class="btn btn-sm btn-dark" onclick="document.getElementById('sop-modal').remove()">關閉</button>
+    </div>
+  </div>`;
+  modal.style.display='flex';
+}
+
+function 列印SOP(){
+  const content=document.querySelector('#sop-modal > div').innerHTML;
+  const win=window.open('','_blank','width=600,height=800');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SOP</title>
+  <style>body{font-family:'Noto Sans TC',sans-serif;padding:24px;max-width:560px;margin:0 auto}
+  table{width:100%;border-collapse:collapse}button{display:none}</style></head>
+  <body>${content}</body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(),300);
 }
 
 // ===== 內部訂購 =====
