@@ -3369,30 +3369,42 @@ async function 渲染成本表(){
 }
 
 // ===== SOP 生成 =====
+let _sopProduct=null;
+
+function _產生SOP文字(p, qty){
+  const r=p.recipe?JSON.parse(p.recipe):[];
+  const title=p.name+(p.spec?`（${p.spec}）`:'');
+  const today=今日日期();
+  const sorted=[...r].sort((a,b)=>b.unitCost*b.amount-a.unitCost*a.amount);
+  const totalCost=r.reduce((s,x)=>s+x.unitCost*x.amount,0)*qty;
+  const names=r.map(x=>x.name);
+  const isSauce=names.some(n=>/醬|醋|油/.test(n));
+  const hasPowder=names.some(n=>n.includes('粉'));
+  const hasWater=names.some(n=>n.includes('水'));
+  const ingredientText=sorted.map(x=>{
+    const total=Math.round(x.amount*qty*100)/100;
+    return `  ${x.name}　${total}${x.unit}`;
+  }).join('\n');
+  let steps=[];
+  steps.push(`【備料】依照下方配方逐一稱量所有材料，確認重量正確後備用。建議使用電子秤，精準至 0.1g。`);
+  if(hasPowder)steps.push(`【乾料混合】將粉類材料（${r.filter(x=>x.name.includes('粉')).map(x=>x.name).join('、')}）先乾拌均勻，避免結塊。`);
+  if(isSauce)steps.push(`【醬料調配】將液態材料（醬油、醋、油類）依序加入容器，再加入稠狀材料，以攪拌棒充分拌勻至質地均一、無分層。`);
+  if(hasWater)steps.push(`【加水調整】依配方加入水分，攪拌均勻，視需要調整濃稠度。`);
+  if(!isSauce&&!hasPowder)steps.push(`【製作】依配方比例將所有材料混合，充分攪拌至均勻。`);
+  steps.push(`【品質確認】觀察色澤、氣味是否符合標準，如有異常請停止並通報。`);
+  steps.push(`【包裝】使用標準容器包裝，每份 ${p.spec||'依規格'}，共 ${qty} 份。貼上品名、日期標籤後放入冷藏／待出貨區。`);
+  steps.push(`【紀錄】於系統「生產紀錄」頁面填入今日生產數量（${qty}份），完成庫存更新。`);
+  const stepsText=steps.map((s,i)=>`${i+1}. ${s}`).join('\n\n');
+  return `製作標準作業程序 SOP\n${'─'.repeat(32)}\n商品：${title}\n日期：${today}\n本次製作：${qty} 份　食材成本合計：$${totalCost.toFixed(2)}\n\n【配方材料 - 本次用量】\n${ingredientText}\n\n【製作步驟】\n${stepsText}\n\n【注意事項】\n操作前洗手、穿戴手套。所有原料請存放於正確溫度區。\n如配方有異動請更新系統後重新列印 SOP。`;
+}
+
 function 生成SOP(id){
   const p=_costProducts.find(x=>x.id===id);
   if(!p)return;
   const r=p.recipe?JSON.parse(p.recipe):[];
   if(!r.length)return;
+  _sopProduct=p;
   const title=p.name+(p.spec?`（${p.spec}）`:'');
-  const today=今日日期();
-  const sorted=[...r].sort((a,b)=>b.unitCost*b.amount-a.unitCost*a.amount);
-  const totalCost=r.reduce((s,x)=>s+x.unitCost*x.amount,0);
-  const names=r.map(x=>x.name);
-  const isSauce=names.some(n=>/醬|醋|油/.test(n));
-  const hasPowder=names.some(n=>n.includes('粉'));
-  const hasWater=names.some(n=>n.includes('水'));
-  let steps=[];
-  steps.push(`1. 【備料】依照下方配方逐一稱量所有材料，確認重量正確後備用。建議使用電子秤，精準至 0.1g。`);
-  if(hasPowder)steps.push(`2. 【乾料混合】將粉類材料（${r.filter(x=>x.name.includes('粉')).map(x=>x.name).join('、')}）先乾拌均勻，避免結塊。`);
-  if(isSauce)steps.push(`${steps.length+1}. 【醬料調配】將液態材料（醬油、醋、油類）依序加入容器，再加入稠狀材料，以攪拌棒充分拌勻至質地均一、無分層。`);
-  if(hasWater)steps.push(`${steps.length+1}. 【加水調整】依配方加入水分，攪拌均勻，視需要調整濃稠度。`);
-  if(!isSauce&&!hasPowder)steps.push(`${steps.length+1}. 【製作】依配方比例將所有材料混合，充分攪拌至均勻。`);
-  steps.push(`${steps.length+1}. 【品質確認】觀察色澤、氣味是否符合標準，如有異常請停止並通報。`);
-  steps.push(`${steps.length+1}. 【包裝】使用標準容器包裝，每份 ${p.spec||'依規格'}。貼上品名、日期標籤後放入冷藏／待出貨區。`);
-  steps.push(`${steps.length+1}. 【紀錄】於系統「生產紀錄」頁面填入今日生產數量，完成庫存更新。`);
-  const ingredientText=sorted.map(x=>`${x.name}　${x.amount}${x.unit}${totalCost>0?`（${(x.unitCost*x.amount/totalCost*100).toFixed(0)}%）`:''}`).join('\n');
-  const sopText=`製作標準作業程序 SOP\n${'='.repeat(30)}\n商品：${title}\n日期：${today}　食材成本：$${totalCost.toFixed(2)}/份\n\n【配方材料 - 每份用量】\n${ingredientText}\n\n【製作步驟】\n${steps.join('\n\n')}\n\n【注意事項】\n操作前洗手、穿戴手套。所有原料請存放於正確溫度區。如配方有異動請更新系統後重新列印 SOP。`;
 
   let modal=document.getElementById('sop-modal');
   if(!modal){
@@ -3411,9 +3423,14 @@ function 生成SOP(id){
       </div>
       <button style="background:none;border:none;font-size:20px;cursor:pointer;color:#aaa" onclick="document.getElementById('sop-modal').remove()">✕</button>
     </div>
-    <div style="font-size:12px;color:#888;margin-bottom:10px">可直接在下方文字框編輯內容，完成後列印。</div>
-    <textarea id="sop-textarea" style="flex:1;min-height:380px;border:1px solid #e0d8cc;border-radius:8px;padding:14px;font-family:'Noto Sans TC',sans-serif;font-size:13px;line-height:1.8;resize:vertical;background:#faf7f2;color:#333">${sopText}</textarea>
-    <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 14px;background:#faf7f2;border-radius:8px">
+      <label style="font-size:13px;color:#555;white-space:nowrap">本次製作數量</label>
+      <input id="sop-qty" type="number" min="1" value="1" style="width:80px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:14px;font-weight:600;text-align:center" oninput="更新SOP用量()">
+      <span style="font-size:13px;color:#888">份　（改數字後自動更新材料用量）</span>
+    </div>
+    <textarea id="sop-textarea" style="flex:1;min-height:360px;border:1px solid #e0d8cc;border-radius:8px;padding:14px;font-family:'Noto Sans TC',monospace;font-size:13px;line-height:1.8;resize:vertical;background:#fff;color:#333">${_產生SOP文字(p,1)}</textarea>
+    <div style="font-size:11px;color:#aaa;margin-top:6px">可直接在文字框內手動修改任何內容，再列印。</div>
+    <div style="display:flex;gap:10px;margin-top:12px;justify-content:flex-end">
       <button class="btn btn-sm btn-outline" onclick="列印SOP()">🖨️ 列印</button>
       <button class="btn btn-sm btn-dark" onclick="document.getElementById('sop-modal').remove()">關閉</button>
     </div>
@@ -3421,11 +3438,17 @@ function 生成SOP(id){
   modal.style.display='flex';
 }
 
+function 更新SOP用量(){
+  const qty=+document.getElementById('sop-qty').value||1;
+  if(!_sopProduct)return;
+  document.getElementById('sop-textarea').value=_產生SOP文字(_sopProduct,qty);
+}
+
 function 列印SOP(){
   const text=document.getElementById('sop-textarea').value;
-  const win=window.open('','_blank','width=600,height=800');
+  const win=window.open('','_blank','width=620,height=900');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SOP</title>
-  <style>body{font-family:'Noto Sans TC',sans-serif;padding:32px;max-width:560px;margin:0 auto;white-space:pre-wrap;line-height:1.8;font-size:14px}</style></head>
+  <style>body{font-family:'Noto Sans TC',monospace;padding:32px;max-width:560px;margin:0 auto;white-space:pre-wrap;line-height:1.9;font-size:14px}</style></head>
   <body>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</body></html>`);
   win.document.close();
   setTimeout(()=>win.print(),300);
