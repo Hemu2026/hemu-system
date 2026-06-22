@@ -3394,6 +3394,10 @@ async function aiGenSOP(type,btn){
     alert('請先到「系統設定」→「Claude API 金鑰」填入 API Key。');
     return;
   }
+  const qtyStr=prompt(`生成 SOP 的製作數量是幾份？\n（例如：1桶麻醬=16份，4桶=64份）`,'1');
+  if(qtyStr===null)return;
+  const qty=+qtyStr||1;
+
   const name=document.getElementById('pf-name')?.value||'';
   const spec=document.getElementById('pf-spec')?.value||'';
   const note=document.getElementById('pf-note')?.value||'';
@@ -3408,10 +3412,6 @@ async function aiGenSOP(type,btn){
     const total=Math.round(a*qty*100)/100;
     return `${n} ${total}${u}`;
   }).filter(Boolean);
-
-  const qtyStr=prompt(`生成 SOP 的製作數量是幾份？\n（例如：1桶麻醬=16份，4桶=64份）`,'1');
-  if(qtyStr===null)return;
-  const qty=+qtyStr||1;
 
   const isPT=type==='pt';
   const textarea=document.getElementById(isPT?'pf-sop-pt':'pf-sop');
