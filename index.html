@@ -2607,7 +2607,7 @@ function 顯示商品表單(p={}){
     <div style="background:#f0f9f0;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #c8e6c9">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div style="font-size:13px;font-weight:600">📄 完整版 SOP（老闆/主管）</div>
-        <button type="button" class="btn btn-sm btn-outline" style="font-size:11px" onclick="AI生成SOP('full',this)">🤖 AI 生成草稿</button>
+        <button type="button" class="btn btn-sm btn-outline" style="font-size:11px" onclick="event.stopPropagation();aiGenSOP('full',this)">🤖 AI 生成草稿</button>
       </div>
       <div style="font-size:12px;color:#888;margin-bottom:8px">完整配方與步驟，員工不可見。</div>
       <textarea id="pf-sop" rows="7" style="width:100%;padding:10px;border:1px solid #c8e6c9;border-radius:6px;font-family:'Noto Sans TC',monospace;font-size:13px;line-height:1.8;resize:vertical;background:#fff;box-sizing:border-box" placeholder="貼上完整製作 SOP，或點右上角 AI 生成草稿...">${p.sop||''}</textarea>
@@ -2615,7 +2615,7 @@ function 顯示商品表單(p={}){
     <div style="background:#fff8e1;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #ffe082">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div style="font-size:13px;font-weight:600">👷 PT 版 SOP（員工用）</div>
-        <button type="button" class="btn btn-sm btn-outline" style="font-size:11px;border-color:#f0c040;color:#a07800" onclick="AI生成SOP('pt',this)">🤖 AI 生成草稿</button>
+        <button type="button" class="btn btn-sm btn-outline" style="font-size:11px;border-color:#f0c040;color:#a07800" onclick="event.stopPropagation();aiGenSOP('pt',this)">🤖 AI 生成草稿</button>
       </div>
       <div style="font-size:12px;color:#888;margin-bottom:8px">只包含員工需要知道的步驟，不含詳細配方比例。</div>
       <textarea id="pf-sop-pt" rows="5" style="width:100%;padding:10px;border:1px solid #ffe082;border-radius:6px;font-family:'Noto Sans TC',monospace;font-size:13px;line-height:1.8;resize:vertical;background:#fffdf0;box-sizing:border-box" placeholder="例：麻醬、醬料桶、水、花生汁的組裝步驟，或點右上角 AI 生成草稿...">${p.sopPT||''}</textarea>
@@ -3388,7 +3388,7 @@ async function 渲染成本表(){
 }
 
 // ===== AI 生成 SOP =====
-async function AI生成SOP(type,btn){
+async function aiGenSOP(type,btn){
   let key=取得ApiKey();
   if(!key){
     alert('請先到「系統設定」→「Claude API 金鑰」填入 API Key。');
