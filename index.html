@@ -1370,7 +1370,11 @@ function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0){
         <tbody>${weekKeys.map((key,i)=>{
           const wRecs=weeks[key];
           const endDate=new Date(key);endDate.setDate(endDate.getDate()+6);
-          const period=`${key.slice(5)} ~ ${endDate.toISOString().slice(5,10)}`;
+          const [_ey,_em]=ym.split('-').map(Number);
+          const monthEnd=new Date(_ey,_em,0);
+          const isPartial=endDate>monthEnd;
+          const dispEnd=isPartial?monthEnd:endDate;
+          const period=`${key.slice(5)} ~ ${dispEnd.toISOString().slice(5,10)}${isPartial?' (月底)':''}`;
           const sysTotal=wRecs.reduce((a,r)=>a+取應交現金(r),0);
           const actTotal=wRecs.reduce((a,r)=>a+(+r.handover_actual||0),0);
           const hasActual=wRecs.some(r=>r.handover_actual);
@@ -2260,7 +2264,7 @@ async function 渲染資金管理(){
   // 只取本月記錄計算週結
   const recsA=(resA.data||[]).filter(r=>格式化日期(r.date).startsWith(ym));
   const recsB=(resB.data||[]).filter(r=>格式化日期(r.date).startsWith(ym));
-  const 週結資料=計算週結現金(recsA,recsB);
+  const 週結資料=計算週結現金(recsA,recsB,ym);
   const records=(res.records||res.data||[]).sort((a,b)=>{const d=(b.date||'').localeCompare(a.date||'');return d!==0?d:String(b.id||'').localeCompare(String(a.id||''));});
 
   // 從流水反推各帳戶餘額（以最新快照為起點）
@@ -2407,10 +2411,13 @@ function 切換資金類型(){
   if(w) w.style.display=type==='轉帳'?'':'none';
 }
 
-function 計算週結現金(recsA,recsB){
+function 計算週結現金(recsA,recsB,ym){
   const allRecs=[...recsA.map(r=>({...r,brand:'a'})),...recsB.map(r=>({...r,brand:'b'}))];
   if(!allRecs.length)return[];
   const weeks={};
+  const inferYm=ym||(allRecs[0]?.date?.slice(0,7));
+  const [_ey,_em]=inferYm?inferYm.split('-').map(Number):[0,0];
+  const monthEnd=_ey?new Date(_ey,_em,0):null;
   allRecs.forEach(r=>{
     const d=new Date(格式化日期(r.date));
     const day=d.getDay()||7;
@@ -2420,8 +2427,10 @@ function 計算週結現金(recsA,recsB){
     if(r.brand==='a')weeks[key].cashA+=取應交現金(r);
     else weeks[key].cashB+=取應交現金(r);
     const end=new Date(mon);end.setDate(mon.getDate()+6);
-    weeks[key].endDate=end.toISOString().slice(0,10);
-    weeks[key].period=`${key.slice(5)} ~ ${end.toISOString().slice(5,10)}`;
+    const dispEnd=monthEnd&&end>monthEnd?monthEnd:end;
+    const isPartial=monthEnd&&end>monthEnd;
+    weeks[key].endDate=dispEnd.toISOString().slice(0,10);
+    weeks[key].period=`${key.slice(5)} ~ ${dispEnd.toISOString().slice(5,10)}${isPartial?' (月底)':''}`;
   });
   return Object.keys(weeks).sort().map(k=>({...weeks[k]}));
 }
