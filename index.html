@@ -1315,7 +1315,7 @@ async function 渲染月報資料(br,ym){
   ]);
   載入中(false);
   const mc=mcRes.data||{};
-  const sWithMonth={...s,phone:+mc.phone||0,ads:+mc.ads||0,utility:+mc.utility||0,other:+mc.other||0};
+  const sWithMonth={...s,phone:+mc.phone||0,ads:+mc.ads||0,utility:+mc.utility||0,other:+mc.other||0,tax:+mc.tax||0};
   const emps=payRes.data||[];
   const pl={
     salary:emps.reduce((a,e)=>a+((+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0)),0),
@@ -1332,7 +1332,7 @@ async function 快速儲存月份成本(val,field){
   if(!br||!ym)return;
   const mc={...window._月報_mc,[field]:+val||0};
   window._月報_mc=mc;
-  await 呼叫API({action:'saveMonthCost',brand:br,month:ym,phone:mc.phone||0,ads:mc.ads||0,utility:mc.utility||0,other:mc.other||0});
+  await 呼叫API({action:'saveMonthCost',brand:br,month:ym,phone:mc.phone||0,ads:mc.ads||0,utility:mc.utility||0,other:mc.other||0,tax:mc.tax||0});
   提示('✓ 已儲存');
 }
 
