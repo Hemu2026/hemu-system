@@ -1314,8 +1314,14 @@ async function 渲染月報資料(br,ym){
     呼叫API({action:'getInternalOrders',brand:br})
   ]);
   載入中(false);
+  const mcFields=['phone','ads','utility','other','tax'];
+  const lsKey=`hm_mc_${br}_${ym}`;
+  const lsMc=JSON.parse(localStorage.getItem(lsKey)||'{}');
   const mc=mcRes.data||{};
-  const sWithMonth={...s,phone:+mc.phone||0,ads:+mc.ads||0,utility:+mc.utility||0,other:+mc.other||0,tax:+mc.tax||0};
+  // GAS 有值優先用 GAS；若 GAS 無值則用 localStorage 備援
+  const mergedMc={};
+  mcFields.forEach(f=>{mergedMc[f]=+mc[f]||+lsMc[f]||0;});
+  const sWithMonth={...s,...mergedMc};
   const emps=payRes.data||[];
   const pl={
     salary:emps.reduce((a,e)=>a+((+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0)),0),
@@ -1324,7 +1330,7 @@ async function 渲染月報資料(br,ym){
   pl.total=pl.salary+pl.nhi_co;
   const ioOrders=(ioRes.orders||[]).filter(o=>o.date?.startsWith(ym));
   const tInternalCost=ioOrders.reduce((s,o)=>s+(+o.totalCost||0),0);
-  window._月報_br=br; window._月報_ym=ym; window._月報_mc={...mc};
+  window._月報_br=br; window._月報_ym=ym; window._月報_mc={...mergedMc};
   document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,sWithMonth,pl,window[`_recs_${br}`]||[],tInternalCost);
 }
 async function 快速儲存月份成本(val,field){
@@ -1332,7 +1338,9 @@ async function 快速儲存月份成本(val,field){
   if(!br||!ym)return;
   const mc={...window._月報_mc,[field]:+val||0};
   window._月報_mc=mc;
-  await 呼叫API({action:'saveMonthCost',brand:br,month:ym,phone:mc.phone||0,ads:mc.ads||0,utility:mc.utility||0,other:mc.other||0,tax:mc.tax||0});
+  // 永遠先存 localStorage，確保刷新後不丟失
+  localStorage.setItem(`hm_mc_${br}_${ym}`,JSON.stringify(mc));
+  呼叫API({action:'saveMonthCost',brand:br,month:ym,phone:mc.phone||0,ads:mc.ads||0,utility:mc.utility||0,other:mc.other||0,tax:mc.tax||0});
   提示('✓ 已儲存');
 }
 
