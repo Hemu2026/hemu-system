@@ -2453,17 +2453,20 @@ async function 記入週結現金(amount,period,date){
 async function 儲存月初快照(){
   const 帳戶=['富郁霖卡','南閩卡','公司現金','央廚備用金'];
   const today=今日日期();
-  const records=帳戶.map(a=>({
-    date:today,type:'快照',account:a,
-    amount:+document.getElementById(`snap-${a}`)?.value||0,
-    note:`月初對帳快照 ${today}`
-  }));
-  const hasAny=records.some(r=>r.amount>0);
-  if(!hasAny){提示('請至少填寫一個帳戶金額');return;}
+  // 只儲存有填值的帳戶，避免空白欄位蓋掉舊餘額
+  const records=帳戶.map(a=>{
+    const el=document.getElementById(`snap-${a}`);
+    const val=el?.value;
+    if(val===''||val===null||val===undefined)return null;
+    return{date:today,type:'快照',account:a,amount:+val||0,note:`月初對帳快照 ${today}`};
+  }).filter(Boolean);
+  if(!records.length){提示('請至少填寫一個帳戶金額');return;}
   載入中(true,'儲存中...');
   for(const r of records){
     await 呼叫API({action:'saveFundRecord',date:r.date,type:r.type,account:r.account,amount:r.amount,note:r.note,toAccount:'',created_by:目前使用者?.email});
   }
+  // 等 GAS 寫入完成再重新抓資料
+  await new Promise(res=>setTimeout(res,1500));
   載入中(false);
   提示('✓ 對帳快照已儲存，餘額已更新');
   渲染資金管理();
