@@ -585,7 +585,8 @@ function 渲染每日表單(br){
     <div class="g3">
       <div class="field"><label>來客數（交易筆數）</label><input type="number" id="d${br}-guests" placeholder="0" oninput="計算表單('${br}')"><span class="hint">POS 內用＋外帶，不含平台</span></div>
       <div class="field"><label>現金收入</label><input type="number" id="d${br}-cash" placeholder="0" oninput="計算表單('${br}')"></div>
-      <div class="field"><label>LINE Pay</label><input type="number" id="d${br}-lp" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>LINE Pay（門市）</label><input type="number" id="d${br}-lp" placeholder="0" oninput="計算表單('${br}')"></div>
+      <div class="field"><label>LINE Pay（線上點餐）</label><input type="number" id="d${br}-lp-online" placeholder="0" oninput="計算表單('${br}')"></div>
       <div class="field"><label>台灣 PAY</label><input type="number" id="d${br}-tw" placeholder="0" oninput="計算表單('${br}')"></div>
       <div class="field"><label>Uber Eats（門市實收）</label><input type="number" id="d${br}-uber" placeholder="0" oninput="計算表單('${br}')"></div>
       ${br==='b'?`<div class="field"><label>熊貓（門市實收）</label><input type="number" inputmode="decimal" id="d${br}-panda" placeholder="0" oninput="計算表單('${br}')"></div>`:''}
@@ -663,10 +664,10 @@ function 處理檔案(br,file){
 }
 
 function 計算表單(br){
-  const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`),panda=數值(`d${br}-panda`);
-  const total=cash+lp+tw+uber+panda,guests=數值(`d${br}-guests`);
+  const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),lpOnline=數值(`d${br}-lp-online`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`),panda=數值(`d${br}-panda`);
+  const total=cash+lp+lpOnline+tw+uber+panda,guests=數值(`d${br}-guests`);
   const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100,pandaRate=數值(`d${br}-pandarate`)/100;
-  const pFee=lp*lpRate+uber*uberRate+panda*pandaRate;
+  const pFee=(lp+lpOnline)*lpRate+uber*uberRate+panda*pandaRate;
   const market=數值(`d${br}-market`),pack=數值(`d${br}-pack`),meal=數值(`d${br}-meal`),gas=數值(`d${br}-gas`);
   const totalExpense=market+pack+meal+gas;
   const reserve=數值(`d${br}-reserve`);
@@ -708,7 +709,7 @@ async function 執行AI辨識(br){
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:[
         {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
-        {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：cash(現金收入),linepay(LINE Pay 與線上點餐金流的金額加總),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
+        {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：cash(現金收入),linepay(LINE Pay 門市刷卡金額，不含線上點餐),linepay_online(LINE Pay 線上點餐金流，若無則0),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
       ]}]})
     });
     if(!resp.ok){const errBody=await resp.json().catch(()=>({}));throw new Error(`API錯誤 ${resp.status}：${errBody?.error?.message||JSON.stringify(errBody)}`);}
@@ -716,7 +717,7 @@ async function 執行AI辨識(br){
     const match=data.content[0].text.match(/\{[\s\S]*\}/);
     if(!match)throw new Error('無法解析回應');
     const r=JSON.parse(match[0]);
-    const 欄位對應={cash:`d${br}-cash`,linepay:`d${br}-lp`,twpay:`d${br}-tw`,uber:`d${br}-uber`,guests:`d${br}-guests`,cashShould:`d${br}-cashShould`,cashActual:`d${br}-cashActual`,voidAmt:`d${br}-void`,txItems:`d${br}-txItems`};
+    const 欄位對應={cash:`d${br}-cash`,linepay:`d${br}-lp`,linepay_online:`d${br}-lp-online`,twpay:`d${br}-tw`,uber:`d${br}-uber`,guests:`d${br}-guests`,cashShould:`d${br}-cashShould`,cashActual:`d${br}-cashActual`,voidAmt:`d${br}-void`,txItems:`d${br}-txItems`};
     let 填入數量=0;
     Object.entries(欄位對應).forEach(([k,fid])=>{
       const el=document.getElementById(fid);
@@ -734,10 +735,10 @@ async function 執行AI辨識(br){
 
 async function 儲存每日記錄(br){
   const date=文字(`d${br}-date`);if(!date){提示('請選擇日期');return}
-  const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`),panda=數值(`d${br}-panda`);
-  const total=cash+lp+tw+uber+panda;
+  const cash=數值(`d${br}-cash`),lp=數值(`d${br}-lp`),lpOnline=數值(`d${br}-lp-online`),tw=數值(`d${br}-tw`),uber=數值(`d${br}-uber`),panda=數值(`d${br}-panda`);
+  const total=cash+lp+lpOnline+tw+uber+panda;
   const lpRate=數值(`d${br}-lprate`)/100,uberRate=數值(`d${br}-uberrate`)/100,pandaRate=數值(`d${br}-pandarate`)/100;
-  const pFee=lp*lpRate+uber*uberRate+panda*pandaRate;
+  const pFee=(lp+lpOnline)*lpRate+uber*uberRate+panda*pandaRate;
   const market=數值(`d${br}-market`),central=數值(`d${br}-central`),pack=數值(`d${br}-pack`);
   const meal=數值(`d${br}-meal`),gas=數值(`d${br}-gas`);
   const totalExpense=market+pack+meal+gas;
@@ -752,7 +753,7 @@ async function 儲存每日記錄(br){
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveRecord',record:{
     brand:br,date,weather:文字(`d${br}-weather`),hours:數值(`d${br}-hours`),guests:數值(`d${br}-guests`),
-    cash,lp,tw,uber,panda,total,lp_rate:數值(`d${br}-lprate`),uber_rate:數值(`d${br}-uberrate`),panda_rate:數值(`d${br}-pandarate`),p_fee:pFee,
+    cash,lp,lp_online:lpOnline,tw,uber,panda,total,lp_rate:數值(`d${br}-lprate`),uber_rate:數值(`d${br}-uberrate`),panda_rate:數值(`d${br}-pandarate`),p_fee:pFee,
     market,central,pack,food_cost:market+central,meal,gas,misc:數值(`d${br}-misc`),
     cash_should:cashShould,cash_actual:cashActual,cash_short_over:cashActual-cashShould,
     void_amt:數值(`d${br}-void`),tx_items:數值(`d${br}-txItems`),
@@ -1349,7 +1350,7 @@ async function 快速儲存月份成本(val,field){
 function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0){
   if(!recs.length)return'<div style="color:#aaa;padding:1rem;text-align:center">該月尚無記錄</div>';
   const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
-  const tRev=n('total'),tCash=n('cash'),tLP=n('lp'),tTW=n('tw'),tUber=n('uber'),tPFee=n('p_fee');
+  const tRev=n('total'),tCash=n('cash'),tLP=n('lp'),tLPOnline=n('lp_online'),tTW=n('tw'),tUber=n('uber'),tPFee=n('p_fee');
   const tFoodRaw=n('food_cost'),tPack=n('pack'),tMeal=n('meal'),tGas=n('gas'),tMisc=n('misc');
   const tFood=tFoodRaw+tInternalCost;
   const tGuests=n('guests'),tHours=n('hours'),laborTotal=pl.total;
@@ -1376,7 +1377,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0){
   </div>
   <div class="g2">
     <div class="card"><div class="card-title-lg">📊 收入結構</div>
-      ${[['現金收入',tCash],['LINE Pay',tLP],['台灣 PAY',tTW],['Uber Eats（門市）',tUber]].map(([l,v])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
+      ${[['現金收入',tCash],['LINE Pay（門市）',tLP],['LINE Pay（線上點餐）',tLPOnline],['台灣 PAY',tTW],['Uber Eats（門市）',tUber]].map(([l,v])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
       <div class="sum-row"><span class="sum-label">平台手續費（支出）</span><span style="color:#c0392b">-$${格式化金額(tPFee)}</span></div>
       <div class="sum-row"><span>實收淨額</span><span>$${格式化金額(tRev-tPFee)}</span></div>
     </div>
