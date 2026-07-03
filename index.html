@@ -2273,7 +2273,13 @@ async function 渲染資金管理(){
   const 帳戶對應={'林家涼麵現金':'公司現金','木谷食麵所現金':'公司現金'};
   const 正規化帳戶=a=>帳戶對應[a]||a;
   const 餘額={};帳戶.forEach(a=>餘額[a]=0);
-  const sorted=[...records].sort((a,b)=>(a.date||'').localeCompare(b.date||'')); // 由舊到新
+  const sorted=[...records].sort((a,b)=>{
+    const d=(a.date||'').localeCompare(b.date||'');
+    if(d!==0)return d;
+    // 同一天：快照排最前，確保支出/收入在快照之後計算
+    const aSnap=a.type==='快照'?0:1, bSnap=b.type==='快照'?0:1;
+    return aSnap-bSnap;
+  }); // 由舊到新
   // 找每個帳戶最新的快照索引
   const 快照起點={};
   帳戶.forEach(a=>{
