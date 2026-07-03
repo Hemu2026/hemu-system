@@ -1351,7 +1351,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0){
   if(!recs.length)return'<div style="color:#aaa;padding:1rem;text-align:center">該月尚無記錄</div>';
   const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
   const tRev=n('total'),tCash=n('cash'),tLP=n('lp'),tLPOnline=n('lp_online'),tTW=n('tw'),tUber=n('uber'),tPFee=n('p_fee');
-  const tFoodRaw=n('food_cost'),tPack=n('pack'),tMeal=n('meal'),tGas=n('gas'),tMisc=n('misc');
+  const tMarket=n('market'),tCentral=n('central'),tFoodRaw=tMarket+tCentral,tPack=n('pack'),tMeal=n('meal'),tGas=n('gas'),tMisc=n('misc');
   const tFood=tFoodRaw+tInternalCost;
   const tGuests=n('guests'),tHours=n('hours'),laborTotal=pl.total;
   const fxC=固定成本(s),tCost=fxC+tFood+tPack+tMeal+tGas+tMisc+tPFee+laborTotal,netProfit=tRev-tCost;
@@ -1393,7 +1393,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0){
     </div>
   </div>
   <div class="card"><div class="card-title-lg">💹 損益總結</div>
-    ${[['月營收',tRev,false,false],['食材進貨（外購）',tFoodRaw,true,false],['內部醬料成本',tInternalCost,true,false],['包材／餐具',tPack,true,false],['員工餐費',tMeal,true,false],['瓦斯',tGas,true,false],['平台手續費',tPFee,true,false],['其他當日雜支',tMisc,true,false],['薪資實發合計',pl.salary,true,false],['勞健退（公司負擔）',pl.nhi_co,true,false],['房租',s.rent||0,true,false],['平台月費／POS',(s.platform||0)+(s.pos||0),true,false],['電話費／網路費',s.phone||0,true,'phone'],['廣告／文宣費',s.ads||0,true,'ads'],['水電費',s.utility||0,true,'utility'],['其他固定雜支',s.other||0,true,'other'],['營業稅',s.tax||0,true,'tax']]
+    ${[['月營收',tRev,false,false],['現場進貨',tMarket,true,false],['央廚進貨',tCentral,true,false],['內部醬料成本',tInternalCost,true,false],['包材／餐具',tPack,true,false],['員工餐費',tMeal,true,false],['瓦斯',tGas,true,false],['平台手續費',tPFee,true,false],['其他當日雜支',tMisc,true,false],['薪資實發合計',pl.salary,true,false],['勞健退（公司負擔）',pl.nhi_co,true,false],['房租',s.rent||0,true,false],['平台月費／POS',(s.platform||0)+(s.pos||0),true,false],['電話費／網路費',s.phone||0,true,'phone'],['廣告／文宣費',s.ads||0,true,'ads'],['水電費',s.utility||0,true,'utility'],['其他固定雜支',s.other||0,true,'other'],['營業稅',s.tax||0,true,'tax']]
       .map(([l,v,isE,field])=>field?`<div class="sum-row"><span class="sum-label">${l}</span><span style="display:flex;align-items:center;gap:6px"><input type="number" value="${v}" style="width:90px;padding:2px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right" onchange="快速儲存月份成本(this.value,'${field}')">　<small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`:`<div class="sum-row"><span class="sum-label">${l}</span><span>${isE?'-':''}$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
     <div class="sum-row"><span>月淨利</span><span style="color:${netProfit>=0?'#27ae60':'#c0392b'}">${netProfit>=0?'+':'-'}$${格式化金額(Math.abs(netProfit))} (${profitRate.toFixed(1)}%)</span></div>
     <div class="progress-wrap">
