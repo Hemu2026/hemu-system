@@ -179,7 +179,48 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
 .detail-box h3{font-size:15px;font-weight:600;margin-bottom:1rem}
 .detail-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e5df;font-size:14px}
 .detail-row:last-child{border:none}
-.detail-section{font-size:11px;font-weight:600;color:#999;margin:1rem 0 4px;text-transform:uppercase}</style>
+.detail-section{font-size:11px;font-weight:600;color:#999;margin:1rem 0 4px;text-transform:uppercase}
+/* ===== 今鶴風格 視覺系統 ===== */
+.page-section-label{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#c8a96e;margin-bottom:4px}
+.page-title-lg{font-size:26px;font-weight:700;color:#1a1a1a;line-height:1.15;margin-bottom:6px}
+.page-subtitle{font-size:13px;color:#999;margin-bottom:1.75rem;line-height:1.5}
+.page-title-block{margin-bottom:1.75rem;padding-bottom:1.25rem;border-bottom:1px solid #eee}
+.dark-stats-card{background:#1a1a1a;border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1.25rem;display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.dark-stats-item{text-align:center;padding:.5rem;border-right:1px solid rgba(255,255,255,.08)}
+.dark-stats-item:last-child{border-right:none}
+.dark-stats-label{font-size:10px;color:rgba(255,255,255,.45);margin-bottom:6px;letter-spacing:.04em}
+.dark-stats-value{font-size:26px;font-weight:700;color:#fff;line-height:1}
+.dark-stats-value.danger{color:#e74c3c}
+.dark-stats-value.amber{color:#c8a96e}
+.dark-stats-value.green{color:#2ecc71}
+/* 改善卡片 */
+.improve-card{background:#fff;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.625rem;border:1px solid #e8e8e2;border-left:4px solid #ddd;cursor:pointer;transition:box-shadow .15s}
+.improve-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.improve-card.sl-待啟動{border-left-color:#ccc}
+.improve-card.sl-進行中{border-left-color:#27ae60}
+.improve-card.sl-逾期{border-left-color:#e74c3c}
+.improve-card.sl-待驗收{border-left-color:#c8a96e}
+.improve-card.sl-已完成{border-left-color:#27ae60;opacity:.55}
+.improve-title{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:6px}
+.improve-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.improve-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+/* 狀態 chip */
+.sc{display:inline-block;font-size:11px;font-weight:600;padding:2px 10px;border-radius:20px}
+.sc-待啟動{background:#f2f2f2;color:#999}
+.sc-進行中{background:#eafaf1;color:#27ae60}
+.sc-逾期{background:#fef0f0;color:#e74c3c}
+.sc-待驗收{background:#fdf8f0;color:#c8a96e}
+.sc-已完成{background:#f2f2f2;color:#888}
+.sc-高急迫{background:#fef0f0;color:#e74c3c;font-size:10px}
+.sc-一般{background:#f2f2f2;color:#aaa;font-size:10px}
+.group-heading{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#bbb;padding:4px 0;margin:1.25rem 0 .625rem;display:flex;align-items:center;gap:8px}
+.group-heading::after{content:'';flex:1;height:1px;background:#f0f0ec}
+/* 改善 Modal */
+.im-modal{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.55);overflow-y:auto;padding:1rem}
+.im-modal.open{display:flex;align-items:flex-start;justify-content:center}
+.im-box{background:#fff;border-radius:16px;width:100%;max-width:460px;padding:1.5rem;margin:auto}
+.im-box-title{font-size:16px;font-weight:700;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center}
+</style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -411,6 +452,8 @@ function 建立導覽列(role,brand){
       </div>`;
     });
     html+=`<div class="nav-group">
+      <div class="nav-group-label">管理工具</div>
+      <div class="nav-item" data-page="改善追蹤"><span class="nav-dot dot-hq"></span>改善追蹤</div>
       <div class="nav-group-label">總公司</div>
       <div class="nav-item" data-page="總部"><span class="nav-dot dot-hq"></span>總部月報表</div>
       <div class="nav-item" data-page="資金管理"><span class="nav-dot dot-hq"></span>資金管理</div>
@@ -448,7 +491,7 @@ function 建立頁面(role,brand){
     pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,'進貨申報','進貨結算','生產紀錄','庫存盤點'];
   } else {
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`內部訂購-${br}`));
-    pages.push('總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點');
+    pages.push('改善追蹤','總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -508,6 +551,7 @@ function 切換頁面(page){
   else if(page==='進貨結算')渲染進貨結算();
   else if(page==='生產紀錄')渲染生產紀錄();
   else if(page==='庫存盤點')渲染庫存盤點();
+  else if(page==='改善追蹤')渲染改善追蹤();
 }
 
 // ===== 每日輸入（店長/老闆）=====
@@ -4339,6 +4383,185 @@ async function 送出盤點(){
   載入中(false);
   提示(`✓ 成功更新 ${ok} 筆庫存`);
   渲染庫存盤點();
+}
+
+// ===== 改善追蹤 =====
+const IM_KEY='hm_improve_items';
+function im讀取(){try{return JSON.parse(localStorage.getItem(IM_KEY)||'[]');}catch{return[];}}
+function im儲存(items){localStorage.setItem(IM_KEY,JSON.stringify(items));}
+function im今天(){return new Date().toISOString().slice(0,10);}
+function im是否逾期(item){return item.status!=='已完成'&&item.deadline&&item.deadline<im今天();}
+
+function 渲染改善追蹤(){
+  const el=document.getElementById('page-改善追蹤');
+  const items=im讀取();
+  // 動態更新逾期狀態
+  items.forEach(it=>{if(im是否逾期(it)&&it.status==='進行中')it.status='逾期';});
+  im儲存(items);
+  const 待處理=items.filter(i=>i.status==='待啟動'||i.status==='進行中').length;
+  const 逾期=items.filter(i=>i.status==='逾期').length;
+  const 待驗收=items.filter(i=>i.status==='待驗收').length;
+  const 高急迫=items.filter(i=>i.urgency==='高急迫').length;
+  const 狀態順序=['逾期','待驗收','進行中','待啟動','已完成'];
+  const 排序後=[...items].sort((a,b)=>{
+    const ai=狀態順序.indexOf(a.status),bi=狀態順序.indexOf(b.status);
+    if(ai!==bi)return ai-bi;
+    return (a.deadline||'').localeCompare(b.deadline||'');
+  });
+  const im品牌名={'a':'林家涼麵','b':'木谷食麵所','hq':'總公司','all':'全品牌'};
+  function im卡片(it){
+    const 逾期色=im是否逾期(it)?'sl-逾期':`sl-${it.status}`;
+    return `<div class="improve-card ${逾期色}" onclick="im開啟編輯('${it.id}')">
+      <div class="improve-title">${it.title}</div>
+      <div class="improve-meta">
+        <span class="sc sc-${it.status}">${it.status}</span>
+        ${it.urgency==='高急迫'?'<span class="sc sc-高急迫">⚡ 高急迫</span>':''}
+        <span style="font-size:12px;color:#bbb">${im品牌名[it.brand]||it.brand}</span>
+        ${it.owner?`<span style="font-size:12px;color:#bbb">· ${it.owner}</span>`:''}
+      </div>
+      ${it.metric?`<div style="font-size:12px;color:#888;margin-top:6px">指標：${it.metric}</div>`:''}
+      <div class="improve-footer">
+        <span style="font-size:12px;color:${it.deadline&&it.deadline<im今天()?'#e74c3c':'#bbb'}">
+          ${it.deadline?`截止 ${it.deadline}`:'未設截止'}
+        </span>
+        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();im刪除('${it.id}')">刪除</button>
+      </div>
+    </div>`;
+  }
+  const 分組=['逾期','待驗收','進行中','待啟動','已完成'];
+  const 分組標題={'逾期':'🔴 逾期','待驗收':'🟡 待驗收','進行中':'🟢 進行中','待啟動':'⚪ 待啟動','已完成':'✅ 已完成'};
+  let 卡片html='';
+  分組.forEach(status=>{
+    const group=排序後.filter(i=>i.status===status);
+    if(group.length===0)return;
+    卡片html+=`<div class="group-heading">${分組標題[status]} (${group.length})</div>`;
+    group.forEach(it=>{卡片html+=im卡片(it);});
+  });
+  if(items.length===0)卡片html=`<div style="text-align:center;padding:3rem;color:#bbb;font-size:14px">目前沒有改善項目<br><small>點擊右上角「新增」開始追蹤</small></div>`;
+  el.innerHTML=`
+  <div class="page-title-block">
+    <div class="page-section-label">IMPROVEMENT TRACKER</div>
+    <div class="page-title-lg">改善追蹤</div>
+    <div class="page-subtitle">記錄每個問題、指定責任人、追蹤到驗收完成。</div>
+  </div>
+  <div class="dark-stats-card">
+    <div class="dark-stats-item"><div class="dark-stats-label">待處理</div><div class="dark-stats-value">${待處理}</div></div>
+    <div class="dark-stats-item"><div class="dark-stats-label">逾期</div><div class="dark-stats-value danger">${逾期}</div></div>
+    <div class="dark-stats-item"><div class="dark-stats-label">待驗收</div><div class="dark-stats-value amber">${待驗收}</div></div>
+    <div class="dark-stats-item"><div class="dark-stats-label">高急迫</div><div class="dark-stats-value danger">${高急迫}</div></div>
+  </div>
+  <div class="btn-row"><button class="btn btn-dark" onclick="im開啟新增()">＋ 新增改善項目</button></div>
+  ${卡片html}
+  <div id="im-modal" class="im-modal" onclick="if(event.target===this)im關閉()">
+    <div class="im-box">
+      <div class="im-box-title"><span id="im-modal-title">新增改善項目</span><button onclick="im關閉()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999">✕</button></div>
+      <div class="g2" style="gap:10px;display:grid">
+        <div class="field full" style="grid-column:1/-1"><label>標題 *</label><input id="im-f-title" placeholder="描述這個改善項目"></div>
+        <div class="field"><label>品牌</label><select id="im-f-brand">
+          <option value="all">全品牌</option>
+          <option value="a">林家涼麵</option>
+          <option value="b">木谷食麵所</option>
+          <option value="hq">總公司</option>
+        </select></div>
+        <div class="field"><label>責任人</label><input id="im-f-owner" placeholder="姓名"></div>
+        <div class="field"><label>指標</label><input id="im-f-metric" placeholder="e.g. 人事成本佔比"></div>
+        <div class="field"><label>目標</label><input id="im-f-target" placeholder="e.g. 降至 30% 以下"></div>
+        <div class="field"><label>截止日</label><input type="date" id="im-f-deadline"></div>
+        <div class="field"><label>狀態</label><select id="im-f-status">
+          <option value="待啟動">待啟動</option>
+          <option value="進行中">進行中</option>
+          <option value="待驗收">待驗收</option>
+          <option value="已完成">已完成</option>
+        </select></div>
+        <div class="field"><label>急迫程度</label><select id="im-f-urgency">
+          <option value="一般">一般</option>
+          <option value="高急迫">高急迫</option>
+        </select></div>
+        <div class="field full" style="grid-column:1/-1"><label>備註</label><input id="im-f-note" placeholder="補充說明"></div>
+      </div>
+      <input type="hidden" id="im-f-id">
+      <div style="display:flex;gap:8px;margin-top:1.25rem;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="im關閉()">取消</button>
+        <button class="btn btn-dark" onclick="im儲存表單()">儲存</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function im開啟新增(){
+  const modal=document.getElementById('im-modal');
+  if(!modal)return;
+  document.getElementById('im-modal-title').textContent='新增改善項目';
+  document.getElementById('im-f-id').value='';
+  document.getElementById('im-f-title').value='';
+  document.getElementById('im-f-brand').value='all';
+  document.getElementById('im-f-owner').value='';
+  document.getElementById('im-f-metric').value='';
+  document.getElementById('im-f-target').value='';
+  document.getElementById('im-f-deadline').value='';
+  document.getElementById('im-f-status').value='待啟動';
+  document.getElementById('im-f-urgency').value='一般';
+  document.getElementById('im-f-note').value='';
+  modal.classList.add('open');
+}
+
+function im開啟編輯(id){
+  const items=im讀取();
+  const it=items.find(i=>i.id===id);
+  if(!it)return;
+  const modal=document.getElementById('im-modal');
+  if(!modal)return;
+  document.getElementById('im-modal-title').textContent='編輯改善項目';
+  document.getElementById('im-f-id').value=it.id;
+  document.getElementById('im-f-title').value=it.title||'';
+  document.getElementById('im-f-brand').value=it.brand||'all';
+  document.getElementById('im-f-owner').value=it.owner||'';
+  document.getElementById('im-f-metric').value=it.metric||'';
+  document.getElementById('im-f-target').value=it.target||'';
+  document.getElementById('im-f-deadline').value=it.deadline||'';
+  document.getElementById('im-f-status').value=it.status||'待啟動';
+  document.getElementById('im-f-urgency').value=it.urgency||'一般';
+  document.getElementById('im-f-note').value=it.note||'';
+  modal.classList.add('open');
+}
+
+function im關閉(){
+  const modal=document.getElementById('im-modal');
+  if(modal)modal.classList.remove('open');
+}
+
+function im儲存表單(){
+  const title=document.getElementById('im-f-title').value.trim();
+  if(!title){alert('請填寫標題');return;}
+  const id=document.getElementById('im-f-id').value||String(Date.now());
+  const items=im讀取();
+  const existing=items.findIndex(i=>i.id===id);
+  const item={
+    id,title,
+    brand:document.getElementById('im-f-brand').value,
+    owner:document.getElementById('im-f-owner').value.trim(),
+    metric:document.getElementById('im-f-metric').value.trim(),
+    target:document.getElementById('im-f-target').value.trim(),
+    deadline:document.getElementById('im-f-deadline').value,
+    status:document.getElementById('im-f-status').value,
+    urgency:document.getElementById('im-f-urgency').value,
+    note:document.getElementById('im-f-note').value.trim(),
+    updatedAt:im今天()
+  };
+  if(existing>=0)items[existing]=item;
+  else items.unshift(item);
+  im儲存(items);
+  im關閉();
+  渲染改善追蹤();
+  提示('✓ 已儲存');
+}
+
+function im刪除(id){
+  if(!confirm('確定刪除這個改善項目？'))return;
+  const items=im讀取().filter(i=>i.id!==id);
+  im儲存(items);
+  渲染改善追蹤();
+  提示('已刪除');
 }
 
 // ===== 啟動 =====
