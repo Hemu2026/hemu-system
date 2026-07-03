@@ -35,23 +35,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .main{flex:1;overflow-y:auto}
 .page{display:none;padding:2rem}
 .page.active{display:block}
-.brand-header{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem}
-.brand-badge{padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600}
-.badge-a{background:#f5ead8;color:#8a6a2a}
-.badge-b{background:#d9ede8;color:#2a6b58}
-.badge-hq{background:#e8e4f5;color:#4a3a8a}
-.page-title{font-size:20px;font-weight:600}
-.card{background:#fff;border:1px solid #e5e5df;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
-.card-title{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px}
+.brand-header{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-bottom:1.75rem;padding-bottom:1.25rem;border-bottom:1px solid #eee}
+.brand-badge{padding:0 !important;border-radius:0 !important;background:none !important;color:#c8a96e !important;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.badge-a{color:#c8a96e !important}
+.badge-b{color:#7bb5a0 !important}
+.badge-hq{color:#9b8ec4 !important}
+.page-title{font-size:26px;font-weight:700;color:#1a1a1a;line-height:1.15}
+.card{background:#fff;border:1px solid #eae9e4;border-radius:14px;padding:1.375rem 1.5rem;margin-bottom:1rem}
+.card-title{font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px}
 .card-title-lg{font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:16px;letter-spacing:.01em}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .full{grid-column:1/-1}
 .field{display:flex;flex-direction:column;gap:5px}
-.field label{font-size:12px;color:#888;font-weight:500}
-.field input,.field select{padding:8px 10px;border-radius:8px;border:1px solid #e0e0da;background:#fafaf7;color:#1a1a1a;font-size:14px;font-family:inherit;width:100%}
-.field input:focus,.field select:focus{outline:none;border-color:#aaa;background:#fff}
+.field label{font-size:11px;color:#aaa;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.field input,.field select{padding:9px 12px;border-radius:10px;border:1px solid #e8e8e2;background:#fafaf8;color:#1a1a1a;font-size:14px;font-family:inherit;width:100%}
+.field input:focus,.field select:focus{outline:none;border-color:#c8a96e;background:#fff;box-shadow:0 0 0 3px rgba(200,169,110,.08)}
 .field input[type="number"]{-moz-appearance:textfield}
 .field input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none}
 .field .hint{font-size:11px;color:#bbb;margin-top:2px}
@@ -67,19 +67,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .btn-full{width:100%;margin-top:.5rem}
 .btn-row{display:flex;gap:8px;justify-content:flex-end;margin-bottom:1rem;align-items:center;flex-wrap:wrap}
 .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.25rem}
-.metric{background:#f5f4f0;border-radius:10px;padding:.875rem 1rem}
-.metric-label{font-size:11px;color:#888;margin-bottom:4px}
-.metric-value{font-size:22px;font-weight:600;color:#1a1a1a;line-height:1.2}
-.metric-sub{font-size:11px;color:#aaa;margin-top:2px}
+.metric{background:#f8f7f4;border-radius:12px;padding:1rem 1.125rem;border:1px solid #eae9e4}
+.metric-label{font-size:10px;color:#aaa;margin-bottom:6px;letter-spacing:.04em;font-weight:600;text-transform:uppercase}
+.metric-value{font-size:26px;font-weight:700;color:#1a1a1a;line-height:1.1}
+.metric-sub{font-size:11px;color:#bbb;margin-top:4px}
 .metric.green .metric-value{color:#27ae60}
 .metric.red .metric-value{color:#c0392b}
 .metric.amber .metric-value{color:#c8a96e}
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:8px 10px;color:#999;font-weight:600;border-bottom:1px solid #eee;white-space:nowrap;font-size:12px}
-td{padding:8px 10px;border-bottom:1px solid #f0f0ec;color:#1a1a1a;white-space:nowrap}
+th{text-align:left;padding:9px 10px;color:#bbb;font-weight:700;border-bottom:1px solid #f0f0ec;white-space:nowrap;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+td{padding:10px 10px;border-bottom:1px solid #f5f5f2;color:#1a1a1a;white-space:nowrap;font-size:13px}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:#fafaf7}
+tr:hover td{background:#fafaf8}
 .light-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f2f1ed}
 .light-row:last-child{border-bottom:none}
 .light-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -94,8 +94,8 @@ tr:hover td{background:#fafaf7}
 .progress-label{display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:4px}
 hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
 .inner-tabs{display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap}
-.inner-tab{padding:7px 16px;font-size:13px;cursor:pointer;background:none;border:1px solid #e0e0da;border-radius:8px;color:#888;font-family:inherit}
-.inner-tab.active{background:#111;color:#fff;border-color:#111}
+.inner-tab{padding:6px 16px;font-size:12px;cursor:pointer;background:none;border:1px solid #e0e0da;border-radius:20px;color:#999;font-family:inherit;font-weight:500;transition:all .15s}
+.inner-tab.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
 .compare-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f2f1ed;font-size:13px}
 .compare-row:last-child{border-bottom:none}
 .compare-label{width:120px;color:#888;flex-shrink:0}
@@ -3948,7 +3948,7 @@ async function 渲染進貨申報(){
     if(res.ok)window._materials=res.data||[];
   }
   el.innerHTML=`
-  <div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">進貨申報</span></div>
+  <div class="brand-header"><span class="brand-badge">央廚</span><span class="page-title">進貨申報</span></div>
   <div class="card">
     <div class="card-title">📷 拍照上傳進貨單 <span class="ai-badge">AI</span></div>
     <div class="scan-zone" onclick="document.getElementById('pr-photo').click()" style="border:2px dashed #ddd;border-radius:12px;padding:2rem;text-align:center;cursor:pointer;background:#fafafa;margin-bottom:1rem">
@@ -4068,7 +4068,7 @@ async function 送出進貨申報(){
 async function 渲染進貨結算(){
   const el=document.getElementById('page-進貨結算');
   if(!el)return;
-  el.innerHTML=`<div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">進貨結算</span></div><div style="color:#aaa;text-align:center;padding:2rem">載入中...</div>`;
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge">央廚</span><span class="page-title">進貨結算</span></div><div style="color:#aaa;text-align:center;padding:2rem">載入中...</div>`;
   const res=await 呼叫API({action:'getPurchaseReports',status:'pending'});
   if(!res.ok){el.querySelector('div:last-child').textContent='載入失敗';return;}
   const list=res.data||[];
@@ -4102,7 +4102,7 @@ async function 渲染進貨結算(){
     </div>`;
   }).join('');
   el.innerHTML=`
-  <div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">進貨結算</span></div>
+  <div class="brand-header"><span class="brand-badge">央廚</span><span class="page-title">進貨結算</span></div>
   ${list.length?`<div class="card" style="background:#fff3cd;border:1.5px solid #e8c84a;margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div><div style="font-size:13px;color:#856404">待結算筆數</div><div style="font-size:22px;font-weight:700">${list.length} 筆</div></div>
@@ -4137,7 +4137,7 @@ let _prodProducts=[], _prodMaterials=[];
 
 async function 渲染生產紀錄(){
   const el=document.getElementById('page-生產紀錄');
-  el.innerHTML=`<div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">生產紀錄</span></div><div style="color:#aaa;text-align:center;padding:2rem">載入中...</div>`;
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge">央廚</span><span class="page-title">生產紀錄</span></div><div style="color:#aaa;text-align:center;padding:2rem">載入中...</div>`;
   載入中(true);
   const [resP,resM,resR]=await Promise.all([
     呼叫API({action:'getProducts'}),
@@ -4152,7 +4152,7 @@ async function 渲染生產紀錄(){
   const prodOptions=_prodProducts.map(p=>`<option value="${p.id}">${p.name}（${p.spec||''}）</option>`).join('');
 
   el.innerHTML=`
-  <div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">生產紀錄</span></div>
+  <div class="brand-header"><span class="brand-badge">央廚</span><span class="page-title">生產紀錄</span></div>
   <div style="background:#fff;border-radius:12px;padding:1rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
     <div style="font-size:14px;font-weight:600;margin-bottom:.75rem">新增生產批次</div>
     <div class="field"><label>生產日期</label>
@@ -4277,7 +4277,7 @@ let _stockMaterials=[];
 
 async function 渲染庫存盤點(){
   const el=document.getElementById('page-庫存盤點');
-  el.innerHTML=`<div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">庫存盤點</span></div><div style="color:#aaa;text-align:center;padding:2rem">載入中...</div>`;
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge">央廚</span><span class="page-title">庫存盤點</span></div><div style="color:#aaa;text-align:center;padding:2rem">載入中...</div>`;
   載入中(true);
   const res=await 呼叫API({action:'getMaterials'});
   載入中(false);
@@ -4286,7 +4286,7 @@ async function 渲染庫存盤點(){
   const 類別清單=[...new Set(_stockMaterials.map(m=>m.category||'其他'))].sort();
 
   el.innerHTML=`
-  <div class="brand-header"><span class="brand-badge" style="background:#8c8479;color:#fff">央廚</span><span class="page-title">庫存盤點</span></div>
+  <div class="brand-header"><span class="brand-badge">央廚</span><span class="page-title">庫存盤點</span></div>
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
       <div style="font-size:13px;color:#888">填入實際盤點數量，差異欄自動計算。</div>
