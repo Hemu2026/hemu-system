@@ -16,9 +16,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .app{display:flex;min-height:100vh}
 .sidebar{width:210px;background:#111;color:#fff;flex-shrink:0;display:flex;flex-direction:column}
 .sidebar-logo{padding:1.25rem;border-bottom:1px solid rgba(255,255,255,0.12)}
-.sidebar-logo h1{font-size:14px;font-weight:600}
-.sidebar-logo p{font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px}
-.sidebar-logo small{font-size:10px;color:rgba(255,255,255,0.45);display:block;margin-top:4px}
+.sidebar-logo h1{font-size:15px;font-weight:800;letter-spacing:.02em}
+.sidebar-logo p{font-size:10px;color:rgba(255,255,255,0.5);margin-top:3px;letter-spacing:.06em;text-transform:uppercase}
+.sidebar-logo small{font-size:10px;color:rgba(255,255,255,0.35);display:block;margin-top:4px}
 .sidebar-user{padding:.75rem 1.25rem;border-bottom:1px solid rgba(255,255,255,0.12);font-size:12px}
 .sidebar-user .uname{color:#fff;font-weight:500}
 .sidebar-user .urole{color:rgba(255,255,255,0.55);font-size:11px}
@@ -33,17 +33,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .btn-logout{width:100%;padding:8px;background:none;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer;font-family:inherit}
 .btn-logout:hover{border-color:#555;color:#fff}
 .main{flex:1;overflow-y:auto}
-.page{display:none;padding:2rem}
+.page{display:none;padding:2.5rem 2.5rem 4rem}
 .page.active{display:block}
-.brand-header{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-bottom:1.75rem;padding-bottom:1.25rem;border-bottom:1px solid #eee}
-.brand-badge{padding:0 !important;border-radius:0 !important;background:none !important;color:#c8a96e !important;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.brand-header{display:flex;flex-direction:column;align-items:flex-start;gap:5px;margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:2px solid #f0ede8}
+.brand-badge{padding:0 !important;border-radius:0 !important;background:none !important;color:#c8a96e !important;font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
 .badge-a{color:#c8a96e !important}
 .badge-b{color:#7bb5a0 !important}
 .badge-hq{color:#9b8ec4 !important}
-.page-title{font-size:26px;font-weight:700;color:#1a1a1a;line-height:1.15}
-.card{background:#fff;border:1px solid #eae9e4;border-radius:14px;padding:1.375rem 1.5rem;margin-bottom:1rem}
-.card-title{font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px}
-.card-title-lg{font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:16px;letter-spacing:.01em}
+.page-title{font-size:30px;font-weight:800;color:#111;line-height:1.1;letter-spacing:-.01em}
+.card{background:#fff;border:none;border-radius:18px;padding:1.75rem;margin-bottom:1.125rem;box-shadow:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04)}
+.card-title{font-size:10px;font-weight:800;color:#ccc;text-transform:uppercase;letter-spacing:.14em;margin-bottom:18px}
+.card-title-lg{font-size:16px;font-weight:700;color:#111;margin-bottom:18px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
@@ -56,8 +56,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .field input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none}
 .field .hint{font-size:11px;color:#bbb;margin-top:2px}
 .field input.ai-filled{border-color:#c8a96e;background:#fdf8f0}
-.btn{padding:9px 18px;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;font-weight:500;border:none;transition:opacity .15s}
-.btn-dark{background:#111;color:#fff}.btn-dark:hover{opacity:.8}
+.btn{padding:10px 20px;border-radius:50px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;border:none;transition:all .18s;letter-spacing:.02em}
+.btn-dark{background:#111;color:#fff}.btn-dark:hover{background:#333}
 .btn-a{background:#c8a96e;color:#fff}
 .btn-b{background:#7bb5a0;color:#fff}
 .btn-hq{background:#9b8ec4;color:#fff}
@@ -67,10 +67,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .btn-full{width:100%;margin-top:.5rem}
 .btn-row{display:flex;gap:8px;justify-content:flex-end;margin-bottom:1rem;align-items:center;flex-wrap:wrap}
 .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.25rem}
-.metric{background:#f8f7f4;border-radius:12px;padding:1rem 1.125rem;border:1px solid #eae9e4}
-.metric-label{font-size:10px;color:#aaa;margin-bottom:6px;letter-spacing:.04em;font-weight:600;text-transform:uppercase}
-.metric-value{font-size:26px;font-weight:700;color:#1a1a1a;line-height:1.1}
-.metric-sub{font-size:11px;color:#bbb;margin-top:4px}
+.metric{background:#faf9f6;border-radius:14px;padding:1.25rem 1.375rem;border:none;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.metric-label{font-size:10px;color:#bbb;margin-bottom:8px;letter-spacing:.08em;font-weight:700;text-transform:uppercase}
+.metric-value{font-size:30px;font-weight:800;color:#111;line-height:1}
+.metric-sub{font-size:11px;color:#bbb;margin-top:6px}
 .metric.green .metric-value{color:#27ae60}
 .metric.red .metric-value{color:#c0392b}
 .metric.amber .metric-value{color:#c8a96e}
