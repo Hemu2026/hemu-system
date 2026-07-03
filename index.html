@@ -1295,7 +1295,7 @@ async function 渲染月報選擇(br){
   const res=await 呼叫API({action:'getRecords',brand:br,role:目前使用者?.role});
   載入中(false);
   const recs=res.data||[];
-  const months=[...new Set(recs.map(r=>r.date?.slice(0,7)))].filter(Boolean).sort().reverse();
+  const months=[...new Set(recs.map(r=>格式化日期(r.date)?.slice(0,7)))].filter(Boolean).sort().reverse();
   el.innerHTML=`
   <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">月報表</span></div>
   <select id="mpick-${br}" onchange="渲染月報資料('${br}',this.value)" style="margin-bottom:1rem;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-family:inherit;font-size:14px">
@@ -1308,7 +1308,7 @@ async function 渲染月報選擇(br){
 
 async function 渲染月報資料(br,ym){
   const allRecs=window[`_recs_${br}`]||[];
-  const recs=allRecs.filter(r=>r.date?.startsWith(ym));
+  const recs=allRecs.filter(r=>格式化日期(r.date).startsWith(ym));
   const s=品牌設定[br]||{};
   載入中(true);
   const [payRes,mcRes,ioRes]=await Promise.all([
@@ -1404,7 +1404,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0){
   </div>
   <div class="card"><div class="card-title-lg">📅 週結算核對</div>
     ${(()=>{
-      const ym=recs[0]?.date?.slice(0,7)||格式化日期(recs[0]?.date)?.slice(0,7)||'';
+      const ym=格式化日期(recs[0]?.date)?.slice(0,7)||recs[0]?.date?.slice(0,7)||'';
       const sorted=recs.slice().sort((a,b)=>a.date.localeCompare(b.date));
       // 依週分組（週一為起始）
       const weeks={};
@@ -2049,7 +2049,7 @@ async function 渲染總部選擇(){
   ]);
   載入中(false);
   const allRecs=[...(resA.data||[]),...(resB.data||[])];
-  const months=[...new Set(allRecs.map(r=>r.date?.slice(0,7)))].filter(Boolean).sort().reverse();
+  const months=[...new Set(allRecs.map(r=>格式化日期(r.date)?.slice(0,7)))].filter(Boolean).sort().reverse();
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">總部月報表</span></div>
   <select id="hqmon" onchange="渲染總部報表(this.value)" style="margin-bottom:1.25rem;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-family:inherit;font-size:14px">
     ${months.length?months.map(m=>`<option value="${m}">${m}</option>`).join(''):'<option value="">尚無記錄</option>'}
@@ -2060,8 +2060,8 @@ async function 渲染總部選擇(){
 }
 
 async function 渲染總部報表(ym){
-  const recsA=(window._allHQRecs?.a||[]).filter(r=>r.date?.startsWith(ym));
-  const recsB=(window._allHQRecs?.b||[]).filter(r=>r.date?.startsWith(ym));
+  const recsA=(window._allHQRecs?.a||[]).filter(r=>格式化日期(r.date).startsWith(ym));
+  const recsB=(window._allHQRecs?.b||[]).filter(r=>格式化日期(r.date).startsWith(ym));
   載入中(true);
   const [payResA,payResB,ioResA,ioResB]=await Promise.all([
     呼叫API({action:'getPayroll',brand:'a',month:ym}),
