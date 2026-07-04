@@ -2453,7 +2453,7 @@ async function 渲染資金管理(){
           <td>${r.account}${r.to_account?'→'+r.to_account:''}</td>
           <td style="font-weight:600;color:${r.type==='支出'?'#c0392b':'#1a1a1a'}">${r.type==='支出'?'-':''}$${格式化金額(r.amount)}</td>
           <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;color:#666">${r.note||'—'}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="刪除資金記錄('${r.id}',${JSON.stringify(r.note||'')},${+r.amount||0})">刪除</button></td>
+          <td><button class="btn btn-danger btn-sm" onclick="刪除資金記錄('${r.id}',${JSON.stringify(r.note||'').replace(/"/g,'&quot;')},${+r.amount||0})">刪除</button></td>
         </tr>`;}).join(''):'<tr><td colspan="6" style="text-align:center;color:#aaa;padding:2rem">尚無記錄，請先設定各帳戶初始餘額</td></tr>'}
       </tbody>
     </table></div>
