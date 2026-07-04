@@ -2226,7 +2226,7 @@ function 渲染系統設定(){
   <div id="stab-b" style="display:none">${建立設定表單('b')}</div>`;
   ['a','b'].forEach(br=>{
     const s=品牌設定[br]||{};
-    const 固定對應={rent:'rent',pos_fee:'pos',platform_fee:'platform',lp_rate:'lprate',uber_rate:'uberrate'};
+    const 固定對應={rent:'rent',pos_fee:'pos',platform_fee:'platform',lp_rate:'lprate',uber_rate:'uberrate',panda_rate:'pandarate'};
     Object.entries(固定對應).forEach(([sk,fk])=>{
       const el2=document.getElementById(`s${br}-${fk}`);
       if(el2)el2.value=s[sk]||'';
@@ -2247,6 +2247,7 @@ function 建立設定表單(br){
     <div class="g2">
       <div class="field"><label>LINE Pay 費率 %</label><input type="number" id="s${br}-lprate" value="3" step="0.1"></div>
       <div class="field"><label>Uber Eats 費率 %</label><input type="number" id="s${br}-uberrate" value="31" step="0.1"></div>
+      ${br==='b'?`<div class="field"><label>熊貓費率 %</label><input type="number" id="s${br}-pandarate" value="30" step="0.1"></div>`:''}
     </div>
     <button class="btn btn-${br} btn-full" style="margin-top:8px" onclick="儲存設定('${br}')">儲存費率</button>
   </div>`;
@@ -2270,12 +2271,12 @@ async function 儲存ApiKey(){
 }
 
 async function 儲存設定(br){
-  const s={brand:br,rent:數值(`s${br}-rent`),pos_fee:數值(`s${br}-pos`),platform_fee:數值(`s${br}-platform`),lp_rate:數值(`s${br}-lprate`),uber_rate:數值(`s${br}-uberrate`)};
+  const s={brand:br,rent:數值(`s${br}-rent`),pos_fee:數值(`s${br}-pos`),platform_fee:數值(`s${br}-platform`),lp_rate:數值(`s${br}-lprate`),uber_rate:數值(`s${br}-uberrate`),panda_rate:數值(`s${br}-pandarate`)};
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveSettings',brand:br,settings:s});
   載入中(false);
   if(!res.ok){提示('儲存失敗：'+res.error);return}
-  品牌設定[br]={...品牌設定[br],rent:s.rent,pos:s.pos_fee,platform:s.platform_fee,lp_rate:s.lp_rate,uber_rate:s.uber_rate};
+  品牌設定[br]={...品牌設定[br],rent:s.rent,pos:s.pos_fee,platform:s.platform_fee,lp_rate:s.lp_rate,uber_rate:s.uber_rate,panda_rate:s.panda_rate};
   提示('✓ '+品牌名稱[br]+' 固定費用已儲存');
 }
 async function 載入月份成本(br){
