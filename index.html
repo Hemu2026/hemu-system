@@ -2355,7 +2355,7 @@ async function 渲染資金管理(){
     if(r.type==='支出') 餘額[acc]-=(+r.amount||0);
     else if(r.type==='轉帳'){
       餘額[acc]-=(+r.amount||0);
-      const toAcc=正規化帳戶(r.to_account);
+      const toAcc=正規化帳戶(r.toAccount);
       if(toAcc&&toAcc in 餘額){
         const baseB=快照起點[toAcc]??-1;
         if(i>baseB) 餘額[toAcc]+=(+r.amount||0);
@@ -2450,7 +2450,7 @@ async function 渲染資金管理(){
         return`<tr>
           <td>${格式化日期(r.date)}</td>
           <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${顏色map[r.type]||'#eee'};color:${文字map[r.type]||'#555'}">${r.type}</span></td>
-          <td>${r.account}${r.to_account?'→'+r.to_account:''}</td>
+          <td>${r.account}${r.toAccount?'→'+r.toAccount:''}</td>
           <td style="font-weight:600;color:${r.type==='支出'?'#c0392b':'#1a1a1a'}">${r.type==='支出'?'-':''}$${格式化金額(r.amount)}</td>
           <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;color:#666">${r.note||'—'}</td>
           <td><button class="btn btn-danger btn-sm" onclick="刪除資金記錄('${r.id}',${JSON.stringify(r.note||'').replace(/"/g,'&quot;')},${+r.amount||0})">刪除</button></td>
