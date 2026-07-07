@@ -3395,11 +3395,17 @@ async function 渲染成本表(){
     html+=`<div class="card" style="margin-bottom:1.25rem">
       <div class="card-title">${cat}</div>`;
     prods.forEach(p=>{
-      const cost=+p.cost||0;
       const price=+p.price||0;
+      const rawRecipe=p.recipe?JSON.parse(p.recipe):[];
+      // 用「原物料管理」目前的最新單價即時重算，而非商品存檔當下的快照
+      const recipe=rawRecipe.map(r=>{
+        const mat=matMap[r.id];
+        const liveUnitCost=mat&&mat.spec&&mat.yieldRate?(+mat.price||0)/(+mat.spec)/((+mat.yieldRate)/100):r.unitCost;
+        return{...r,unitCost:liveUnitCost,priceChanged:mat&&Math.abs(liveUnitCost-r.unitCost)>0.0001};
+      });
+      const cost=recipe.reduce((a,r)=>a+r.unitCost*r.amount,0);
       const margin=price?((price-cost)/price*100):0;
       const marginColor=margin>=30?'#27ae60':margin>=15?'#e67e22':'#c0392b';
-      const recipe=p.recipe?JSON.parse(p.recipe):[];
       const b2bEnabled=p.b2bEnabled==='true'||p.b2bEnabled===true;
       const pkgSize=+p.packageSize||0;
       const b2bPrice=+p.b2bPrice||0;
@@ -3438,7 +3444,7 @@ async function 渲染成本表(){
               const sub=r.unitCost*r.amount;
               const pct=cost>0?(sub/cost*100):0;
               return`<tr>
-                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4">${r.name}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4">${r.name}${r.priceChanged?' <span style="font-size:10px;color:#c8a96e;background:#fdf8f0;border-radius:4px;padding:1px 5px">單價已更新</span>':''}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right">${r.amount}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">${r.unit}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">$${r.unitCost.toFixed(2)}</td>
