@@ -3409,6 +3409,7 @@ async function 渲染成本表(){
       const b2bEnabled=p.b2bEnabled==='true'||p.b2bEnabled===true;
       const pkgSize=+p.packageSize||0;
       const b2bPrice=+p.b2bPrice||0;
+      const internalPrice=+p.internalPrice||0;
       html+=`<div style="border:1px solid #e8e8e2;border-radius:10px;margin-bottom:10px;overflow:hidden">
         <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;background:#fafaf7"
           onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
@@ -3462,6 +3463,10 @@ async function 渲染成本表(){
             <span>🏪 批發價 <strong>$${格式化金額(b2bPrice)}/袋</strong></span>
             ${pkgSize?`<span>每袋 <strong>${pkgSize} 包</strong>　單包均攤 $${pkgSize?(b2bPrice/pkgSize).toFixed(2):'—'}</span>`:''}
             <span>批發毛利率 <strong style="color:${b2bPrice&&pkgSize&&cost?(((b2bPrice/pkgSize-cost)/(b2bPrice/pkgSize)*100)>=20?'#27ae60':'#e67e22'):'#888'}">${b2bPrice&&pkgSize&&cost?(((b2bPrice/pkgSize-cost)/(b2bPrice/pkgSize)*100).toFixed(1)+'%'):'—'}</strong></span>
+          </div>`:''}
+          ${internalPrice?`<div style="margin-top:12px;padding:10px 12px;background:#fffbf0;border-radius:8px;font-size:13px;display:flex;gap:24px;flex-wrap:wrap">
+            <span>🏠 內部供應價 <strong>$${格式化金額(internalPrice)}/包</strong>（林家/木谷叫貨用，非整袋）</span>
+            <span>內部毛利率 <strong style="color:${cost&&((internalPrice-cost)/internalPrice*100)>=20?'#27ae60':'#e67e22'}">${cost?(((internalPrice-cost)/internalPrice*100).toFixed(1)+'%'):'—'}</strong></span>
           </div>`:''}
           ${(p.sop||p.sopPT)?`<div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
             ${p.sop?`<button class="btn btn-sm btn-outline" onclick="查看SOP('${p.id}','full')">📄 完整 SOP</button>`:''}
