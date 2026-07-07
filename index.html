@@ -3771,8 +3771,8 @@ function 更新訂購小計(br){
   let total=0;
   document.querySelectorAll(`#io-items-${br} input[type=number]`).forEach(inp=>{
     const qty=+inp.value||0;
-    const cost=+inp.dataset.cost||0;
-    const sub=qty*cost;
+    const iprice=+inp.dataset.iprice||0;
+    const sub=qty*iprice;
     total+=sub;
     const subEl=document.getElementById(`io-sub-${br}-${inp.dataset.pid}`);
     if(subEl)subEl.textContent=qty>0?'$'+格式化金額(sub):'—';
@@ -3793,8 +3793,8 @@ async function 送出內部訂購(br){
       productName:inp.dataset.name,
       spec:inp.dataset.spec,
       qty,
-      unitCost:+inp.dataset.cost,
-      totalCost:qty*(+inp.dataset.cost)
+      unitCost:+inp.dataset.iprice,
+      totalCost:qty*(+inp.dataset.iprice)
     });
   });
   if(items.length===0){提示('請至少輸入一項數量');return;}
