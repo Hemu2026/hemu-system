@@ -1863,7 +1863,7 @@ async function 載入員工選單(br){
   </div>`;
 }
 
-function 帶入員工資料(br,id,profiles){
+async function 帶入員工資料(br,id,profiles){
   const p=profiles.find(x=>x.id===id||String(x.id)===String(id));
   if(!p)return;
   const s=k=>document.getElementById(`pn-${br}-${k}`);
@@ -1872,6 +1872,17 @@ function 帶入員工資料(br,id,profiles){
   if(s('base'))s('base').value=p.base||'';
   if(s('nhi_emp'))s('nhi_emp').value=p.nhi_emp||'';
   if(s('nhi_co'))s('nhi_co').value=p.nhi_co||'';
+  const month=文字(`pmon-${br}`)||今日日期().slice(0,7);
+  const leaveRes=await 呼叫API({action:'getLeaveRecords',brand:br,month});
+  const leaves=(leaveRes.data||[]).filter(l=>l.name===p.name&&!l.payrollProcessed);
+  if(leaves.length){
+    const days=leaves.length;
+    const daysInMonth=new Date(+month.slice(0,4),+month.slice(5,7),0).getDate();
+    const dailyRate=Math.round((p.base||0)/daysInMonth);
+    const suggested=dailyRate*days;
+    if(s('absent'))s('absent').value=suggested;
+    提示(`✓ ${p.name} 本月請假 ${days} 天（${leaves.map(l=>l.date).join('、')}），已自動帶入建議扣款 $${格式化金額(suggested)}，請確認`);
+  }
 }
 
 async function 新增員工(br){
