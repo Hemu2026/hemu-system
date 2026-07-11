@@ -496,8 +496,13 @@ function 建立頁面(role,brand){
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
 
+let _跳過歷史記錄=false;
 function 切換頁面(page){
   localStorage.setItem('hm_last_page',page);
+  if(!_跳過歷史記錄){
+    if(history.state&&history.state.page)history.pushState({page},'','#'+encodeURIComponent(page));
+    else history.replaceState({page},'','#'+encodeURIComponent(page));
+  }
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('page-'+page);
@@ -553,6 +558,15 @@ function 切換頁面(page){
   else if(page==='庫存盤點')渲染庫存盤點();
   else if(page==='改善追蹤')渲染改善追蹤();
 }
+
+window.addEventListener('popstate',(e)=>{
+  const page=e.state&&e.state.page;
+  if(page&&document.getElementById('page-'+page)){
+    _跳過歷史記錄=true;
+    切換頁面(page);
+    _跳過歷史記錄=false;
+  }
+});
 
 // ===== 每日輸入（店長/老闆）=====
 function 渲染每日表單(br){
