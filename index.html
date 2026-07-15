@@ -220,6 +220,22 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
 .im-modal.open{display:flex;align-items:flex-start;justify-content:center}
 .im-box{background:#fff;border-radius:16px;width:100%;max-width:460px;padding:1.5rem;margin:auto}
 .im-box-title{font-size:16px;font-weight:700;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center}
+/* 內部訂購 型錄式下單 */
+.io-cat-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.io-cat-btn{background:#f5ede4;color:#9b5a2a;border:none;padding:7px 16px;border-radius:30px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s}
+.io-cat-btn.active,.io-cat-btn:hover{background:#6b3d1e;color:#fff}
+.io-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.io-product-card{background:#fdf8f3;border-radius:14px;padding:14px;border:1px solid #ede0d0;transition:box-shadow .2s}
+.io-product-card.has-qty{border-color:#c8903c;box-shadow:0 2px 10px rgba(107,61,30,.1)}
+.io-product-cat{font-size:10px;font-weight:600;letter-spacing:.1em;color:#c47a3a;text-transform:uppercase;margin-bottom:4px}
+.io-product-name{font-size:14px;font-weight:700;color:#2c1a0e;margin-bottom:2px}
+.io-product-spec{font-size:12px;color:#a07860;margin-bottom:8px}
+.io-product-price{font-size:12px;color:#a07860;margin-bottom:10px}
+.io-qty-row{display:flex;align-items:center;gap:8px}
+.io-qty-btn{width:30px;height:30px;border:1px solid #e8dcd4;border-radius:8px;background:#fff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.io-qty-btn:hover{background:#6b3d1e;border-color:#6b3d1e;color:#fff}
+.io-qty-input{width:48px;text-align:center;border:1px solid #e8dcd4;border-radius:8px;padding:5px 4px;font-size:14px;font-family:inherit}
+.io-qty-sub{margin-left:auto;font-size:12px;color:#6b3d1e;font-weight:600}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -3736,6 +3752,7 @@ function 列印SOP(){
 }
 
 // ===== 內部訂購 =====
+let _io當前分類={};
 async function 渲染內部訂購(br){
   const el=document.getElementById(`page-內部訂購-${br}`);
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">內部訂購</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
@@ -3745,30 +3762,20 @@ async function 渲染內部訂購(br){
   ]);
   const products=(resP.data||[]).filter(p=>+p.internalPrice>0);
   const orders=(resO.orders||[]).sort((a,b)=>b.date>a.date?1:-1);
-
   const today=今日日期();
+  _io當前分類[br]='全部';
+
   el.innerHTML=`
   <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">內部訂購</span></div>
   <div class="card">
     <div class="card-title">📦 新增訂購</div>
-    <div style="margin-bottom:12px">
+    <div style="margin-bottom:14px">
       <label style="font-size:13px;color:#666;display:block;margin-bottom:4px">日期</label>
       <input type="date" id="io-date-${br}" value="${today}" style="padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px">
     </div>
-    <div id="io-items-${br}">
-      ${products.map(p=>`
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0e9e1">
-        <div style="flex:1">
-          <div style="font-weight:600;font-size:14px">${p.name} <span style="font-size:12px;color:#888">${p.spec||''}</span></div>
-          <div style="font-size:12px;color:#b07d2a">內部 $${格式化金額(+p.internalPrice)} / 包　成本 $${格式化金額(+p.cost)}</div>
-        </div>
-        <input type="number" min="0" placeholder="0" data-pid="${p.id}" data-name="${p.name}" data-spec="${p.spec||''}" data-cost="${p.cost}" data-iprice="${p.internalPrice}"
-          style="width:70px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;text-align:center;font-size:15px"
-          id="io-qty-${br}-${p.id}" oninput="更新訂購小計('${br}')">
-        <div style="width:60px;text-align:right;font-size:13px;color:#555" id="io-sub-${br}-${p.id}">—</div>
-      </div>`).join('')}
-    </div>
-    <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+    <div class="io-cat-filters" id="io-cat-filters-${br}"></div>
+    <div class="io-grid" id="io-items-${br}"></div>
+    <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">
       <div style="font-size:15px;font-weight:600">合計：<span id="io-total-${br}" style="color:#6b3d1e">$0</span></div>
       <button class="btn btn-dark" onclick="送出內部訂購('${br}')">送出訂購</button>
     </div>
@@ -3791,17 +3798,83 @@ async function 渲染內部訂購(br){
         </div>`).join('')}
     </div>
   </div>`;
+
+  _io商品[br]=products;
+  const cats=['全部',...new Set(products.map(p=>p.category||'其他'))];
+  document.getElementById(`io-cat-filters-${br}`).innerHTML=cats.map(c=>
+    `<button class="io-cat-btn${c==='全部'?' active':''}" onclick="io篩選('${br}','${c}')">${c}</button>`).join('');
+  io渲染商品(br);
+}
+
+const _io商品={};
+const _io數量={};
+
+function io篩選(br,cat){
+  _io當前分類[br]=cat;
+  document.querySelectorAll(`#io-cat-filters-${br} .io-cat-btn`).forEach(b=>b.classList.toggle('active',b.textContent===cat));
+  io渲染商品(br);
+}
+
+function io渲染商品(br){
+  const cat=_io當前分類[br]||'全部';
+  const products=_io商品[br]||[];
+  const list=cat==='全部'?products:products.filter(p=>(p.category||'其他')===cat);
+  const el=document.getElementById(`io-items-${br}`);
+  if(!list.length){el.innerHTML=`<div style="color:#aaa;text-align:center;padding:1rem;grid-column:1/-1">此分類暫無商品</div>`;return;}
+  el.innerHTML=list.map(p=>{
+    const qty=_io數量[`${br}-${p.id}`]||0;
+    return`<div class="io-product-card${qty>0?' has-qty':''}" id="io-card-${br}-${p.id}">
+      <div class="io-product-cat">${p.category||'其他'}</div>
+      <div class="io-product-name">${p.name}</div>
+      ${p.spec?`<div class="io-product-spec">${p.spec}</div>`:''}
+      <div class="io-product-price">內部 $${格式化金額(+p.internalPrice)} / 包</div>
+      <div class="io-qty-row">
+        <button class="io-qty-btn" onclick="io調整數量('${br}','${p.id}',-1)">−</button>
+        <input class="io-qty-input" type="number" min="0" value="${qty}" id="io-qty-${br}-${p.id}" oninput="io輸入數量('${br}','${p.id}',this.value)">
+        <button class="io-qty-btn" onclick="io調整數量('${br}','${p.id}',1)">＋</button>
+        <span class="io-qty-sub" id="io-sub-${br}-${p.id}">${qty>0?'$'+格式化金額(qty*(+p.internalPrice)):''}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function io調整數量(br,pid,delta){
+  const key=`${br}-${pid}`;
+  let v=(_io數量[key]||0)+delta;
+  if(v<0)v=0;
+  _io數量[key]=v;
+  const input=document.getElementById(`io-qty-${br}-${pid}`);
+  if(input)input.value=v;
+  io更新單項小計(br,pid);
+  更新訂購小計(br);
+}
+
+function io輸入數量(br,pid,val){
+  const key=`${br}-${pid}`;
+  let v=+val||0;
+  if(v<0)v=0;
+  _io數量[key]=v;
+  io更新單項小計(br,pid);
+  更新訂購小計(br);
+}
+
+function io更新單項小計(br,pid){
+  const key=`${br}-${pid}`;
+  const qty=_io數量[key]||0;
+  const p=(_io商品[br]||[]).find(x=>x.id===pid);
+  if(!p)return;
+  const sub=qty*(+p.internalPrice||0);
+  const subEl=document.getElementById(`io-sub-${br}-${pid}`);
+  if(subEl)subEl.textContent=qty>0?'$'+格式化金額(sub):'';
+  const cardEl=document.getElementById(`io-card-${br}-${pid}`);
+  if(cardEl)cardEl.classList.toggle('has-qty',qty>0);
 }
 
 function 更新訂購小計(br){
   let total=0;
-  document.querySelectorAll(`#io-items-${br} input[type=number]`).forEach(inp=>{
-    const qty=+inp.value||0;
-    const iprice=+inp.dataset.iprice||0;
-    const sub=qty*iprice;
-    total+=sub;
-    const subEl=document.getElementById(`io-sub-${br}-${inp.dataset.pid}`);
-    if(subEl)subEl.textContent=qty>0?'$'+格式化金額(sub):'—';
+  (_io商品[br]||[]).forEach(p=>{
+    const qty=_io數量[`${br}-${p.id}`]||0;
+    total+=qty*(+p.internalPrice||0);
   });
   const totalEl=document.getElementById(`io-total-${br}`);
   if(totalEl)totalEl.textContent='$'+格式化金額(total);
@@ -3811,19 +3884,19 @@ async function 送出內部訂購(br){
   const date=document.getElementById(`io-date-${br}`)?.value;
   if(!date){提示('請選擇日期');return;}
   const items=[];
-  document.querySelectorAll(`#io-items-${br} input[type=number]`).forEach(inp=>{
-    const qty=+inp.value||0;
+  (_io商品[br]||[]).forEach(p=>{
+    const qty=_io數量[`${br}-${p.id}`]||0;
     if(qty<=0)return;
     items.push({
-      productId:inp.dataset.pid,
-      productName:inp.dataset.name,
-      spec:inp.dataset.spec,
+      productId:p.id,
+      productName:p.name,
+      spec:p.spec||'',
       qty,
-      unitCost:+inp.dataset.iprice,
-      totalCost:qty*(+inp.dataset.iprice)
+      unitCost:+p.internalPrice,
+      totalCost:qty*(+p.internalPrice)
     });
   });
-  if(items.length===0){提示('請至少輸入一項數量');return;}
+  if(items.length===0){提示('請至少選擇一項商品數量');return;}
   載入中(true,'送出中...');
   const results=await Promise.all(items.map(item=>
     呼叫API({action:'saveInternalOrder',record:{brand:br,date,...item}})
@@ -3839,6 +3912,7 @@ async function 送出內部訂購(br){
       const newStock=Math.max(0,(+prod.currentStock||0)-item.qty);
       return 呼叫API({action:'saveProduct',record:{...prod,currentStock:newStock}});
     }));
+    items.forEach(item=>{delete _io數量[`${br}-${item.productId}`];});
     提示('✓ 訂購已記錄，商品庫存已扣減');
     渲染內部訂購(br);
   } else 提示('部分儲存失敗，請重試');
