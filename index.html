@@ -291,7 +291,7 @@ const API = 'https://script.google.com/macros/s/AKfycbw-G6nMGsOQeqCTM9GgMWkzNk4b
 const GOOGLE_CLIENT_ID = '356556784698-cprpmi8ht0r2qn4fuprrptls4ffubfuc.apps.googleusercontent.com';
 const 品牌名稱 = {a:'林家涼麵', b:'木谷食麵所'};
 const toYMD=d=>typeof d==='string'?d.slice(0,10):(d instanceof Date?d.toISOString().slice(0,10):'');
-const 角色名稱 = {staff:'員工', manager:'店長', owner:'老闆', sauce:'醬料員'};
+const 角色名稱 = {staff:'員工', manager:'店長', owner:'老闆', sauce:'內部訂購員'};
 const 品牌標籤 = {a:'林家涼麵', b:'木谷食麵所', both:'兩店'};
 let 目前使用者 = null;
 let 品牌設定 = {
@@ -2219,7 +2219,7 @@ async function 渲染帳號管理(){
       <div class="field"><label>電子郵件</label><input type="email" id="nu-email" placeholder="staff@example.com"></div>
       <div class="field"><label>姓名</label><input type="text" id="nu-name" placeholder="王秀珍"></div>
       <div class="field"><label>登入密碼</label><input type="password" id="nu-pass" placeholder="設定初始密碼"></div>
-      <div class="field"><label>角色</label><select id="nu-role"><option value="staff">員工</option><option value="sauce">醬料員（僅內部訂購）</option><option value="manager">店長</option><option value="owner">老闆</option></select></div>
+      <div class="field"><label>角色</label><select id="nu-role"><option value="staff">員工</option><option value="sauce">內部訂購員（僅內部訂購）</option><option value="manager">店長</option><option value="owner">老闆</option></select></div>
       <div class="field"><label>所屬品牌</label><select id="nu-brand"><option value="a">林家涼麵</option><option value="b">木谷食麵所</option><option value="both">兩店（老闆用）</option></select></div>
     </div>
     <button class="btn btn-hq btn-full" onclick="新增帳號()">建立帳號</button>
