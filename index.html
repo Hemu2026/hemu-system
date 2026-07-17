@@ -2730,6 +2730,19 @@ function 顯示商品表單(p={}){
         </div>
       </div>
     </div>
+    <div style="background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:600">📋 配方原料</div>
+        <div style="font-size:13px">成本合計：<strong id="pf-cost" style="color:#27ae60">$0.0000</strong>　毛利率：<strong id="pf-margin" style="color:#888">—</strong></div>
+      </div>
+      <div id="pf-recipe-list">
+        ${recipe.map((r,i)=>商品配方行(r,i)).join('')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <input type="text" id="pf-mat-search" placeholder="搜尋原物料加入配方..." oninput="搜尋原物料加入()" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+      </div>
+      <div id="pf-mat-results" style="margin-top:6px;max-height:160px;overflow-y:auto"></div>
+    </div>
     <div style="background:#f0f9f0;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #c8e6c9">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div style="font-size:13px;font-weight:600">📄 完整版 SOP（老闆/主管）</div>
@@ -2745,19 +2758,6 @@ function 顯示商品表單(p={}){
       </div>
       <div style="font-size:12px;color:#888;margin-bottom:8px">只包含員工需要知道的步驟，不含詳細配方比例。</div>
       <textarea id="pf-sop-pt" rows="5" style="width:100%;padding:10px;border:1px solid #ffe082;border-radius:6px;font-family:'Noto Sans TC',monospace;font-size:13px;line-height:1.8;resize:vertical;background:#fffdf0;box-sizing:border-box" placeholder="例：麻醬、醬料桶、水、花生汁的組裝步驟，或點右上角 AI 生成草稿...">${p.sopPT||''}</textarea>
-    </div>
-    <div style="background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-size:13px;font-weight:600">📋 配方原料</div>
-        <div style="font-size:13px">成本合計：<strong id="pf-cost" style="color:#27ae60">$0.0000</strong>　毛利率：<strong id="pf-margin" style="color:#888">—</strong></div>
-      </div>
-      <div id="pf-recipe-list">
-        ${recipe.map((r,i)=>商品配方行(r,i)).join('')}
-      </div>
-      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
-        <input type="text" id="pf-mat-search" placeholder="搜尋原物料加入配方..." oninput="搜尋原物料加入()" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
-      </div>
-      <div id="pf-mat-results" style="margin-top:6px;max-height:160px;overflow-y:auto"></div>
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-hq" onclick="儲存商品('${p.id||''}')">儲存</button>
