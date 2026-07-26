@@ -1374,6 +1374,8 @@ async function 渲染月報資料(br,ym){
   const wsGas=wsRes.data||{};
   const mergedWs={...wsLs,...wsGas};
   localStorage.setItem(wsLsKey,JSON.stringify(mergedWs));
+  // 舊資料搬遷：localStorage 裡有、但 GAS 還沒有的週結算金額，補寫回 GAS 永久保存
+  Object.keys(wsLs).forEach(k=>{if(wsLs[k]&&!wsGas[k])呼叫API({action:'saveWeekSettle',brand:br,weekKey:k,amount:+wsLs[k]||0});});
   window._週結算=mergedWs;
   document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,sWithMonth,pl,window[`_recs_${br}`]||[],tInternalCost,mergedWs);
 }
