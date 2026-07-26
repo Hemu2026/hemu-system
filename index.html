@@ -1114,6 +1114,8 @@ function 儲存週結算(lsKey,weekKey,val){
   const data=JSON.parse(localStorage.getItem(lsKey)||'{}');
   if(val)data[weekKey]=+val;else delete data[weekKey];
   localStorage.setItem(lsKey,JSON.stringify(data));
+  const br=window._月報_br;
+  if(br)呼叫API({action:'saveWeekSettle',brand:br,weekKey,amount:+val||0});
 }
 function 顯示快速補填(br,recs){
   const el=document.getElementById(`quick-fill-${br}`);
@@ -1342,10 +1344,11 @@ async function 渲染月報資料(br,ym){
   const recs=allRecs.filter(r=>格式化日期(r.date).startsWith(ym));
   const s=品牌設定[br]||{};
   載入中(true);
-  const [payRes,mcRes,ioRes]=await Promise.all([
+  const [payRes,mcRes,ioRes,wsRes]=await Promise.all([
     呼叫API({action:'getPayroll',brand:br,month:ym}),
     呼叫API({action:'getMonthCost',brand:br,month:ym}),
-    呼叫API({action:'getInternalOrders',brand:br})
+    呼叫API({action:'getInternalOrders',brand:br}),
+    呼叫API({action:'getWeekSettle',brand:br})
   ]);
   載入中(false);
   const mcFields=['phone','ads','utility','other','tax'];
@@ -1365,7 +1368,14 @@ async function 渲染月報資料(br,ym){
   const ioOrders=(ioRes.orders||[]).filter(o=>o.date?.startsWith(ym));
   const tInternalCost=ioOrders.reduce((s,o)=>s+(+o.totalCost||0),0);
   window._月報_br=br; window._月報_ym=ym; window._月報_mc={...mergedMc};
-  document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,sWithMonth,pl,window[`_recs_${br}`]||[],tInternalCost);
+  // 週結算金額：GAS 為主，localStorage 備援（避免瀏覽器清除快取後資料消失）
+  const wsLsKey=`ws-${br}-${ym}`;
+  const wsLs=JSON.parse(localStorage.getItem(wsLsKey)||'{}');
+  const wsGas=wsRes.data||{};
+  const mergedWs={...wsLs,...wsGas};
+  localStorage.setItem(wsLsKey,JSON.stringify(mergedWs));
+  window._週結算=mergedWs;
+  document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,sWithMonth,pl,window[`_recs_${br}`]||[],tInternalCost,mergedWs);
 }
 async function 快速儲存月份成本(val,field){
   const br=window._月報_br,ym=window._月報_ym;
@@ -1378,7 +1388,7 @@ async function 快速儲存月份成本(val,field){
   提示('✓ 已儲存');
 }
 
-function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0){
+function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0,weekSettle=null){
   if(!recs.length)return'<div style="color:#aaa;padding:1rem;text-align:center">該月尚無記錄</div>';
   const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
   const tRev=n('total'),tCash=n('cash'),tLP=n('lp'),tLPOnline=n('lp_online'),tTW=n('tw'),tUber=n('uber'),tPanda=n('panda'),tPFee=n('p_fee');
@@ -1450,7 +1460,7 @@ function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0){
       const weekKeys=Object.keys(weeks).sort();
       if(!weekKeys.length)return'<div style="color:#aaa;text-align:center;padding:1rem">暫無資料</div>';
       const lsKey=`ws-${recs[0]?.brand||''}-${ym}`;
-      const saved=JSON.parse(localStorage.getItem(lsKey)||'{}');
+      const saved=weekSettle||JSON.parse(localStorage.getItem(lsKey)||'{}');
       return`<div class="table-wrap"><table>
         <thead><tr><th>週期</th><th>天數</th><th>系統應交現金</th><th>實際上繳</th><th>老闆結算金額</th><th>差異</th><th>狀態</th><th></th></tr></thead>
         <tbody>${weekKeys.map((key,i)=>{
