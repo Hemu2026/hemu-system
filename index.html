@@ -3281,7 +3281,7 @@ async function 刪除原物料(id){
   渲染原物料管理();
 }
 
-function 顯示出料登記(){
+async function 顯示出料登記(){
   const wrap=document.getElementById('mat-form-wrap');
   if(!wrap)return;
   if(wrap.innerHTML.includes('dispatch-mat')){wrap.innerHTML='';return;}
@@ -3291,6 +3291,9 @@ function 顯示出料登記(){
     <div class="card-title-lg" style="margin-bottom:8px">🚚 出料登記（給代工廠）</div>
     <div style="font-size:12px;color:#888;margin-bottom:10px">整批交給代工廠的原物料，會從「目前庫存」轉移到「代工廠庫存」，之後生產紀錄選「此批於代工廠生產」就會從代工廠庫存扣</div>
     <div class="g4" style="gap:10px;margin-bottom:12px">
+      <div class="field"><label>出料日期</label>
+        <input type="date" id="dispatch-date" value="${今日日期()}" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+      </div>
       <div class="field"><label>原物料</label>
         <select id="dispatch-mat" onchange="更新出料單位提示()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">${matOptions}</select>
       </div>
@@ -3298,11 +3301,45 @@ function 顯示出料登記(){
         <input type="number" id="dispatch-qty" placeholder="例：5000" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
       </div>
     </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-hq" onclick="送出出料登記()">✔ 確認出料</button>
+    <div class="field" style="margin-bottom:10px"><label>備註</label>
+      <input type="text" id="dispatch-note" placeholder="選填" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:1rem">
+      <button class="btn btn-hq" onclick="送出出料登記()">✔ 確認出料（會轉移庫存＋留下記錄）</button>
+      <button class="btn btn-outline" onclick="送出出料登記(true)">📝 僅補記錄（不動庫存，用於補登過去已手動處理的出料）</button>
       <button class="btn btn-outline" onclick="document.getElementById('mat-form-wrap').innerHTML=''">取消</button>
     </div>
+    <div id="dispatch-history"><div style="color:#aaa;font-size:12px">載入記錄中...</div></div>
   </div>`;
+  渲染出料記錄();
+}
+
+async function 渲染出料記錄(){
+  const el=document.getElementById('dispatch-history');
+  if(!el)return;
+  const res=await 呼叫API({action:'getDispatchRecords'});
+  const records=res.data||[];
+  if(!records.length){el.innerHTML='<div style="color:#aaa;font-size:12px">尚無出料記錄</div>';return;}
+  el.innerHTML=`<div style="font-size:13px;font-weight:600;margin-bottom:6px">出料記錄</div>
+  <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="background:#f5f5f5"><th style="padding:6px;text-align:left">日期</th><th style="padding:6px;text-align:left">原物料</th><th style="padding:6px;text-align:right">數量</th><th style="padding:6px;text-align:left">備註</th><th style="padding:6px;width:50px"></th></tr></thead>
+    <tbody>${records.map(r=>`<tr style="border-bottom:1px solid #f0f0f0">
+      <td style="padding:6px">${格式化日期(r.date)}</td>
+      <td style="padding:6px">${r.materialName}</td>
+      <td style="padding:6px;text-align:right">${r.qty}${r.unit||''}</td>
+      <td style="padding:6px;color:#888">${r.note||''}</td>
+      <td style="padding:6px"><button class="btn btn-sm btn-danger" onclick="刪除出料記錄('${r.id}')">刪除</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+async function 刪除出料記錄(id){
+  if(!confirm('確定刪除這筆出料記錄？（僅刪除記錄，不會改動庫存數字，如需修正庫存請自行到原物料表單調整）'))return;
+  載入中(true);
+  await 呼叫API({action:'deleteDispatchRecord',id});
+  載入中(false);
+  提示('已刪除');
+  渲染出料記錄();
 }
 
 function 更新出料單位提示(){
@@ -3312,22 +3349,29 @@ function 更新出料單位提示(){
   if(hint)hint.textContent=mat?`（${mat.unit||''}，目前庫存 ${mat.currentStock||0}${mat.unit||''}）`:'';
 }
 
-async function 送出出料登記(){
+async function 送出出料登記(logOnly){
+  const date=document.getElementById('dispatch-date')?.value||今日日期();
   const mid=document.getElementById('dispatch-mat')?.value;
   const qty=+document.getElementById('dispatch-qty')?.value||0;
+  const note=document.getElementById('dispatch-note')?.value?.trim()||'';
   if(!mid)return 提示('請選擇原物料');
   if(qty<=0)return 提示('請輸入出料數量');
   const mat=(window._materials||[]).find(m=>m.id===mid);
   if(!mat)return 提示('找不到原物料資料');
-  const newStock=(+mat.currentStock||0)-qty;
-  const newContractorStock=(+mat.contractorStock||0)+qty;
   載入中(true);
-  const res=await 呼叫API({action:'saveMaterial',record:{...mat,currentStock:newStock,contractorStock:newContractorStock}});
+  if(!logOnly){
+    const newStock=(+mat.currentStock||0)-qty;
+    const newContractorStock=(+mat.contractorStock||0)+qty;
+    const res=await 呼叫API({action:'saveMaterial',record:{...mat,currentStock:newStock,contractorStock:newContractorStock}});
+    if(!res.ok){載入中(false);提示('出料登記失敗：'+(res.error||''));return;}
+  }
+  await 呼叫API({action:'saveDispatchRecord',record:{date,materialId:mid,materialName:mat.name,qty,unit:mat.unit||'',note:logOnly?(note?note+'（補記錄，未動庫存）':'補記錄，未動庫存'):note}});
   載入中(false);
-  if(!res.ok){提示('出料登記失敗：'+(res.error||''));return;}
-  提示(`✓ 已登記出料 ${mat.name} ${qty}${mat.unit||''} 給代工廠`);
-  document.getElementById('mat-form-wrap').innerHTML='';
-  渲染原物料管理();
+  提示(logOnly?`✓ 已補登記出料記錄（未變動庫存）`:`✓ 已登記出料 ${mat.name} ${qty}${mat.unit||''} 給代工廠`);
+  document.getElementById('dispatch-qty').value='';
+  document.getElementById('dispatch-note').value='';
+  if(!logOnly)渲染原物料管理();
+  else 渲染出料記錄();
 }
 
 // ===== 批次上傳結帳單 =====
