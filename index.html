@@ -312,6 +312,7 @@ function 格式化日期(d){
   return d.slice(0,10);
 }
 function 今日日期(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function 簡短日期(d){const ymd=格式化日期(d);if(!ymd)return'';const[,m,day]=ymd.split('-');return`${+m}/${+day}`;}
 function 百分比(v,t){return t?((v/t)*100).toFixed(1)+'%':'—'}
 function 數值(id){return parseFloat(document.getElementById(id)?.value)||0}
 function 文字(id){return document.getElementById(id)?.value||''}
@@ -1373,7 +1374,7 @@ async function 渲染月報資料(br,ym){
     nhi_co:emps.reduce((a,e)=>a+(+e.nhi_co||0),0)
   };
   pl.total=pl.salary+pl.nhi_co;
-  const ioOrders=(ioRes.orders||[]).filter(o=>o.date?.startsWith(ym));
+  const ioOrders=(ioRes.orders||[]).filter(o=>格式化日期(o.date)?.startsWith(ym));
   const tInternalCost=ioOrders.reduce((s,o)=>s+(+o.totalCost||0),0);
   window._月報_br=br; window._月報_ym=ym; window._月報_mc={...mergedMc};
   // 週結算金額：GAS 為主，localStorage 備援（避免瀏覽器清除快取後資料消失）
@@ -2137,8 +2138,8 @@ async function 渲染總部報表(ym){
   ]);
   載入中(false);
   const sA=品牌設定['a']||{},sB=品牌設定['b']||{};
-  const ioA=(ioResA.orders||[]).filter(o=>o.date?.startsWith(ym)).reduce((s,o)=>s+(+o.totalCost||0),0);
-  const ioB=(ioResB.orders||[]).filter(o=>o.date?.startsWith(ym)).reduce((s,o)=>s+(+o.totalCost||0),0);
+  const ioA=(ioResA.orders||[]).filter(o=>格式化日期(o.date)?.startsWith(ym)).reduce((s,o)=>s+(+o.totalCost||0),0);
+  const ioB=(ioResB.orders||[]).filter(o=>格式化日期(o.date)?.startsWith(ym)).reduce((s,o)=>s+(+o.totalCost||0),0);
 
   function 計算品牌(recs,s,emps,tInternalCost=0){
     const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
@@ -3993,7 +3994,7 @@ async function 渲染內部訂購(br){
         orders.map(o=>`
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f0e8;font-size:13px">
           <div>
-            <span style="color:#888">${o.date}</span>
+            <span style="color:#888">${簡短日期(o.date)}</span>
             <span style="margin-left:8px;font-weight:600">${o.productName} ${o.spec||''}</span>
             <span style="margin-left:6px;color:#666">× ${o.qty}</span>
           </div>
