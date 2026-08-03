@@ -1246,7 +1246,8 @@ function 編輯記錄(r){
   <div class="g2">
     ${f('guests','來客數',r.guests)}
     ${f('cash','現金收入',r.cash)}
-    ${f('lp','LINE Pay',r.lp)}
+    ${f('lp','LINE Pay（門市）',r.lp)}
+    ${f('lp_online','線上點餐金流',r.lp_online)}
     ${f('tw','台灣 PAY',r.tw)}
     ${f('uber','Uber Eats',r.uber)}
     ${r.brand==='b'?f('panda','熊貓',r.panda):''}
@@ -1281,9 +1282,10 @@ async function 儲存修改(){
   const id=window._editId,br=window._editBrand,existingPhoto=window._editPhoto||'';
   const g=k=>document.getElementById('edit-'+k);
   const n=k=>+(g(k)?.value)||0;
-  const cash=n('cash'),lp=n('lp'),tw=n('tw'),uber=n('uber'),panda=n('panda');
-  const total=cash+lp+tw+uber+panda;
-  const s=品牌設定[br]||{lp_rate:3,uber_rate:31};
+  const cash=n('cash'),lp=n('lp'),lpOnline=n('lp_online'),tw=n('tw'),uber=n('uber'),panda=n('panda');
+  const total=cash+lp+lpOnline+tw+uber+panda;
+  const s=品牌設定[br]||{lp_rate:3,uber_rate:31,panda_rate:30};
+  const lpRate=(s.lp_rate||3)/100,uberRate=(s.uber_rate||31)/100,pandaRate=(s.panda_rate||30)/100;
   const market=n('market'),pack=n('pack'),meal=n('meal'),gas=n('gas');
   const totalExpense=market+pack+meal+gas;
   const handover=cash-totalExpense;
@@ -1294,8 +1296,9 @@ async function 儲存修改(){
   const record={
     brand:br,
     date:g('date')?.value,weather:g('weather')?.value,
-    guests:n('guests'),cash,lp,tw,uber,panda,total,
-    p_fee:lp*(s.lp_rate/100)+uber*(s.uber_rate/100),
+    guests:n('guests'),cash,lp,lp_online:lpOnline,tw,uber,panda,total,
+    lp_rate:s.lp_rate,uber_rate:s.uber_rate,panda_rate:s.panda_rate,
+    p_fee:(lp+lpOnline)*lpRate+uber*uberRate+panda*pandaRate,
     market,central:n('central'),pack,meal,gas,misc:n('misc'),
     food_cost:market+n('central'),
     reserve:n('reserve'),calc_bal,handover,
