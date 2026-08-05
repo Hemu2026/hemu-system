@@ -1985,6 +1985,7 @@ async function 載入薪資(br){
         <div style="text-align:right">
           <div class="emp-net">$${格式化金額(net)}</div>
           <div style="font-size:11px;color:#aaa">實發金額</div>
+          <div style="font-size:11px;margin-top:2px;color:${e.paidAt?'#27ae60':'#e67e22'}">${e.paidAt?'✓ 已扣款 '+e.paidAt:'未發放'}</div>
         </div>
       </div>
       <div class="g4" style="font-size:13px;gap:8px">
@@ -2005,12 +2006,26 @@ async function 載入薪資(br){
     </div>`}).join('');
   const tNet=emps.reduce((a,e)=>a+((+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0)),0);
   const tNhiCo=emps.reduce((a,e)=>a+(+e.nhi_co||0),0);
+  const unpaid=emps.filter(e=>!e.paidAt);
+  const unpaidNet=unpaid.reduce((a,e)=>a+((+e.base||0)+(+e.overtime||0)+(+e.bonus||0)-(+e.absent||0)-(+e.nhi_emp||0)),0);
+  const payBtnHtml=unpaid.length
+    ?`<button class="btn btn-hq btn-full" style="margin-top:10px" onclick="確認發薪('${br}','${month}',${unpaid.length},${unpaidNet})">確認發薪（扣富郁霖卡 $${格式化金額(unpaidNet)}，${unpaid.length}人未發）</button>`
+    :`<div style="margin-top:10px;text-align:center;color:#27ae60;font-size:13px">✓ 本月薪資已全部發放扣款</div>`;
   sumEl.innerHTML=`<div class="card"><div class="card-title">本月薪資總覽（${month}）</div><div class="metric-grid">
     <div class="metric"><div class="metric-label">員工實發合計</div><div class="metric-value">$${格式化金額(tNet)}</div></div>
     <div class="metric amber"><div class="metric-label">公司負擔勞健退</div><div class="metric-value">$${格式化金額(tNhiCo)}</div></div>
     <div class="metric red"><div class="metric-label">公司總人事成本</div><div class="metric-value">$${格式化金額(tNet+tNhiCo)}</div></div>
     <div class="metric"><div class="metric-label">員工人數</div><div class="metric-value">${emps.length} 人</div></div>
-  </div></div>`;
+  </div>${payBtnHtml}</div>`;
+}
+async function 確認發薪(br,month,count,total){
+  if(!confirm(`確認發薪：\n本月尚未扣款 ${count} 人，合計 $${格式化金額(total)}\n將從「富郁霖卡」扣除，記錄為今天的日期，確定要執行嗎？`))return;
+  載入中(true,'發薪中...');
+  const res=await 呼叫API({action:'paySalaries',brand:br,month});
+  載入中(false);
+  if(!res.ok){提示('發薪失敗：'+(res.error||JSON.stringify(res)));return}
+  提示(`✓ 已發放 ${res.count} 人，共 $${格式化金額(res.total)}，已扣款富郁霖卡`);
+  載入薪資(br);
 }
 
 async function 刪除員工(id,br){
@@ -2054,7 +2069,8 @@ async function 儲存編輯薪資(br,id){
     brand:br,month:window[`_emps_${br}`]?.month,
     employee_name:e.employee_name,role:e.role,
     base:g('base'),overtime:g('ot'),bonus:g('bonus'),
-    absent:g('absent'),nhi_emp:g('nhi_emp'),nhi_co:g('nhi_co'),note
+    absent:g('absent'),nhi_emp:g('nhi_emp'),nhi_co:g('nhi_co'),note,
+    paidAt:e.paidAt||''
   }});
   載入中(false);
   if(!res.ok){提示('儲存失敗：'+(res.error||''));return;}
