@@ -2420,22 +2420,27 @@ async function 渲染資金管理(){
   });
   sorted.forEach((r,i)=>{
     const acc=正規化帳戶(r.account);
-    if(!acc||!(acc in 餘額))return;
     if(r.type==='快照'){
-      if(i===快照起點[acc]) 餘額[acc]=+r.amount||0;
+      if(acc&&acc in 餘額&&i===快照起點[acc]) 餘額[acc]=+r.amount||0;
       return;
     }
-    const base=快照起點[acc]??-1;
-    if(i<=base)return;
-    if(r.type==='支出') 餘額[acc]-=(+r.amount||0);
-    else if(r.type==='轉帳'){
-      餘額[acc]-=(+r.amount||0);
+    if(r.type==='轉帳'){
       const toAcc=正規化帳戶(r.toAccount);
+      if(acc&&acc in 餘額){
+        const base=快照起點[acc]??-1;
+        if(i>base) 餘額[acc]-=(+r.amount||0);
+      }
       if(toAcc&&toAcc in 餘額){
         const baseB=快照起點[toAcc]??-1;
         if(i>baseB) 餘額[toAcc]+=(+r.amount||0);
       }
-    } else 餘額[acc]+=(+r.amount||0);
+      return;
+    }
+    if(!acc||!(acc in 餘額))return;
+    const base=快照起點[acc]??-1;
+    if(i<=base)return;
+    if(r.type==='支出') 餘額[acc]-=(+r.amount||0);
+    else 餘額[acc]+=(+r.amount||0);
   });
   const 銀行合計=餘額['富郁霖卡']+餘額['南閩卡'];
   const 現金合計=餘額['公司現金'];
