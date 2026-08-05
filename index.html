@@ -1998,6 +1998,7 @@ async function 載入薪資(br){
         <div><div style="color:#888;font-size:11px">公司總人事成本</div><div style="font-weight:600">$${格式化金額(net+(+e.nhi_co||0))}</div></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        ${e.paidAt?'':`<button class="btn btn-hq btn-sm" onclick="個人發薪('${br}','${e.id}','${e.employee_name}',${net})">發薪（扣$${格式化金額(net)}）</button>`}
         <button class="btn btn-outline btn-sm" onclick="列印單人薪資條('${br}','${month}','${e.id}')">列印薪資條</button>
         <button class="btn btn-${br} btn-sm" onclick="展開編輯薪資('${br}','${e.id}')">編輯</button>
         <button class="btn btn-danger btn-sm" onclick="刪除員工('${e.id}','${br}')">刪除</button>
@@ -2017,6 +2018,15 @@ async function 載入薪資(br){
     <div class="metric red"><div class="metric-label">公司總人事成本</div><div class="metric-value">$${格式化金額(tNet+tNhiCo)}</div></div>
     <div class="metric"><div class="metric-label">員工人數</div><div class="metric-value">${emps.length} 人</div></div>
   </div>${payBtnHtml}</div>`;
+}
+async function 個人發薪(br,id,name,net){
+  if(!confirm(`確認發薪：${name}\n實發 $${格式化金額(net)}，將從「富郁霖卡」扣除，記錄為今天的日期，確定要執行嗎？`))return;
+  載入中(true,'發薪中...');
+  const res=await 呼叫API({action:'paySalary',id});
+  載入中(false);
+  if(!res.ok){提示('發薪失敗：'+(res.error||JSON.stringify(res)));return}
+  提示(`✓ ${res.name} 已發放 $${格式化金額(res.net)}，已扣款富郁霖卡`);
+  載入薪資(br);
 }
 async function 確認發薪(br,month,count,total){
   if(!confirm(`確認發薪：\n本月尚未扣款 ${count} 人，合計 $${格式化金額(total)}\n將從「富郁霖卡」扣除，記錄為今天的日期，確定要執行嗎？`))return;
