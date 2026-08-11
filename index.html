@@ -1114,12 +1114,16 @@ async function 週結記入資金(period,amount,account,weekKey){
   提示('✓ 已記入資金管理');
   if(window._月報_br&&window._月報_ym)渲染月報資料(window._月報_br,window._月報_ym);
 }
+const _週結算debounce={};
 function 儲存週結算(lsKey,weekKey,val){
   const data=JSON.parse(localStorage.getItem(lsKey)||'{}');
   if(val)data[weekKey]=+val;else delete data[weekKey];
   localStorage.setItem(lsKey,JSON.stringify(data));
   const br=window._月報_br;
-  if(br)呼叫API({action:'saveWeekSettle',brand:br,weekKey,amount:+val||0});
+  if(!br||!weekKey)return;
+  const dKey=`${br}-${weekKey}`;
+  clearTimeout(_週結算debounce[dKey]);
+  _週結算debounce[dKey]=setTimeout(()=>{呼叫API({action:'saveWeekSettle',brand:br,weekKey,amount:+val||0});},800);
 }
 function 顯示快速補填(br,recs){
   const el=document.getElementById(`quick-fill-${br}`);
@@ -1385,7 +1389,7 @@ async function 渲染月報資料(br,ym){
   const flatForLs={};Object.keys(mergedWs).forEach(k=>{flatForLs[k]=mergedWs[k].amount;});
   localStorage.setItem(wsLsKey,JSON.stringify(flatForLs));
   // 舊資料搬遷：localStorage 裡有、但 GAS 還沒有的週結算金額，補寫回 GAS 永久保存
-  Object.keys(wsLs).forEach(k=>{if(wsLs[k]&&!wsGas[k])呼叫API({action:'saveWeekSettle',brand:br,weekKey:k,amount:+wsLs[k]||0});});
+  Object.keys(wsLs).forEach(k=>{if(k&&wsLs[k]&&!wsGas[k])呼叫API({action:'saveWeekSettle',brand:br,weekKey:k,amount:+wsLs[k]||0});});
   window._週結算=mergedWs;
   document.getElementById(`mbody-${br}`).innerHTML=建立月報HTML(recs,sWithMonth,pl,window[`_recs_${br}`]||[],tInternalCost,mergedWs);
 }
