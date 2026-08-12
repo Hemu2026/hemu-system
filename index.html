@@ -4206,8 +4206,25 @@ async function 送出內部訂購(br){
       const newStock=Math.max(0,(+prod.currentStock||0)-item.qty);
       return 呼叫API({action:'saveProduct',record:{...prod,currentStock:newStock}});
     }));
+    // 商品有配方（例如原物料整罐直接轉出）的話，額外扣原物料庫存
+    const 配方扣料={};
+    items.forEach(item=>{
+      const prod=prods.find(p=>p.id===item.productId);
+      const recipe=prod?.recipe?JSON.parse(prod.recipe):[];
+      recipe.forEach(r=>{配方扣料[r.id]=(配方扣料[r.id]||0)+(+r.amount||0)*item.qty;});
+    });
+    if(Object.keys(配方扣料).length>0){
+      const resM=await 呼叫API({action:'getMaterials'});
+      const mats=resM.data||[];
+      await Promise.all(Object.keys(配方扣料).map(mid=>{
+        const mat=mats.find(m=>m.id===mid);
+        if(!mat)return;
+        const newStock=Math.max(0,(+mat.currentStock||0)-配方扣料[mid]);
+        return 呼叫API({action:'saveMaterial',record:{...mat,currentStock:newStock}});
+      }));
+    }
     items.forEach(item=>{delete _io數量[`${br}-${item.productId}`];});
-    提示('✓ 訂購已記錄，商品庫存已扣減');
+    提示('✓ 訂購已記錄，庫存已扣減');
     渲染內部訂購(br);
   } else 提示('部分儲存失敗，請重試');
 }
