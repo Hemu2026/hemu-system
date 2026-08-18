@@ -2855,6 +2855,7 @@ function 渲染商品列表(products){
       </div>`:''}
       <div style="display:flex;gap:8px">
         <button class="btn btn-hq btn-sm" onclick="顯示商品表單(${JSON.stringify(p).replace(/"/g,'&quot;')})">編輯</button>
+        <button class="btn btn-outline btn-sm" onclick="複製商品到原物料('${p.id}')">複製到原物料</button>
         <button class="btn btn-danger btn-sm" onclick="刪除商品('${p.id}')">刪除</button>
       </div>
     </div>`;
@@ -2863,6 +2864,28 @@ function 渲染商品列表(products){
     <div style="margin-bottom:8px;margin-top:16px;font-size:13px;font-weight:700;color:#666;letter-spacing:1px;padding:0 2px">── ${g}（${groups[g].length}）──</div>
     ${groups[g].map(cardHtml).join('')}
   `).join('');
+}
+
+async function 複製商品到原物料(id){
+  const p=(window._products||[]).find(x=>x.id===id);
+  if(!p)return;
+  const unit=p.packageUnit||'包';
+  const unitPrice=+p.internalPrice||+p.cost||0;
+  if(!unitPrice){提示('這個商品沒有成本或內部供應價，無法複製');return;}
+  if(!confirm(`複製「${p.name}」到原物料庫？\n單價：$${格式化金額(unitPrice)} / 1${unit}\n\n之後門市菜單配方可直接選用這筆原物料。`))return;
+  const record={
+    category:'其他',
+    name:p.name,
+    supplier:'央廚',
+    price:unitPrice,
+    spec:1,
+    unit,
+    yieldRate:100,
+    note:'複製自商品管理（央廚成品）'
+  };
+  const res=await 呼叫API({action:'saveMaterial',record});
+  if(res.ok)提示('✓ 已複製到原物料庫，可在門市菜單配方選用');
+  else 提示('複製失敗：'+(res.error||''));
 }
 
 function 篩選商品(){
