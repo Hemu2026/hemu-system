@@ -2872,10 +2872,11 @@ async function 複製商品到原物料(id){
   const unit=p.packageUnit||'包';
   const unitPrice=+p.internalPrice||+p.cost||0;
   if(!unitPrice){提示('這個商品沒有成本或內部供應價，無法複製');return;}
-  if(!confirm(`複製「${p.name}」到原物料庫？\n單價：$${格式化金額(unitPrice)} / 1${unit}\n\n之後門市菜單配方可直接選用這筆原物料。`))return;
+  const matName='央廚成品-'+p.name;
+  if(!confirm(`複製「${p.name}」到原物料庫？\n新名稱：${matName}\n單價：$${格式化金額(unitPrice)} / 1${unit}\n\n之後門市菜單配方可直接選用這筆原物料。`))return;
   const record={
-    category:'其他',
-    name:p.name,
+    category:'央廚成品',
+    name:matName,
     supplier:'央廚',
     price:unitPrice,
     spec:1,
@@ -3124,7 +3125,7 @@ async function 刪除商品(id){
 }
 
 // ===== 原物料管理 =====
-const 原物料分類=['醬料','配料','蔬菜','包材','肉類','乾貨','其他'];
+const 原物料分類=['醬料','配料','蔬菜','包材','肉類','乾貨','央廚成品','其他'];
 
 async function 渲染原物料管理(){
   const el=document.getElementById('page-原物料管理');
