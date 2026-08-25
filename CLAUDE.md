@@ -100,3 +100,5 @@ git push origin main
 - **onclick 裡直接塞 `JSON.stringify()` 的字串**會因為雙引號截斷屬性，凡是把 note/文字內容塞進 `onclick="..."` 的地方都要做 `.replace(/"/g,'&quot;')` 轉義
 - **GAS 部署一定要建立新版本才生效**，光是編輯器存檔不影響已上線的 `/exec` 行為，這個坑反覆出現
 - 操作 GAS 雲端 Monaco 編輯器時，`browser_type`/`.fill()` 對 textarea 會整個覆蓋文件內容，要用 `monaco.editor.getModels()` + `pushEditOperations()` 做精準片段替換，且先用 `indexOf` 確認錨點字串在原始碼中唯一，避免整檔字串取代造成內容暴增或重複
+- **`headers.indexOf('欄位名')+1` 沒判斷 -1 會噴錯**：Sheet 表頭若沒有該欄位，`indexOf` 回傳 -1，+1 變成 0，但 Sheets 欄位編號從 1 開始，直接噴「範圍起始欄過小」錯誤。要先判斷 `>= 0` 再用，例如 `const col = headers.indexOf('x'); if (col >= 0) sheet.getRange(row, col+1)...`
+- **Sheet 缺欄位時，用 `headers.forEach` 寫入的 `saveXXX` 函式會靜默漏資料**：不會報錯，前端填了東西存檔卻消失，因為程式在寫入時找不到對應欄位就直接跳過。遇到「填了存不進去但也沒錯誤訊息」，先確認 Sheet 表頭是否真的有這個欄位（同樣可用上面那條 `gviz/tq` 指令查）
