@@ -2578,9 +2578,11 @@ async function 渲染資金管理(){
       const 月份列表=[...分組.keys()];
       return 月份列表.map((ymKey,idx)=>{
         const rows=分組.get(ymKey);
+        const 小計=rows.reduce((s,r)=>r.type==='支出'?s-(+r.amount||0):(r.type==='收入'||r.type==='週收款'?s+(+r.amount||0):s),0);
         return `<div class="month-group" style="margin-bottom:10px">
           <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.mg-arrow').textContent=this.nextElementSibling.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f5f5f0;border-radius:8px">
             <span><span class="mg-arrow" style="display:inline-block;width:14px">${idx===0?'▼':'▶'}</span><strong>${ymKey}</strong>（${rows.length}筆）</span>
+            <span style="text-align:right"><span style="font-weight:600;color:${小計<0?'#c0392b':'#2a6b58'}">${小計<0?'-':'+'}$${格式化金額(Math.abs(小計))}</span><br><span style="font-size:10px;color:#999;font-weight:400">收支淨額（不含快照/轉帳）</span></span>
           </div>
           <div style="display:${idx===0?'block':'none'}">
             <div class="table-wrap"><table>
