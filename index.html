@@ -2780,7 +2780,7 @@ function 編輯資金記錄(id){
   document.getElementById('detail-content').innerHTML=`
     <div class="field" style="margin-bottom:10px"><label>類型</label>
       <select id="efr-type" style="font-size:15px;padding:10px 12px" onchange="document.getElementById('efr-to-wrap').style.display=this.value==='轉帳'?'':'none'">
-        ${['收入','支出','轉帳','週收款'].map(t=>`<option value="${t}"${t===r.type?' selected':''}>${t}</option>`).join('')}
+        ${['收入','支出','轉帳','週收款','快照'].map(t=>`<option value="${t}"${t===r.type?' selected':''}>${t}</option>`).join('')}
       </select>
     </div>
     <div class="g2" style="margin-bottom:10px">
