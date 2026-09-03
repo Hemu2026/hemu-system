@@ -5040,8 +5040,8 @@ function 渲染批次成本頁面(){
       <div id="bc-cost-rows"></div>
       <button type="button" class="btn btn-sm" style="background:#eee;color:#555;margin-top:.4rem" onclick="新增批次成本項()">＋ 新增一項</button>
     </div>
-    <div class="field" style="margin-top:.5rem"><label>做出份數</label>
-      <input type="number" id="bc-qty" min="1" oninput="更新批次成本預覽()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+    <div class="field" style="margin-top:.5rem"><label>做出份數（還沒做完可以先留空，之後回來補）</label>
+      <input type="number" id="bc-qty" min="1" placeholder="留空＝先不算單份成本" oninput="更新批次成本預覽()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
     </div>
     <div id="bc-preview" style="background:#f8f8f8;border-radius:8px;padding:.75rem;margin-top:.5rem;font-size:13px;display:flex;justify-content:space-between">
       <span>總花費</span><span id="bc-total" style="font-weight:600">$0</span>
@@ -5076,17 +5076,20 @@ function 渲染批次成本頁面(){
           <th style="padding:8px;text-align:right;width:80px">單份成本</th>
           <th style="padding:8px;width:110px"></th>
         </tr></thead>
-        <tbody>${篩選後.map(r=>`<tr style="border-bottom:1px solid #f0f0f0">
+        <tbody>${篩選後.map(r=>{
+          const 待補=!(+r.qty>0);
+          return `<tr style="border-bottom:1px solid #f0f0f0">
           <td style="padding:8px">${格式化日期(r.date)}</td>
           <td style="padding:8px">${r.itemName}</td>
           <td style="padding:8px;text-align:right">$${格式化金額(r.totalCost)}</td>
-          <td style="padding:8px;text-align:center">${r.qty}</td>
-          <td style="padding:8px;text-align:right;font-weight:600;color:#2a6b58">$${格式化金額(r.unitCost)}</td>
-          <td style="padding:8px;display:flex;gap:6px">
+          <td style="padding:8px;text-align:center">${待補?'<span style="color:#e67e22">待補</span>':r.qty}</td>
+          <td style="padding:8px;text-align:right;font-weight:600;color:${待補?'#e67e22':'#2a6b58'}">${待補?'待補份數':'$'+格式化金額(r.unitCost)}</td>
+          <td style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm" style="background:${待補?'#fdebd0':'#eee'};color:${待補?'#e67e22':'#555'}" onclick="編輯批次成本份數('${r.id}')">${待補?'補份數':'編輯份數'}</button>
             <button class="btn btn-sm" style="background:#eee;color:#555" onclick="列印批次成本紀錄('${r.id}')">列印</button>
             <button class="btn btn-sm btn-danger" onclick="刪除批次成本紀錄('${r.id}')">刪除</button>
           </td>
-        </tr>`).join('')}</tbody>
+        </tr>`;}).join('')}</tbody>
       </table>`
     }
   </div>`;
@@ -5135,8 +5138,7 @@ async function 送出批次成本紀錄(){
   const totalCost=costItems.reduce((s,r)=>s+(+r.cost||0),0);
   if(!itemName)return alert('請輸入品項名稱');
   if(totalCost<=0)return alert('請至少輸入一項花費金額');
-  if(qty<=0)return alert('請輸入做出的份數');
-  const unitCost=Math.round(totalCost/qty*100)/100;
+  const unitCost=qty>0?Math.round(totalCost/qty*100)/100:'';
   載入中(true);
   const res=await 呼叫API({action:'saveBatchCostRecord',date,itemName,costItems:JSON.stringify(costItems),totalCost,qty,unitCost,note});
   載入中(false);
@@ -5155,6 +5157,39 @@ async function 刪除批次成本紀錄(id){
   渲染批次成本紀錄();
 }
 
+function 編輯批次成本份數(id){
+  const r=_batchCostRecords.find(x=>String(x.id)===String(id));
+  if(!r)return;
+  document.getElementById('detail-title').textContent=`${r.itemName}｜補填份數`;
+  document.getElementById('detail-content').innerHTML=`
+    <div style="font-size:13px;color:#666;margin-bottom:10px">總花費 $${格式化金額(r.totalCost)}，填入實際做出的份數後會自動算單份成本</div>
+    <div class="field"><label>做出份數</label>
+      <input type="number" id="bc-edit-qty" min="1" value="${(+r.qty>0)?r.qty:''}" style="font-size:20px;font-weight:700;padding:10px 12px;text-align:right;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px">
+    </div>`;
+  window._bcEditId=id;
+  document.getElementById('detail-actions').innerHTML=
+    `<button class="btn" style="flex:1;background:#27ae60;color:#fff;border:none" onclick="儲存批次成本份數()">儲存</button>
+     <button class="btn" style="flex:1;background:#eee;color:#555;border:none" onclick="關閉詳細()">取消</button>`;
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+async function 儲存批次成本份數(){
+  const id=window._bcEditId;
+  const r=_batchCostRecords.find(x=>String(x.id)===String(id));
+  const qty=+document.getElementById('bc-edit-qty').value||0;
+  if(!r||qty<=0)return alert('請輸入正確的份數');
+  const unitCost=Math.round(r.totalCost/qty*100)/100;
+  載入中(true);
+  const delRes=await 呼叫API({action:'deleteBatchCostRecord',id});
+  if(!delRes.ok){載入中(false);return alert('更新失敗：'+(delRes.error||'刪除舊記錄失敗'));}
+  const addRes=await 呼叫API({action:'saveBatchCostRecord',date:r.date,itemName:r.itemName,costItems:r.costItems,totalCost:r.totalCost,qty,unitCost,note:r.note});
+  載入中(false);
+  if(!addRes.ok){return alert('更新失敗：'+(addRes.error||''));}
+  提示('✓ 份數已補上，單份成本已算好');
+  關閉詳細();
+  渲染批次成本紀錄();
+}
+
 function 篩選批次成本(itemName){
   _batchCostFilter=itemName;
   渲染批次成本頁面();
@@ -5164,7 +5199,7 @@ function 畫批次成本趨勢圖(itemName){
   _destroyChart('bc-chart');
   const canvas=document.getElementById('bc-chart');
   if(!canvas)return;
-  const rows=_batchCostRecords.filter(r=>r.itemName===itemName).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const rows=_batchCostRecords.filter(r=>r.itemName===itemName&&+r.qty>0).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   _charts['bc-chart']=new Chart(canvas,{
     type:'line',
     data:{labels:rows.map(r=>格式化日期(r.date)),datasets:[{label:`${itemName} 單份成本`,data:rows.map(r=>+r.unitCost||0),borderColor:'#2a6b58',backgroundColor:'rgba(42,107,88,.1)',tension:.3,fill:true}]},
@@ -5189,8 +5224,8 @@ function 列印批次成本紀錄(id){
   <table><thead><tr><th>採購項目</th><th class="r">金額</th></tr></thead>
   <tbody>${items.map(i=>`<tr><td>${i.name||'—'}</td><td class="r">$${格式化金額(i.cost)}</td></tr>`).join('')}</tbody></table>
   <div class="total">總花費：$${格式化金額(r.totalCost)}</div>
-  <div>做出份數：${r.qty} 份</div>
-  <div class="total">單份成本：$${格式化金額(r.unitCost)}</div>
+  <div>做出份數：${(+r.qty>0)?r.qty+' 份':'尚未填寫'}</div>
+  <div class="total">單份成本：${(+r.qty>0)?'$'+格式化金額(r.unitCost):'待補份數'}</div>
   ${r.note?`<div style="margin-top:10px;color:#666">備註：${r.note}</div>`:''}
   </body></html>`);
   win.document.close();
