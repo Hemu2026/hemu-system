@@ -5085,7 +5085,7 @@ function 渲染批次成本頁面(){
           <td style="padding:8px;text-align:center">${待補?'<span style="color:#e67e22">待補</span>':r.qty}</td>
           <td style="padding:8px;text-align:right;font-weight:600;color:${待補?'#e67e22':'#2a6b58'}">${待補?'待補份數':'$'+格式化金額(r.unitCost)}</td>
           <td style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-sm" style="background:${待補?'#fdebd0':'#eee'};color:${待補?'#e67e22':'#555'}" onclick="編輯批次成本份數('${r.id}')">${待補?'補份數':'編輯份數'}</button>
+            <button class="btn btn-sm" style="background:${待補?'#fdebd0':'#eee'};color:${待補?'#e67e22':'#555'}" onclick="編輯批次成本紀錄('${r.id}')">${待補?'補份數':'編輯'}</button>
             <button class="btn btn-sm" style="background:#eee;color:#555" onclick="列印批次成本紀錄('${r.id}')">列印</button>
             <button class="btn btn-sm btn-danger" onclick="刪除批次成本紀錄('${r.id}')">刪除</button>
           </td>
@@ -5157,35 +5157,79 @@ async function 刪除批次成本紀錄(id){
   渲染批次成本紀錄();
 }
 
-function 編輯批次成本份數(id){
+let _bcEditRows=[];
+
+function 編輯批次成本紀錄(id){
   const r=_batchCostRecords.find(x=>String(x.id)===String(id));
   if(!r)return;
-  document.getElementById('detail-title').textContent=`${r.itemName}｜補填份數`;
-  document.getElementById('detail-content').innerHTML=`
-    <div style="font-size:13px;color:#666;margin-bottom:10px">總花費 $${格式化金額(r.totalCost)}，填入實際做出的份數後會自動算單份成本</div>
-    <div class="field"><label>做出份數</label>
-      <input type="number" id="bc-edit-qty" min="1" value="${(+r.qty>0)?r.qty:''}" style="font-size:20px;font-weight:700;padding:10px 12px;text-align:right;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px">
-    </div>`;
+  let items=[];
+  try{items=typeof r.costItems==='string'?JSON.parse(r.costItems):(r.costItems||[]);}catch(e){}
+  _bcEditRows=items.length?items.map(i=>({name:i.name||'',cost:i.cost})):[{name:'',cost:r.totalCost}];
   window._bcEditId=id;
+  document.getElementById('detail-title').textContent='編輯批次成本紀錄';
+  document.getElementById('detail-content').innerHTML=`
+    <div class="field" style="margin-bottom:10px"><label>日期</label>
+      <input type="date" id="bc-edit-date" value="${格式化日期(r.date)}" style="font-size:15px;padding:10px 12px;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px">
+    </div>
+    <div class="field" style="margin-bottom:10px"><label>品項名稱</label>
+      <input type="text" id="bc-edit-item" value="${(r.itemName||'').replace(/"/g,'&quot;')}" style="font-size:15px;padding:10px 12px;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px">
+    </div>
+    <div class="field" style="margin-bottom:10px"><label>採購花費</label>
+      <div id="bc-edit-cost-rows"></div>
+      <button type="button" class="btn btn-sm" style="background:#eee;color:#555;margin-top:.4rem" onclick="新增批次成本編輯項()">＋ 新增一項</button>
+    </div>
+    <div class="field" style="margin-bottom:10px"><label>做出份數（可留空，之後再補）</label>
+      <input type="number" id="bc-edit-qty" min="1" placeholder="留空＝先不算單份成本" value="${(+r.qty>0)?r.qty:''}" style="font-size:20px;font-weight:700;padding:10px 12px;text-align:right;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px">
+    </div>
+    <div class="field"><label>備註</label>
+      <input type="text" id="bc-edit-note" value="${(r.note||'').replace(/"/g,'&quot;')}" style="font-size:15px;padding:10px 12px;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:6px">
+    </div>`;
+  渲染批次成本編輯項列();
   document.getElementById('detail-actions').innerHTML=
-    `<button class="btn" style="flex:1;background:#27ae60;color:#fff;border:none" onclick="儲存批次成本份數()">儲存</button>
+    `<button class="btn" style="flex:1;background:#27ae60;color:#fff;border:none" onclick="儲存編輯批次成本紀錄()">儲存</button>
      <button class="btn" style="flex:1;background:#eee;color:#555;border:none" onclick="關閉詳細()">取消</button>`;
   document.getElementById('detail-modal').classList.add('open');
 }
 
-async function 儲存批次成本份數(){
+function 渲染批次成本編輯項列(){
+  const wrap=document.getElementById('bc-edit-cost-rows');
+  if(!wrap)return;
+  wrap.innerHTML=_bcEditRows.map((row,i)=>`
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <input type="text" placeholder="品名（選填）" value="${(row.name||'').replace(/"/g,'&quot;')}" oninput="_bcEditRows[${i}].name=this.value" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+      <input type="number" placeholder="金額" value="${row.cost}" oninput="_bcEditRows[${i}].cost=this.value" style="width:100px;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">
+      ${_bcEditRows.length>1?`<button type="button" class="btn btn-sm btn-danger" onclick="移除批次成本編輯項(${i})">✕</button>`:''}
+    </div>`).join('');
+}
+
+function 新增批次成本編輯項(){
+  _bcEditRows.push({name:'',cost:''});
+  渲染批次成本編輯項列();
+}
+
+function 移除批次成本編輯項(i){
+  _bcEditRows.splice(i,1);
+  渲染批次成本編輯項列();
+}
+
+async function 儲存編輯批次成本紀錄(){
   const id=window._bcEditId;
-  const r=_batchCostRecords.find(x=>String(x.id)===String(id));
+  const date=document.getElementById('bc-edit-date').value;
+  const itemName=document.getElementById('bc-edit-item').value.trim();
   const qty=+document.getElementById('bc-edit-qty').value||0;
-  if(!r||qty<=0)return alert('請輸入正確的份數');
-  const unitCost=Math.round(r.totalCost/qty*100)/100;
+  const note=document.getElementById('bc-edit-note').value;
+  const costItems=_bcEditRows.filter(r=>+r.cost>0);
+  const totalCost=costItems.reduce((s,r)=>s+(+r.cost||0),0);
+  if(!itemName)return alert('請輸入品項名稱');
+  if(totalCost<=0)return alert('請至少輸入一項花費金額');
+  const unitCost=qty>0?Math.round(totalCost/qty*100)/100:'';
   載入中(true);
   const delRes=await 呼叫API({action:'deleteBatchCostRecord',id});
   if(!delRes.ok){載入中(false);return alert('更新失敗：'+(delRes.error||'刪除舊記錄失敗'));}
-  const addRes=await 呼叫API({action:'saveBatchCostRecord',date:r.date,itemName:r.itemName,costItems:r.costItems,totalCost:r.totalCost,qty,unitCost,note:r.note});
+  const addRes=await 呼叫API({action:'saveBatchCostRecord',date,itemName,costItems:JSON.stringify(costItems),totalCost,qty,unitCost,note});
   載入中(false);
   if(!addRes.ok){return alert('更新失敗：'+(addRes.error||''));}
-  提示('✓ 份數已補上，單份成本已算好');
+  提示('✓ 已修改');
   關閉詳細();
   渲染批次成本紀錄();
 }
