@@ -1507,12 +1507,14 @@ function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0,weekSettle=null){
           const monthStart=new Date(_ey,_em-1,1);
           const dispStart=startDate<monthStart?monthStart:startDate;
           const period=`${fmtMD(dispStart)} ~ ${fmtMD(dispEnd)}${isPartial?' (月底)':''}`;
+          // 跨月週（該週週一屬於上個月）用複合key儲存，避免跟上月報表的同一個週一key共用記入狀態
+          const skey=(_km!==_em)?`${ym}_${key}`:key;
           const sysTotal=wRecs.reduce((a,r)=>a+取應交現金(r),0);
           const actTotal=wRecs.reduce((a,r)=>a+(+r.handover_actual||0),0);
           const hasActual=wRecs.some(r=>r.handover_actual);
-          const bossVal=saved[key]?.amount||'';
+          const bossVal=saved[skey]?.amount||'';
           const bossNum=+bossVal||0;
-          const recordedAt=saved[key]?.recordedAt||'';
+          const recordedAt=saved[skey]?.recordedAt||'';
           const diff=hasActual?actTotal-sysTotal:0;
           const bossDiff=bossVal?bossNum-sysTotal:null;
           const ok=Math.abs(diff)<=100;
@@ -1524,17 +1526,17 @@ function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0,weekSettle=null){
             <td>${hasActual?'$'+格式化金額(actTotal):'<span style="color:#aaa">未填</span>'}</td>
             <td><input type="number" value="${bossVal}" placeholder="填入結算金額"
               style="width:120px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit"
-              oninput="儲存週結算('${lsKey}','${key}',this.value)"></td>
+              oninput="儲存週結算('${lsKey}','${skey}',this.value)"></td>
             <td style="color:${bossDiff===null?'#aaa':bossOk?'#27ae60':'#c0392b'}">${bossDiff===null?'—':(bossDiff>=0?'+':'')+格式化金額(bossDiff)}</td>
             <td>${bossDiff===null?'<span style="color:#aaa">待填寫</span>':bossOk?'<span style="color:#27ae60">✓ 正確</span>':'<span style="color:#c0392b">⚠ 異常</span>'}</td>
-            <td>${bossVal?(recordedAt?`<button class="btn btn-sm" disabled style="background:#ccc;color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;white-space:nowrap;cursor:not-allowed" title="已於${格式化日期(recordedAt)}記入">✓ 已記入</button>`:`<button class="btn btn-sm" style="background:#2a6b58;color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;white-space:nowrap" onclick="週結記入資金('${period}','${bossVal}','公司現金','${key}')">記入資金</button>`):'—'}</td>
+            <td>${bossVal?(recordedAt?`<button class="btn btn-sm" disabled style="background:#ccc;color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;white-space:nowrap;cursor:not-allowed" title="已於${格式化日期(recordedAt)}記入">✓ 已記入</button>`:`<button class="btn btn-sm" style="background:#2a6b58;color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;white-space:nowrap" onclick="週結記入資金('${period}','${bossVal}','公司現金','${skey}')">記入資金</button>`):'—'}</td>
           </tr>`;
         }).join('')}</tbody>
         <tfoot><tr style="font-weight:600;background:#f8f8f8">
           <td>合計</td><td>${recs.length}天</td>
           <td>$${格式化金額(recs.reduce((a,r)=>a+取應交現金(r),0))}</td>
           <td>$${格式化金額(recs.reduce((a,r)=>a+(+r.handover_actual||0),0))}</td>
-          <td>$${格式化金額(weekKeys.reduce((a,k)=>a+(+saved[k]?.amount||0),0))}</td>
+          <td>$${格式化金額(weekKeys.reduce((a,k)=>{const km=+k.slice(5,7);const skey=(km!==+ym.slice(5,7))?`${ym}_${k}`:k;return a+(+saved[skey]?.amount||0);},0))}</td>
           <td colspan="2"></td>
         </tr></tfoot>
       </table></div>`;
