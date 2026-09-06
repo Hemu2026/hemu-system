@@ -4304,14 +4304,25 @@ async function 刪除內部訂購(br,id){
 // ===== 門市菜單成本表（賣給顧客的餐點，跟供內部訂購/批發用的「商品」分開） =====
 const _menu商品={};
 let _editingMenuItem=null;
+function 解析半成品重量(spec){
+  if(!spec)return null;
+  const s=String(spec).trim();
+  let m=s.match(/([\d.]+)\s*台?斤/);if(m)return parseFloat(m[1])*600;
+  m=s.match(/([\d.]+)\s*(g|克|ml|毫升)/);if(m)return parseFloat(m[1]);
+  m=s.match(/^([\d.]+)$/);if(m)return parseFloat(m[1]);
+  return null;
+}
 async function 渲染門市成本表(br){
   const el=document.getElementById(`page-菜單成本-${br}`);
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">門市成本表</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
-  const [resI,resM]=await Promise.all([呼叫API({action:'getMenuItems',brand:br}),呼叫API({action:'getMaterials'})]);
+  const [resI,resM,resP]=await Promise.all([呼叫API({action:'getMenuItems',brand:br}),呼叫API({action:'getMaterials'}),呼叫API({action:'getProducts'})]);
   const items=resI.data||[];
   window._materials_cache=resM.data||[];
+  window._semi_cache=resP.data||[];
   const matMap={};
   (resM.data||[]).forEach(m=>{matMap[m.id]=m;});
+  const semiMap={};
+  (resP.data||[]).forEach(p=>{semiMap[p.id]={id:p.id,name:p.name,cost:+p.cost||0,weight:解析半成品重量(p.spec)};});
   _menu商品[br]=items;
   let html=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">門市成本表</span></div>
   <div class="card" style="margin-bottom:1rem">
@@ -4330,8 +4341,11 @@ async function 渲染門市成本表(br){
         const rawRecipe=p.recipe?JSON.parse(p.recipe):[];
         const recipe=rawRecipe.map(r=>{
           const mat=matMap[r.id];
-          const liveUnitCost=mat&&mat.spec&&mat.yieldRate?(+mat.price||0)/(+mat.spec)/((+mat.yieldRate)/100):r.unitCost;
-          return{...r,unitCost:liveUnitCost,priceChanged:mat&&Math.abs(liveUnitCost-r.unitCost)>0.0001};
+          const semi=semiMap[r.id];
+          let liveUnitCost=r.unitCost;
+          if(mat&&mat.spec&&mat.yieldRate)liveUnitCost=(+mat.price||0)/(+mat.spec)/((+mat.yieldRate)/100);
+          else if(semi)liveUnitCost=semi.weight?semi.cost/semi.weight:semi.cost;
+          return{...r,unitCost:liveUnitCost,isSemi:!!semi,priceChanged:(mat||semi)&&Math.abs(liveUnitCost-r.unitCost)>0.0001};
         });
         const cost=recipe.reduce((a,r)=>a+r.unitCost*r.amount,0);
         const margin=price?((price-cost)/price*100):0;
@@ -4378,7 +4392,7 @@ async function 渲染門市成本表(br){
                 const sub=r.unitCost*r.amount;
                 const pct=cost>0?(sub/cost*100):0;
                 return`<tr>
-                  <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4">${r.name}${r.priceChanged?' <span style="font-size:10px;color:#c8a96e;background:#fdf8f0;border-radius:4px;padding:1px 5px">單價已更新</span>':''}</td>
+                  <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4">${r.name}${r.isSemi?' <span style="font-size:10px;color:#1a7fd4;background:#eef6ff;border-radius:4px;padding:1px 5px">半成品</span>':''}${r.priceChanged?' <span style="font-size:10px;color:#c8a96e;background:#fdf8f0;border-radius:4px;padding:1px 5px">單價已更新</span>':''}</td>
                   <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right">${r.amount}</td>
                   <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">${r.unit}</td>
                   <td style="padding:5px 8px;border-bottom:1px solid #f8f8f4;text-align:right;color:#888">$${r.unitCost.toFixed(2)}</td>
@@ -4464,15 +4478,41 @@ function 顯示菜單表單(br,id){
 function 搜尋菜單原物料加入(){
   const q=(document.getElementById('mn-mat-search')?.value||'').toLowerCase();
   const mats=window._materials_cache||[];
-  const results=q?mats.filter(m=>m.name?.toLowerCase().includes(q)||m.code?.toLowerCase().includes(q)).slice(0,8):[];
+  const semis=window._semi_cache||[];
+  const matResults=q?mats.filter(m=>m.name?.toLowerCase().includes(q)||m.code?.toLowerCase().includes(q)).slice(0,6):[];
+  const semiResults=q?semis.filter(p=>p.name?.toLowerCase().includes(q)).slice(0,6):[];
   const el=document.getElementById('mn-mat-results');
   if(!el)return;
-  el.innerHTML=results.map(m=>`<div onclick="加入菜單配方原料('${m.id}','${m.name}','${m.unit}',${m.price||0},${m.spec||1},${m.yieldRate||100})"
+  const matHtml=matResults.map(m=>`<div onclick="加入菜單配方原料('${m.id}','${m.name}','${m.unit}',${m.price||0},${m.spec||1},${m.yieldRate||100})"
     style="padding:6px 10px;cursor:pointer;border-radius:6px;font-size:13px;display:flex;justify-content:space-between;align-items:center"
     onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background=''">
     <span>${m.name} <span style="color:#aaa;font-size:11px">${m.code||''}</span></span>
     <span style="color:#27ae60;font-size:11px">$${(m.price&&m.spec&&m.yieldRate?(m.price/m.spec/(m.yieldRate/100)):0).toFixed(2)}/${m.unit}</span>
   </div>`).join('');
+  const semiHtml=semiResults.map(p=>{
+    const weight=解析半成品重量(p.spec);
+    const unitCost=weight?(+p.cost||0)/weight:(+p.cost||0);
+    const unit=weight?'g':(p.spec||'份');
+    return`<div onclick="加入菜單配方半成品('${p.id}','${p.name}','${unit}',${unitCost})"
+      style="padding:6px 10px;cursor:pointer;border-radius:6px;font-size:13px;display:flex;justify-content:space-between;align-items:center"
+      onmouseover="this.style.background='#eef6ff'" onmouseout="this.style.background=''">
+      <span>${p.name} <span style="font-size:10px;color:#1a7fd4;background:#eef6ff;border-radius:4px;padding:1px 5px">半成品</span> <span style="color:#aaa;font-size:11px">${p.category||''}／${p.spec||''}</span></span>
+      <span style="color:#27ae60;font-size:11px">$${unitCost.toFixed(2)}/${unit}</span>
+    </div>`;
+  }).join('');
+  el.innerHTML=matHtml+semiHtml;
+}
+
+function 加入菜單配方半成品(id,name,unit,unitCost){
+  if(!window._menu_recipe_rows)window._menu_recipe_rows=[];
+  const idx=window._menu_recipe_idx||window._menu_recipe_rows.length;
+  window._menu_recipe_rows.push({id,name,unit,unitCost,amount:1,_idx:idx,isSemi:true});
+  window._menu_recipe_idx=(window._menu_recipe_idx||0)+1;
+  const list=document.getElementById('mn-recipe-list');
+  if(list)list.insertAdjacentHTML('beforeend',菜單配方行({name,unit,amount:1},idx));
+  document.getElementById('mn-mat-search').value='';
+  document.getElementById('mn-mat-results').innerHTML='';
+  更新菜單毛利();
 }
 
 function 加入菜單配方原料(id,name,unit,price,spec,yieldRate){
