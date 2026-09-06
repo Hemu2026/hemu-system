@@ -1501,7 +1501,10 @@ function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0,weekSettle=null){
           const monthEnd=new Date(_ey,_em,0);
           const isPartial=endDate>monthEnd;
           const dispEnd=isPartial?monthEnd:endDate;
-          const period=`${key.slice(5)} ~ ${dispEnd.toISOString().slice(5,10)}${isPartial?' (月底)':''}`;
+          const monthStart=new Date(_ey,_em-1,1);
+          const startDate=new Date(key);
+          const dispStart=startDate<monthStart?monthStart:startDate;
+          const period=`${dispStart.toISOString().slice(5,10)} ~ ${dispEnd.toISOString().slice(5,10)}${isPartial?' (月底)':''}`;
           const sysTotal=wRecs.reduce((a,r)=>a+取應交現金(r),0);
           const actTotal=wRecs.reduce((a,r)=>a+(+r.handover_actual||0),0);
           const hasActual=wRecs.some(r=>r.handover_actual);
@@ -2644,8 +2647,10 @@ function 計算週結現金(recsA,recsB,ym){
     const end=new Date(mon);end.setDate(mon.getDate()+6);
     const dispEnd=monthEnd&&end>monthEnd?monthEnd:end;
     const isPartial=monthEnd&&end>monthEnd;
+    const monthStart=_ey?new Date(_ey,_em-1,1):null;
+    const dispStart=monthStart&&mon<monthStart?monthStart:mon;
     weeks[key].endDate=dispEnd.toISOString().slice(0,10);
-    weeks[key].period=`${key.slice(5)} ~ ${dispEnd.toISOString().slice(5,10)}${isPartial?' (月底)':''}`;
+    weeks[key].period=`${dispStart.toISOString().slice(5,10)} ~ ${dispEnd.toISOString().slice(5,10)}${isPartial?' (月底)':''}`;
   });
   return Object.keys(weeks).sort().map(k=>({...weeks[k]}));
 }
