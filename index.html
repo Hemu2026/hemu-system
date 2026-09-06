@@ -4336,6 +4336,13 @@ async function 渲染門市成本表(br){
         const cost=recipe.reduce((a,r)=>a+r.unitCost*r.amount,0);
         const margin=price?((price-cost)/price*100):0;
         const marginColor=margin>=65?'#27ae60':margin>=50?'#e67e22':'#c0392b';
+        const pmSet=品牌設定[br]||{};
+        const uberPrice=+p.uberPrice||price;
+        const pandaPrice=br==='b'?(+p.pandaPrice||price):0;
+        const platCalc=(plPrice,rate)=>{if(!plPrice)return null;const net=plPrice*(1-rate/100)-cost;return{net,pct:plPrice?net/plPrice*100:0};};
+        const uberCalc=platCalc(uberPrice,pmSet.uber_rate||31);
+        const pandaCalc=br==='b'?platCalc(pandaPrice,pmSet.panda_rate||30):null;
+        const platRow=(label,c)=>c?`<span>🛵 ${label} $${c.net.toFixed(1)} <strong style="color:${c.pct>=30?'#27ae60':c.pct>=15?'#e67e22':'#c0392b'}">(${c.pct.toFixed(1)}%)</strong></span>`:'';
         html+=`<div style="border:1px solid #e8e8e2;border-radius:10px;margin-bottom:10px;overflow:hidden">
           <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;background:#fafaf7"
             onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
@@ -4381,6 +4388,7 @@ async function 渲染門市成本表(br){
               }).join('')}
               </tbody>
             </table>`:'<div style="color:#aaa;font-size:13px">尚未設定配方</div>'}
+            ${(uberCalc||pandaCalc)?`<div style="margin-top:12px;padding:10px 12px;background:#fff7f0;border-radius:8px;font-size:13px;display:flex;gap:24px;flex-wrap:wrap">${[platRow('Uber淨利',uberCalc),platRow('熊貓淨利',pandaCalc)].filter(Boolean).join('')}</div>`:''}
           </div>
         </div>`;
       });
@@ -4420,9 +4428,14 @@ function 顯示菜單表單(br,id){
         <input type="text" id="mn-cat" value="${p.category||''}" placeholder="麵類/飯類/湯類..." style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field"><label>售價（元）</label>
         <input type="number" id="mn-price" value="${p.price||''}" placeholder="120" oninput="更新菜單毛利()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>Uber售價（留空=同售價）</label>
+        <input type="number" id="mn-uber-price" value="${p.uberPrice||''}" placeholder="同售價" oninput="更新菜單毛利()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      ${br==='b'?`<div class="field"><label>熊貓售價（留空=同售價）</label>
+        <input type="number" id="mn-panda-price" value="${p.pandaPrice||''}" placeholder="同售價" oninput="更新菜單毛利()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>`:''}
       <div class="field full"><label>備註</label>
         <input type="text" id="mn-note" value="${p.note||''}" placeholder="選填" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
     </div>
+    <div id="mn-platform-margin" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:13px"></div>
     <div style="background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-size:13px;font-weight:600">📋 配方原料</div>
@@ -4443,6 +4456,7 @@ function 顯示菜單表單(br,id){
   </div>`;
   window._menu_recipe_rows=recipe.map((r,i)=>({...r,_idx:i}));
   window._menu_recipe_idx=recipe.length;
+  window._menu_editing_brand=br;
   更新菜單毛利();
   wrap.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -4501,6 +4515,23 @@ function 更新菜單毛利(){
       marginEl.style.color=margin>=65?'#27ae60':margin>=50?'#e67e22':'#c0392b';
     } else { marginEl.textContent='—'; marginEl.style.color='#888'; }
   }
+  const platEl=document.getElementById('mn-platform-margin');
+  if(platEl){
+    const br=window._menu_editing_brand;
+    const s=品牌設定[br]||{};
+    const uberPrice=+document.getElementById('mn-uber-price')?.value||price;
+    const pandaPrice=br==='b'?(+document.getElementById('mn-panda-price')?.value||price):0;
+    const calc=(plPrice,rate)=>{
+      if(!plPrice)return null;
+      const net=plPrice*(1-rate/100)-cost;
+      const pct=plPrice?net/plPrice*100:0;
+      return{net,pct};
+    };
+    const uberCalc=calc(uberPrice,s.uber_rate||31);
+    const pandaCalc=br==='b'?calc(pandaPrice,s.panda_rate||30):null;
+    const fmt=(label,c)=>c?`<span>🛵 ${label}外送淨利 <strong style="color:${c.pct>=30?'#27ae60':c.pct>=15?'#e67e22':'#c0392b'}">$${c.net.toFixed(1)} (${c.pct.toFixed(1)}%)</strong></span>`:'';
+    platEl.innerHTML=[fmt('Uber',uberCalc),pandaCalc?fmt('熊貓',pandaCalc):''].filter(Boolean).join('');
+  }
 }
 
 async function 儲存菜單品項(br,id){
@@ -4518,6 +4549,8 @@ async function 儲存菜單品項(br,id){
     spec:document.getElementById('mn-spec')?.value?.trim()||'',
     category:document.getElementById('mn-cat')?.value?.trim()||'其他',
     price:+document.getElementById('mn-price')?.value||0,
+    uberPrice:+document.getElementById('mn-uber-price')?.value||0,
+    pandaPrice:+document.getElementById('mn-panda-price')?.value||0,
     note:document.getElementById('mn-note')?.value?.trim()||'',
     recipe:JSON.stringify(recipe)
   };
