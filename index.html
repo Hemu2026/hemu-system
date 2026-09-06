@@ -2869,10 +2869,13 @@ function 渲染商品列表(products){
     const cost=+p.cost||0,price=+p.price||0;
     const margin=price?((price-cost)/price*100):0;
     const recipe=p.recipe?JSON.parse(p.recipe):[];
+    const yieldRate=+p.yieldRate||100;
+    const rawWeight=解析半成品重量(p.spec);
+    const effWeight=rawWeight&&yieldRate!==100?rawWeight*(yieldRate/100):null;
     return`<div class="card" style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
         <div>
-          <div style="font-size:16px;font-weight:700">${p.name} <span style="font-size:13px;color:#888;font-weight:400">${p.spec||''}</span></div>
+          <div style="font-size:16px;font-weight:700">${p.name} <span style="font-size:13px;color:#888;font-weight:400">${p.spec||''}</span>${effWeight?` <span style="font-size:10px;color:#1a7fd4;background:#eef6ff;border-radius:4px;padding:1px 5px">得率${yieldRate}% → 熟重${effWeight.toFixed(0)}g，$${(cost/effWeight).toFixed(3)}/g</span>`:''}</div>
           <div style="font-size:12px;color:#888;margin-top:2px">${p.packageSize?'包裝：'+p.packageSize+' '+(p.packageUnit||''):''}${p.note?'｜ '+p.note:''}</div>
         </div>
         <div style="text-align:right">
@@ -2958,6 +2961,8 @@ function 顯示商品表單(p={}){
         <input type="text" id="pf-image" value="${p.imageUrl||''}" placeholder="貼上圖片連結，例如 Google Drive 分享連結或圖床網址" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field"><label>目前庫存（份/包）</label>
         <input type="number" id="pf-stock" value="${p.currentStock||0}" placeholder="0" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field"><label>得率%（半成品才需填，煮熟/加工後會變輕的品項）</label>
+        <input type="number" id="pf-yield" value="${p.yieldRate||100}" min="1" max="300" placeholder="100" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
     </div>
     <div style="background:#f0f7ff;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #cce0ff">
       <div style="font-size:13px;font-weight:600;margin-bottom:10px">🏪 B2B 批發設定</div>
@@ -3141,6 +3146,7 @@ async function 儲存商品(id){
     currentStock:+document.getElementById('pf-stock')?.value||0,
     sop:document.getElementById('pf-sop')?.value?.trim()||'',
     sopPT:document.getElementById('pf-sop-pt')?.value?.trim()||'',
+    yieldRate:+document.getElementById('pf-yield')?.value||100,
   };
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveProduct',record});
@@ -4322,7 +4328,7 @@ async function 渲染門市成本表(br){
   const matMap={};
   (resM.data||[]).forEach(m=>{matMap[m.id]=m;});
   const semiMap={};
-  (resP.data||[]).forEach(p=>{semiMap[p.id]={id:p.id,name:p.name,cost:+p.cost||0,weight:解析半成品重量(p.spec)};});
+  (resP.data||[]).forEach(p=>{const w=解析半成品重量(p.spec);semiMap[p.id]={id:p.id,name:p.name,cost:+p.cost||0,weight:w?w*((+p.yieldRate||100)/100):w};});
   _menu商品[br]=items;
   let html=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">門市成本表</span></div>
   <div class="card" style="margin-bottom:1rem">
@@ -4490,7 +4496,8 @@ function 搜尋菜單原物料加入(){
     <span style="color:#27ae60;font-size:11px">$${(m.price&&m.spec&&m.yieldRate?(m.price/m.spec/(m.yieldRate/100)):0).toFixed(2)}/${m.unit}</span>
   </div>`).join('');
   const semiHtml=semiResults.map(p=>{
-    const weight=解析半成品重量(p.spec);
+    const rawWeight=解析半成品重量(p.spec);
+    const weight=rawWeight?rawWeight*((+p.yieldRate||100)/100):rawWeight;
     const unitCost=weight?(+p.cost||0)/weight:(+p.cost||0);
     const unit=weight?'g':(p.spec||'份');
     return`<div onclick="加入菜單配方半成品('${p.id}','${p.name}','${unit}',${unitCost})"
