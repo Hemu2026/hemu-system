@@ -1496,15 +1496,17 @@ function 建立月報HTML(recs,s,pl,allRecs=[],tInternalCost=0,weekSettle=null){
         <thead><tr><th>週期</th><th>天數</th><th>系統應交現金</th><th>實際上繳</th><th>老闆結算金額</th><th>差異</th><th>狀態</th><th></th></tr></thead>
         <tbody>${weekKeys.map((key,i)=>{
           const wRecs=weeks[key];
-          const endDate=new Date(key);endDate.setDate(endDate.getDate()+6);
+          const fmtMD=d=>`${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          const [_ky,_km,_kd]=key.split('-').map(Number);
+          const startDate=new Date(_ky,_km-1,_kd);
+          const endDate=new Date(_ky,_km-1,_kd+6);
           const [_ey,_em]=ym.split('-').map(Number);
           const monthEnd=new Date(_ey,_em,0);
           const isPartial=endDate>monthEnd;
           const dispEnd=isPartial?monthEnd:endDate;
           const monthStart=new Date(_ey,_em-1,1);
-          const startDate=new Date(key);
           const dispStart=startDate<monthStart?monthStart:startDate;
-          const period=`${dispStart.toISOString().slice(5,10)} ~ ${dispEnd.toISOString().slice(5,10)}${isPartial?' (月底)':''}`;
+          const period=`${fmtMD(dispStart)} ~ ${fmtMD(dispEnd)}${isPartial?' (月底)':''}`;
           const sysTotal=wRecs.reduce((a,r)=>a+取應交現金(r),0);
           const actTotal=wRecs.reduce((a,r)=>a+(+r.handover_actual||0),0);
           const hasActual=wRecs.some(r=>r.handover_actual);
@@ -2649,8 +2651,10 @@ function 計算週結現金(recsA,recsB,ym){
     const isPartial=monthEnd&&end>monthEnd;
     const monthStart=_ey?new Date(_ey,_em-1,1):null;
     const dispStart=monthStart&&mon<monthStart?monthStart:mon;
-    weeks[key].endDate=dispEnd.toISOString().slice(0,10);
-    weeks[key].period=`${dispStart.toISOString().slice(5,10)} ~ ${dispEnd.toISOString().slice(5,10)}${isPartial?' (月底)':''}`;
+    const fmtYMD=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const fmtMD=d=>`${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    weeks[key].endDate=fmtYMD(dispEnd);
+    weeks[key].period=`${fmtMD(dispStart)} ~ ${fmtMD(dispEnd)}${isPartial?' (月底)':''}`;
   });
   return Object.keys(weeks).sort().map(k=>({...weeks[k]}));
 }
