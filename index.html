@@ -4339,8 +4339,7 @@ async function 渲染門市成本表(br){
         const pmSet=品牌設定[br]||{};
         const uberPrice=+p.uberPrice||price;
         const pandaPrice=br==='b'?(+p.pandaPrice||price):0;
-        const packagingCost=+p.packagingCost||0;
-        const platCalc=(plPrice,rate)=>{if(!plPrice)return null;const net=plPrice*(1-rate/100)-cost-packagingCost;return{net,pct:plPrice?net/plPrice*100:0};};
+        const platCalc=(plPrice,rate)=>{if(!plPrice)return null;const net=plPrice*(1-rate/100)-cost;return{net,pct:plPrice?net/plPrice*100:0};};
         const uberCalc=platCalc(uberPrice,pmSet.uber_rate||31);
         const pandaCalc=br==='b'?platCalc(pandaPrice,pmSet.panda_rate||30):null;
         const platRow=(label,c)=>c?`<span>🛵 ${label} $${c.net.toFixed(1)} <strong style="color:${c.pct>=30?'#27ae60':c.pct>=15?'#e67e22':'#c0392b'}">(${c.pct.toFixed(1)}%)</strong></span>`:'';
@@ -4433,8 +4432,6 @@ function 顯示菜單表單(br,id){
         <input type="number" id="mn-uber-price" value="${p.uberPrice||''}" placeholder="同售價" oninput="更新菜單毛利()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       ${br==='b'?`<div class="field"><label>熊貓售價（留空=同售價）</label>
         <input type="number" id="mn-panda-price" value="${p.pandaPrice||''}" placeholder="同售價" oninput="更新菜單毛利()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>`:''}
-      <div class="field"><label>外帶包材成本（元，僅算外送淨利用）</label>
-        <input type="number" id="mn-packaging-cost" value="${p.packagingCost||''}" placeholder="例：2.4" step="0.1" oninput="更新菜單毛利()" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field full"><label>備註</label>
         <input type="text" id="mn-note" value="${p.note||''}" placeholder="選填" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
     </div>
@@ -4524,10 +4521,9 @@ function 更新菜單毛利(){
     const s=品牌設定[br]||{};
     const uberPrice=+document.getElementById('mn-uber-price')?.value||price;
     const pandaPrice=br==='b'?(+document.getElementById('mn-panda-price')?.value||price):0;
-    const packagingCost=+document.getElementById('mn-packaging-cost')?.value||0;
     const calc=(plPrice,rate)=>{
       if(!plPrice)return null;
-      const net=plPrice*(1-rate/100)-cost-packagingCost;
+      const net=plPrice*(1-rate/100)-cost;
       const pct=plPrice?net/plPrice*100:0;
       return{net,pct};
     };
@@ -4555,7 +4551,6 @@ async function 儲存菜單品項(br,id){
     price:+document.getElementById('mn-price')?.value||0,
     uberPrice:+document.getElementById('mn-uber-price')?.value||0,
     pandaPrice:+document.getElementById('mn-panda-price')?.value||0,
-    packagingCost:+document.getElementById('mn-packaging-cost')?.value||0,
     note:document.getElementById('mn-note')?.value?.trim()||'',
     recipe:JSON.stringify(recipe)
   };
