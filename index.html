@@ -1249,7 +1249,7 @@ function 編輯記錄(r){
   document.getElementById('detail-content').innerHTML=`
   <div class="g2">
     <div class="field"><label>日期</label><input type="date" id="edit-date" value="${dateVal}"></div>
-    <div class="field"><label>天氣</label><select id="edit-weather"><option value="">— 選擇 —</option>${['晴天','陰天','雨天','颱風'].map(w=>`<option${r.weather===w?' selected':''}>${w}</option>`).join('')}</select></div>
+    <div class="field"><label>天氣</label><select id="edit-weather"><option value="">— 選擇 —</option>${['晴天','陰天','雨天','颱風'].map(w=>`<option${r.weather===w?' selected':''}>${w}</option>`).join('')}${r.weather&&!['晴天','陰天','雨天','颱風'].includes(r.weather)?`<option value="${r.weather}" selected>${r.weather}</option>`:''}</select></div>
   </div>
   <div style="font-size:11px;font-weight:600;color:#999;margin:12px 0 6px">收入明細</div>
   <div class="g2">
@@ -1285,7 +1285,7 @@ function 編輯記錄(r){
   window._editPhoto=r.photo||'';
   window._editId=r.id;
   window._editBrand=r.brand;
-  window._editVoidAmt=+r.void_amt||0;
+  window._editOriginal=r;
   document.getElementById('detail-actions').innerHTML=
     `<button class="btn" style="flex:1;background:#27ae60;color:#fff;border:none" onclick="儲存修改()">儲存</button>
      <button class="btn" style="flex:1;background:#eee;color:#555;border:none" onclick="關閉詳細()">取消</button>`;
@@ -1307,6 +1307,7 @@ async function 儲存修改(){
   const photoFile=g('photo')?.files[0];
   if(photoFile){try{photo=await 壓縮照片(photoFile);}catch(e){}}
   const record={
+    ...(window._editOriginal||{}),
     brand:br,
     date:g('date')?.value,weather:g('weather')?.value,
     guests:n('guests'),cash,lp,lp_online:lpOnline,tw,uber,panda,total,
@@ -1316,7 +1317,6 @@ async function 儲存修改(){
     food_cost:market+n('central'),
     reserve:n('reserve'),calc_bal,handover,
     cash_should:cashShould,cash_actual:cashActual,cash_short_over:cashActual-cashShould,
-    void_amt:window._editVoidAmt||0,
     handover_actual:n('handover_actual'),handover_diff:n('handover_actual')?n('handover_actual')-handover:0,
     note:g('note')?.value,photo
   };
