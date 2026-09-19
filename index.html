@@ -459,6 +459,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="生產紀錄"><span class="nav-dot dot-hq"></span>生產紀錄</div>
       <div class="nav-item" data-page="批次成本紀錄"><span class="nav-dot dot-hq"></span>批次成本紀錄</div>
       <div class="nav-item" data-page="庫存盤點"><span class="nav-dot dot-hq"></span>庫存盤點</div>
+      <div class="nav-item" data-page="顧客回饋"><span class="nav-dot dot-hq"></span>顧客回饋</div>
     </div>`;
   } else {
     ['a','b'].forEach(br=>{
@@ -475,6 +476,7 @@ function 建立導覽列(role,brand){
     html+=`<div class="nav-group">
       <div class="nav-group-label">管理工具</div>
       <div class="nav-item" data-page="改善追蹤"><span class="nav-dot dot-hq"></span>改善追蹤</div>
+      <div class="nav-item" data-page="顧客回饋"><span class="nav-dot dot-hq"></span>顧客回饋</div>
       <div class="nav-group-label">總公司</div>
       <div class="nav-item" data-page="總部"><span class="nav-dot dot-hq"></span>總部月報表</div>
       <div class="nav-item" data-page="資金管理"><span class="nav-dot dot-hq"></span>資金管理</div>
@@ -510,10 +512,10 @@ function 建立頁面(role,brand){
   } else if(role==='staff'){
     pages=[`上傳-${brand}`,`確認-${brand}`,`內部訂購-${brand}`,'進貨申報','生產紀錄','批次成本紀錄'];
   } else if(role==='manager'){
-    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,'進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄'];
+    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,'進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄','顧客回饋'];
   } else {
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`內部訂購-${br}`,`菜單成本-${br}`));
-    pages.push('改善追蹤','總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄');
+    pages.push('改善追蹤','顧客回饋','總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -581,6 +583,7 @@ function 切換頁面(page){
   else if(page==='批次成本紀錄')渲染批次成本紀錄();
   else if(page==='庫存盤點')渲染庫存盤點();
   else if(page==='改善追蹤')渲染改善追蹤();
+  else if(page==='顧客回饋')渲染顧客回饋();
 }
 
 window.addEventListener('popstate',(e)=>{
@@ -5665,6 +5668,239 @@ function im刪除(id){
   im儲存(items);
   渲染改善追蹤();
   提示('已刪除');
+}
+
+// ===== 顧客回饋 Dashboard（owner/manager 可見，品牌/店別走資料查表，不寫死判斷）=====
+let _fb全部資料 = null;
+let _fb篩選 = { brand:'', store:'', dateFrom:'', dateTo:'', rating:'', category:'' };
+
+async function 渲染顧客回饋(){
+  const el = document.getElementById('page-顧客回饋');
+  el.innerHTML = `<div class="page-title-block">
+    <div class="page-section-label">CUSTOMER FEEDBACK</div>
+    <div class="page-title-lg">顧客回饋</div>
+    <div class="page-subtitle">載入中...</div>
+  </div>`;
+  try{
+    const res = await 呼叫API({action:'getFeedbackRecords'});
+    _fb全部資料 = (res && res.ok) ? (res.data||[]) : [];
+  }catch(e){
+    _fb全部資料 = [];
+  }
+  fb渲染內容();
+}
+
+function fb品牌名(b){ return 品牌名稱[b] || b || '未知'; }
+
+function fb篩選後資料(){
+  const f = _fb篩選;
+  return (_fb全部資料||[]).filter(r=>{
+    if(f.brand && String(r.brand)!==f.brand) return false;
+    if(f.store && String(r.store)!==f.store) return false;
+    if(f.rating && String(r.rating)!==f.rating) return false;
+    if(f.category && r.category!==f.category) return false;
+    if(f.dateFrom || f.dateTo){
+      const d = String(r.datetime||'').slice(0,10);
+      if(f.dateFrom && d < f.dateFrom) return false;
+      if(f.dateTo && d > f.dateTo) return false;
+    }
+    return true;
+  });
+}
+
+function fb是否為(row, 範圍){
+  const 今天 = 今日日期();
+  const d = String(row.datetime||'').slice(0,10);
+  if(範圍==='today') return d===今天;
+  if(範圍==='week'){
+    const now = new Date(今天), r = new Date(d);
+    const diff = (now-r)/86400000;
+    return diff>=0 && diff<7;
+  }
+  if(範圍==='month') return d.slice(0,7)===今天.slice(0,7);
+  return true;
+}
+
+function fb平均(list){
+  if(!list.length) return '-';
+  const sum = list.reduce((a,r)=>a+(Number(r.rating)||0),0);
+  return (sum/list.length).toFixed(1);
+}
+
+function fb渲染內容(){
+  const el = document.getElementById('page-顧客回饋');
+  const data = fb篩選後資料();
+
+  const 今日資料 = data.filter(r=>fb是否為(r,'today'));
+  const 本週資料 = data.filter(r=>fb是否為(r,'week'));
+  const 本月資料 = data.filter(r=>fb是否為(r,'month'));
+
+  // 星等分布
+  const 星等分布 = {1:0,2:0,3:0,4:0,5:0};
+  data.forEach(r=>{ const s=Number(r.rating); if(星等分布[s]!==undefined) 星等分布[s]++; });
+
+  // 各餐點類別平均評分
+  const 類別map = {};
+  data.forEach(r=>{
+    const c = r.category || '未填';
+    if(!類別map[c]) 類別map[c] = [];
+    類別map[c].push(r);
+  });
+
+  // 滿意/需改善項目統計（tags 用頓號分隔字串）
+  const 項目統計 = {};
+  data.forEach(r=>{
+    if(!r.tags) return;
+    String(r.tags).split(/[、,]/).map(s=>s.trim()).filter(Boolean).forEach(t=>{
+      項目統計[t] = (項目統計[t]||0)+1;
+    });
+  });
+  const 項目排序 = Object.entries(項目統計).sort((a,b)=>b[1]-a[1]);
+
+  // 來客來源統計
+  const 來源統計 = {};
+  data.forEach(r=>{ const s=r.source||'未填'; 來源統計[s]=(來源統計[s]||0)+1; });
+  const 來源排序 = Object.entries(來源統計).sort((a,b)=>b[1]-a[1]);
+
+  const 品牌選項 = [...new Set((_fb全部資料||[]).map(r=>r.brand))].filter(Boolean);
+  const 店別選項 = [...new Set((_fb全部資料||[]).filter(r=>!_fb篩選.brand||r.brand===_fb篩選.brand).map(r=>r.store))].filter(Boolean);
+  const 類別選項 = ['乾麵','湯麵','涼麵','飯食','其他'];
+
+  const 留言列表 = data.filter(r=>r.comment).sort((a,b)=>String(b.datetime).localeCompare(String(a.datetime))).slice(0,20);
+  const 負評列表 = data.filter(r=>r.isLowRating===true||r.isLowRating==='TRUE'||r.isLowRating==='true').sort((a,b)=>String(b.datetime).localeCompare(String(a.datetime)));
+  const 關注列表 = data.filter(r=>r.needAttention===true||r.needAttention==='TRUE'||r.needAttention==='true').sort((a,b)=>String(b.datetime).localeCompare(String(a.datetime)));
+
+  function 星星(n){ n=Number(n)||0; let s=''; for(let i=0;i<5;i++) s += i<n?'★':'☆'; return s; }
+
+  function fb記錄卡(r, 色){
+    return `<div style="border-left:3px solid ${色};background:#fafaf7;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#999">
+        <span>${fb品牌名(r.brand)}－${r.store||''} ${r.table?('・'+r.table):''}</span>
+        <span>${r.datetime||''}</span>
+      </div>
+      <div style="font-size:15px;color:${色};margin:4px 0">${星星(r.rating)} ${r.rating}星</div>
+      ${r.category?`<div style="font-size:12px;color:#888">餐點：${r.category}</div>`:''}
+      ${r.tags?`<div style="font-size:12px;color:#888">項目：${r.tags}</div>`:''}
+      ${r.comment?`<div style="font-size:13px;color:#555;margin-top:4px">「${r.comment}」</div>`:''}
+      <div style="font-size:11px;color:#bbb;margin-top:4px">LINE通知：${r.lineNotified===true||r.lineNotified==='TRUE'?'已通知':'未通知'}</div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+  <div class="page-title-block">
+    <div class="page-section-label">CUSTOMER FEEDBACK</div>
+    <div class="page-title-lg">顧客回饋</div>
+    <div class="page-subtitle">桌邊回饋問卷即時統計，1-2星自動LINE通知，3星標記需關注。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">篩選</div>
+    <div class="g2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+      <div class="field"><label>品牌</label><select id="fb-f-brand">
+        <option value="">全部</option>
+        ${品牌選項.map(b=>`<option value="${b}" ${_fb篩選.brand===b?'selected':''}>${fb品牌名(b)}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>店別</label><select id="fb-f-store">
+        <option value="">全部</option>
+        ${店別選項.map(s=>`<option value="${s}" ${_fb篩選.store===s?'selected':''}>${s}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>評分</label><select id="fb-f-rating">
+        <option value="">全部</option>
+        ${[5,4,3,2,1].map(n=>`<option value="${n}" ${_fb篩選.rating===String(n)?'selected':''}>${n}星</option>`).join('')}
+      </select></div>
+      <div class="field"><label>餐點類別</label><select id="fb-f-category">
+        <option value="">全部</option>
+        ${類別選項.map(c=>`<option value="${c}" ${_fb篩選.category===c?'selected':''}>${c}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>從</label><input type="date" id="fb-f-from" value="${_fb篩選.dateFrom}"></div>
+      <div class="field"><label>到</label><input type="date" id="fb-f-to" value="${_fb篩選.dateTo}"></div>
+    </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn btn-dark" onclick="fb套用篩選()">套用篩選</button>
+      <button class="btn btn-outline" onclick="fb清除篩選()">清除篩選</button>
+      <button class="btn btn-outline" onclick="渲染顧客回饋()">🔄 重新整理</button>
+    </div>
+  </div>
+
+  <div class="dark-stats-card">
+    <div class="dark-stats-item"><div class="dark-stats-label">本日回覆</div><div class="dark-stats-value">${今日資料.length}</div></div>
+    <div class="dark-stats-item"><div class="dark-stats-label">本週回覆</div><div class="dark-stats-value">${本週資料.length}</div></div>
+    <div class="dark-stats-item"><div class="dark-stats-label">本月回覆</div><div class="dark-stats-value">${本月資料.length}</div></div>
+    <div class="dark-stats-item"><div class="dark-stats-label">篩選範圍平均評分</div><div class="dark-stats-value amber">${fb平均(data)}</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">星等分布（篩選範圍內共 ${data.length} 筆）</div>
+    ${[5,4,3,2,1].map(n=>{
+      const c = 星等分布[n]||0;
+      const pct = data.length ? Math.round(c/data.length*100) : 0;
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px">
+        <span style="width:38px;color:#c47a3a">${n}星</span>
+        <div style="flex:1;background:#f0ede6;border-radius:6px;height:14px;overflow:hidden"><div style="width:${pct}%;background:#e0a648;height:100%"></div></div>
+        <span style="width:44px;text-align:right;color:#888">${c}筆</span>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div class="g2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:0 16px 14px" >
+    <div class="card" style="margin:0">
+      <div class="card-title">各餐點類別平均評分</div>
+      ${Object.keys(類別map).length===0?'<div style="color:#bbb;font-size:13px">尚無資料</div>':
+        Object.entries(類別map).map(([c,list])=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0ede6">
+          <span>${c}</span><span style="color:#c47a3a">${fb平均(list)} 分（${list.length}筆）</span>
+        </div>`).join('')}
+    </div>
+    <div class="card" style="margin:0">
+      <div class="card-title">滿意／需改善項目統計</div>
+      ${項目排序.length===0?'<div style="color:#bbb;font-size:13px">尚無資料</div>':
+        項目排序.map(([t,c])=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0ede6">
+          <span>${t}</span><span style="color:#888">${c} 次</span>
+        </div>`).join('')}
+    </div>
+    <div class="card" style="margin:0">
+      <div class="card-title">來客來源統計</div>
+      ${來源排序.length===0?'<div style="color:#bbb;font-size:13px">尚無資料</div>':
+        來源排序.map(([s,c])=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0ede6">
+          <span>${s}</span><span style="color:#888">${c} 次</span>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#c0392b">🔴 1-2星負評紀錄（${負評列表.length}）</div>
+    ${負評列表.length===0?'<div style="color:#bbb;font-size:13px">目前沒有負評，太好了</div>':負評列表.map(r=>fb記錄卡(r,'#c0392b')).join('')}
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#c47a3a">🟡 3星需關注紀錄（${關注列表.length}）</div>
+    ${關注列表.length===0?'<div style="color:#bbb;font-size:13px">目前沒有需關注紀錄</div>':關注列表.map(r=>fb記錄卡(r,'#c47a3a')).join('')}
+  </div>
+
+  <div class="card">
+    <div class="card-title">最近文字留言（最多顯示20則）</div>
+    ${留言列表.length===0?'<div style="color:#bbb;font-size:13px">尚無文字留言</div>':留言列表.map(r=>fb記錄卡(r, r.isLowRating?'#c0392b':(r.needAttention?'#c47a3a':'#6f8c6f'))).join('')}
+  </div>
+  `;
+
+  document.getElementById('fb-f-brand').addEventListener('change',()=>{
+    _fb篩選.brand = document.getElementById('fb-f-brand').value;
+    _fb篩選.store = '';
+    fb渲染內容();
+  });
+}
+
+function fb套用篩選(){
+  _fb篩選.brand = document.getElementById('fb-f-brand').value;
+  _fb篩選.store = document.getElementById('fb-f-store').value;
+  _fb篩選.rating = document.getElementById('fb-f-rating').value;
+  _fb篩選.category = document.getElementById('fb-f-category').value;
+  _fb篩選.dateFrom = document.getElementById('fb-f-from').value;
+  _fb篩選.dateTo = document.getElementById('fb-f-to').value;
+  fb渲染內容();
+}
+function fb清除篩選(){
+  _fb篩選 = { brand:'', store:'', dateFrom:'', dateTo:'', rating:'', category:'' };
+  fb渲染內容();
 }
 
 // ===== 啟動 =====

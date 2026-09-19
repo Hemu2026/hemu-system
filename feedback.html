@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>顧客回饋</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100%}
+:root{
+  --bg:#f4f2ec; --card:#ffffff; --ink:#3a3f38; --sub:#8a9188;
+  --accent:#6f8c6f; --accent-dark:#4f6b52; --accent-soft:#e6ede4;
+  --line:#e7e4db; --danger:#c96a55; --star:#e0a648;
+}
+.wrap{max-width:480px;margin:0 auto;padding:0 0 60px}
+.hero{padding:36px 24px 22px;text-align:center}
+.hero-mark{font-family:'Zen Maru Gothic',sans-serif;font-size:13px;letter-spacing:.28em;color:var(--accent-dark);text-transform:uppercase;margin-bottom:10px}
+.hero-title{font-family:'Zen Maru Gothic',sans-serif;font-size:24px;font-weight:700;color:var(--ink);letter-spacing:.04em}
+.hero-sub{font-size:13px;color:var(--sub);margin-top:8px;line-height:1.7}
+.hero-meta{margin-top:14px;display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.meta-chip{font-size:11px;color:var(--accent-dark);background:var(--accent-soft);border-radius:20px;padding:5px 12px;letter-spacing:.02em}
+
+.card{background:var(--card);margin:0 16px 14px;border-radius:16px;padding:20px 18px;box-shadow:0 2px 10px rgba(60,70,55,.05)}
+.q-label{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.q-required{font-size:11px;color:var(--danger);font-weight:400}
+.q-optional{font-size:11px;color:var(--sub);font-weight:400}
+.q-desc{font-size:12px;color:var(--sub);margin-bottom:14px}
+
+.stars{display:flex;justify-content:center;gap:10px;padding:10px 0 4px}
+.star-btn{font-size:40px;line-height:1;background:none;border:none;cursor:pointer;color:#dcd8cc;transition:transform .15s,color .15s;padding:0}
+.star-btn.on{color:var(--star);transform:scale(1.08)}
+.star-hint{text-align:center;font-size:13px;color:var(--sub);margin-top:4px;min-height:18px}
+
+.chip-grid{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:13px;padding:10px 16px;border-radius:22px;border:1.5px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;transition:all .15s;user-select:none}
+.chip.sel{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.chip.sel.multi{background:var(--accent-dark);border-color:var(--accent-dark)}
+
+textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;font-family:inherit;resize:none;height:84px;color:var(--ink);background:#fffef9}
+textarea:focus{outline:none;border-color:var(--accent)}
+
+.submit-bar{margin:20px 16px 0}
+.btn-submit{width:100%;padding:16px;border:none;border-radius:14px;background:var(--accent-dark);color:#fff;font-size:16px;font-weight:700;font-family:inherit;letter-spacing:.06em;cursor:pointer;transition:background .2s,opacity .2s}
+.btn-submit:disabled{opacity:.5;cursor:default}
+.btn-submit:not(:disabled):active{background:var(--ink)}
+.err-msg{text-align:center;color:var(--danger);font-size:12px;margin-top:10px;min-height:16px}
+
+.done-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 28px;text-align:center}
+.done-icon{font-size:52px;margin-bottom:18px}
+.done-title{font-family:'Zen Maru Gothic',sans-serif;font-size:19px;font-weight:700;color:var(--ink);line-height:1.8}
+.done-sub{font-size:13px;color:var(--sub);margin-top:14px;line-height:1.8}
+
+.loading-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--sub);font-size:13px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ===== 品牌設定表（未來新增品牌/分店只要在這裡加一筆，不需要改判斷邏輯）=====
+const BRAND_CONFIG = {
+  b: { name:'木谷食麵所', mark:'MOGU NOODLE HOUSE', accent:'#6f8c6f', accentDark:'#4f6b52', accentSoft:'#e6ede4', bg:'#f4f2ec' },
+  a: { name:'林家涼麵', mark:'LIN CHIA NOODLE', accent:'#a87d52', accentDark:'#7a5a38', accentSoft:'#f0e6d8', bg:'#f7f2ea' },
+};
+
+const API = 'https://script.google.com/macros/s/AKfycbw-G6nMGsOQeqCTM9GgMWkzNk4bwB5ABBAEiF9ynzdQgqWWmxfe0ulgdxUnuFaK523m/exec';
+
+function 取參數(){
+  const p = new URLSearchParams(location.search);
+  return { brand: p.get('brand')||'b', store: p.get('store')||'', table: p.get('table')||'' };
+}
+const 參 = 取參數();
+const CFG = BRAND_CONFIG[參.brand] || BRAND_CONFIG.b;
+document.documentElement.style.setProperty('--accent', CFG.accent);
+document.documentElement.style.setProperty('--accent-dark', CFG.accentDark);
+document.documentElement.style.setProperty('--accent-soft', CFG.accentSoft);
+document.documentElement.style.setProperty('--bg', CFG.bg);
+document.title = CFG.name + '｜顧客回饋';
+
+const 狀態 = {
+  rating: 0,
+  category: '',
+  tags: [],
+  source: '',
+  comment: '',
+  submitting: false,
+};
+
+const CATEGORY_OPTIONS = ['乾麵','湯麵','涼麵','飯食','其他'];
+const SOURCE_OPTIONS = ['路過看到','Google','Instagram','Threads','Facebook','親友推薦','外送平台','以前就知道','其他'];
+const TAG_OPTIONS = ['味道','麵條口感','份量','環境','服務','出餐速度','其他'];
+
+function starHint(r){
+  if(r===0) return '請點選星星評分';
+  if(r<=2) return '謝謝你願意說真話，我們一定改進';
+  if(r===3) return '謝謝回饋，我們還有進步空間';
+  return '太好了，謝謝你喜歡！';
+}
+function q3Label(r){
+  return r>=4 ? '今天最喜歡哪個部分？' : '哪個部分我們可以做得更好？';
+}
+
+function render(){
+  const el = document.getElementById('app');
+  const metaChips = [
+    CFG.name,
+    参店(),
+    參.table ? `${參.table}` : ''
+  ].filter(Boolean);
+
+  el.innerHTML = `
+  <div class="wrap">
+    <div class="hero">
+      <div class="hero-mark">${CFG.mark}</div>
+      <div class="hero-title">今天吃得還好嗎？</div>
+      <div class="hero-sub">花 20 秒告訴我們，讓下一碗麵更好吃</div>
+      <div class="hero-meta">${metaChips.map(c=>`<span class="meta-chip">${c}</span>`).join('')}</div>
+    </div>
+
+    <div class="card">
+      <div class="q-label">整體來說，這次用餐你打幾分？ <span class="q-required">必填</span></div>
+      <div class="stars" id="stars"></div>
+      <div class="star-hint" id="star-hint">${starHint(狀態.rating)}</div>
+    </div>
+
+    <div class="card">
+      <div class="q-label">今天主要吃哪一類？ <span class="q-required">必填</span></div>
+      <div class="chip-grid" id="category-grid"></div>
+    </div>
+
+    <div class="card" id="q3-card" ${狀態.rating===0?'hidden':''}>
+      <div class="q-label" id="q3-label">${q3Label(狀態.rating)}</div>
+      <div class="q-desc">可複選</div>
+      <div class="chip-grid" id="tag-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="q-label">怎麼知道木谷的呢？ <span class="q-required">必填</span></div>
+      <div class="chip-grid" id="source-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="q-label">還有什麼想跟我們說的嗎？ <span class="q-optional">非必填</span></div>
+      <textarea id="comment" placeholder="想稱讚、想抱怨、想建議，都可以打在這裡..."></textarea>
+    </div>
+
+    <div class="submit-bar">
+      <button class="btn-submit" id="submit-btn">送出回饋</button>
+      <div class="err-msg" id="err-msg"></div>
+    </div>
+  </div>
+  `;
+
+  renderStars();
+  renderChips('category-grid','category',CATEGORY_OPTIONS,false);
+  renderChips('tag-grid','tags',TAG_OPTIONS,true);
+  renderChips('source-grid','source',SOURCE_OPTIONS,false);
+
+  document.getElementById('comment').value = 狀態.comment;
+  document.getElementById('comment').addEventListener('input',e=>{ 狀態.comment = e.target.value; });
+  document.getElementById('submit-btn').addEventListener('click', 送出);
+}
+
+function 参店(){
+  return 參.store || '';
+}
+
+function renderStars(){
+  const box = document.getElementById('stars');
+  box.innerHTML = '';
+  for(let i=1;i<=5;i++){
+    const b = document.createElement('button');
+    b.className = 'star-btn' + (i<=狀態.rating?' on':'');
+    b.textContent = '★';
+    b.type = 'button';
+    b.addEventListener('click',()=>{
+      狀態.rating = i;
+      document.getElementById('star-hint').textContent = starHint(i);
+      document.getElementById('q3-label').textContent = q3Label(i);
+      document.getElementById('q3-card').hidden = false;
+      renderStars();
+    });
+    box.appendChild(b);
+  }
+}
+
+function renderChips(containerId, field, options, multi){
+  const box = document.getElementById(containerId);
+  box.innerHTML = '';
+  options.forEach(opt=>{
+    const isSel = multi ? 狀態[field].includes(opt) : 狀態[field]===opt;
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (isSel?(multi?' sel multi':' sel'):'');
+    chip.textContent = opt;
+    chip.addEventListener('click',()=>{
+      if(multi){
+        const idx = 狀態[field].indexOf(opt);
+        if(idx>=0) 狀態[field].splice(idx,1); else 狀態[field].push(opt);
+      } else {
+        狀態[field] = 狀態[field]===opt ? '' : opt;
+      }
+      renderChips(containerId, field, options, multi);
+    });
+    box.appendChild(chip);
+  });
+}
+
+function 驗證(){
+  if(狀態.rating===0) return '請先點選星星評分';
+  if(!狀態.category) return '請選擇今天吃的餐點類別';
+  if(!狀態.source) return '請選擇怎麼知道木谷的';
+  return '';
+}
+
+async function 送出(){
+  const errEl = document.getElementById('err-msg');
+  const err = 驗證();
+  if(err){ errEl.textContent = err; return; }
+  errEl.textContent = '';
+  if(狀態.submitting) return;
+  狀態.submitting = true;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '送出中...';
+
+  const payload = {
+    action: 'submitFeedback',
+    brand: 參.brand,
+    store: 參.store,
+    table: 參.table,
+    rating: 狀態.rating,
+    category: 狀態.category,
+    tags: 狀態.tags,
+    source: 狀態.source,
+    comment: 狀態.comment,
+  };
+
+  try{
+    await fetch(API+'?t='+Date.now(), { method:'POST', body: JSON.stringify(payload) });
+  }catch(e){
+    // 就算網路回應解析失敗，GAS 端多半已寫入，這裡不擋顧客看到完成頁
+  }
+  renderDone();
+}
+
+function renderDone(){
+  const el = document.getElementById('app');
+  el.innerHTML = `
+  <div class="done-wrap">
+    <div class="done-icon">🍜</div>
+    <div class="done-title">謝謝你今天來吃麵，<br>每一份回饋，我們都會好好看。</div>
+    <div class="done-sub">${CFG.name}${参店()?'　'+参店():''}</div>
+  </div>`;
+}
+
+render();
+</script>
+</body>
+</html>
