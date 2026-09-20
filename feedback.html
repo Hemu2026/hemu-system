@@ -53,6 +53,8 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .done-title{font-family:'Zen Maru Gothic',sans-serif;font-size:19px;font-weight:700;color:var(--ink);line-height:1.8}
 .done-sub{font-size:13px;color:var(--sub);margin-top:14px;line-height:1.8}
 
+.btn-line{display:inline-block;margin-top:26px;padding:14px 28px;border-radius:14px;background:#06c755;color:#fff;font-size:15px;font-weight:700;font-family:inherit;text-decoration:none;letter-spacing:.03em}
+
 .loading-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--sub);font-size:13px}
 [hidden]{display:none!important}
 </style>
@@ -247,13 +249,17 @@ async function 送出(){
   renderDone();
 }
 
+// TODO: 替換成正確的木谷食麵所LINE官方帳號加好友連結（目前找不到現成連結，先用佔位符擋著，不可直接上線給顧客用）
+const MOGU_LINE_URL = 'https://line.me/R/ti/p/@TODO_替換成木谷LINE官方帳號';
+
 function renderDone(){
   const el = document.getElementById('app');
   el.innerHTML = `
   <div class="done-wrap">
     <div class="done-icon">🍜</div>
-    <div class="done-title">謝謝你今天來吃麵，<br>每一份回饋，我們都會好好看。</div>
+    <div class="done-title">謝謝你的回饋！<br>送你下次的冷泡茶一杯</div>
     <div class="done-sub">${CFG.name}${参店()?'　'+参店():''}</div>
+    <a class="btn-line" href="${MOGU_LINE_URL}" target="_blank" rel="noopener">加入木谷 LINE｜領取招待券</a>
   </div>`;
 }
 
