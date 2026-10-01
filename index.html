@@ -298,7 +298,6 @@ let 品牌設定 = {
   a:{rent:23000,pos:0,platform:500,phone:0,ads:0,utility:0,other:0,lp_rate:3,uber_rate:31},
   b:{rent:0,pos:0,platform:500,phone:0,ads:0,utility:0,other:0,lp_rate:3,uber_rate:31}
 };
-let claudeApiKey = '';
 
 function 格式化金額(v){return Math.round(v||0).toLocaleString('zh-TW')}
 function 取應交現金(r){
@@ -317,8 +316,12 @@ function 百分比(v,t){return t?((v/t)*100).toFixed(1)+'%':'—'}
 function 數值(id){return parseFloat(document.getElementById(id)?.value)||0}
 function 文字(id){return document.getElementById(id)?.value||''}
 function 固定成本(s){return(s.rent||0)+(s.platform||0)+(s.pos||0)+(s.phone||0)+(s.ads||0)+(s.utility||0)+(s.other||0)+(s.tax||0)}
-function 取得ApiKey(){return claudeApiKey||localStorage.getItem('hm_claude_key')||''}
-function 設定ApiKey(k){localStorage.setItem('hm_claude_key',k.trim())}
+// Claude 一律經由 GAS 後端代打，金鑰只存在後端，不下發到瀏覽器
+async function 呼叫Claude(max_tokens,content){
+  const res=await 呼叫API({action:'claudeProxy',max_tokens,content});
+  if(!res.content){const e=res.error;throw new Error(typeof e==='string'?e:(e?.message||'AI 呼叫失敗'));}
+  return res;
+}
 
 function 提示(訊息){
   const t=document.getElementById('toast');
@@ -401,10 +404,10 @@ function 顯示登入錯誤(訊息){
 }
 
 async function 載入品牌設定(){
+  localStorage.removeItem('hm_claude_key');
   const res=await 呼叫API({action:'getSettings'});
   if(res.ok&&res.data){
     Object.entries(res.data).forEach(([br,s])=>{品牌設定[br]=s;});
-    if(res.data?.a?.claude_api_key){claudeApiKey=res.data.a.claude_api_key;localStorage.setItem('hm_claude_key',claudeApiKey);}
   }
 }
 
@@ -737,8 +740,6 @@ function 計算表單(br){
 }
 
 async function 執行AI辨識(br){
-  const apiKey=取得ApiKey();
-  if(!apiKey){提示('請先輸入 Claude API 金鑰');return}
   const file=document.getElementById(`sc-${br}`)?.files[0];
   if(!file){提示('請先上傳照片');return}
   const statusEl=document.getElementById(`ast-${br}`);
@@ -746,16 +747,10 @@ async function 執行AI辨識(br){
   statusEl.innerHTML='<div class="ai-spinner"></div><span>AI 辨識中，請稍候...</span>';
   try{
     const base64=await 壓縮照片(file);
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:[
+    const data=await 呼叫Claude(500,[
         {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
         {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：cash(現金收入),linepay(LINE Pay 門市刷卡金額，不含線上點餐),linepay_online(LINE Pay 線上點餐金流，若無則0),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
-      ]}]})
-    });
-    if(!resp.ok){const errBody=await resp.json().catch(()=>({}));throw new Error(`API錯誤 ${resp.status}：${errBody?.error?.message||JSON.stringify(errBody)}`);}
-    const data=await resp.json();
+    ]);
     const match=data.content[0].text.match(/\{[\s\S]*\}/);
     if(!match)throw new Error('無法解析回應');
     const r=JSON.parse(match[0]);
@@ -913,8 +908,6 @@ function 計算上傳(br){
 }
 
 async function 執行員工AI辨識(br){
-  const apiKey=取得ApiKey();
-  if(!apiKey){提示('請先輸入 Claude API 金鑰');return}
   const file=document.getElementById(`sc-u${br}`)?.files[0];
   if(!file){提示('請先上傳照片');return}
   const statusEl=document.getElementById(`ast-u${br}`);
@@ -922,16 +915,10 @@ async function 執行員工AI辨識(br){
   statusEl.innerHTML='<div class="ai-spinner"></div><span>AI 辨識中，請稍候...</span>';
   try{
     const base64=await 壓縮照片(file);
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:[
+    const data=await 呼叫Claude(500,[
         {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
         {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON。欄位：cash,linepay,twpay,uber,guests,cashShould,cashActual,voidAmt,txItems。找不到設0。'}
-      ]}]})
-    });
-    if(!resp.ok){const errBody=await resp.json().catch(()=>({}));throw new Error(`API錯誤 ${resp.status}：${errBody?.error?.message||JSON.stringify(errBody)}`);}
-    const data=await resp.json();
+    ]);
     const match=data.content[0].text.match(/\{[\s\S]*\}/);
     if(!match)throw new Error('無法解析');
     const r=JSON.parse(match[0]);
@@ -2339,13 +2326,12 @@ function 渲染系統設定(){
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">固定成本設定</span></div>
   <div class="card"><div class="card-title">AI 辨識設定</div>
     <div class="field">
-      <label>Claude API 金鑰（員工登入後自動生效，無需自行輸入）</label>
-      <input type="password" id="s-apikey" placeholder="sk-ant-..." value="${取得ApiKey()}">
-      <span class="hint">在此設定一次，所有員工自動使用，無需各自輸入</span>
+      <label>Claude API 金鑰（只存在後端，畫面不會顯示）</label>
+      <input type="password" id="s-apikey" placeholder="${品牌設定.a?.has_claude_key?'已設定，要更換才需貼上新金鑰':'sk-ant-...'}" value="">
+      <span class="hint">貼上新金鑰按儲存即可更換，所有員工自動使用</span>
     </div>
     <div style="display:flex;gap:8px;margin-top:10px">
       <button class="btn btn-hq btn-sm" onclick="儲存ApiKey()">儲存 API 金鑰</button>
-      <button class="btn btn-outline btn-sm" onclick="localStorage.removeItem('hm_claude_key');claudeApiKey='';document.getElementById('s-apikey').value='';提示('✓ 已清除舊金鑰，請重新貼上新金鑰儲存')">清除舊金鑰</button>
     </div>
   </div>
   <div class="inner-tabs">
@@ -2392,7 +2378,6 @@ function 切換設定頁籤(br,btn){
 async function 儲存ApiKey(){
   const key=document.getElementById('s-apikey')?.value?.trim();
   if(!key){提示('請輸入 API 金鑰');return}
-  claudeApiKey=key;localStorage.setItem('hm_claude_key',key);
   const s=品牌設定['a']||{};
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveSettings',brand:'a',settings:{...s,claude_api_key:key,rent:s.rent,pos_fee:s.pos,platform_fee:s.platform,phone:s.phone,ads:s.ads,other:s.other,lp_rate:s.lp_rate,uber_rate:s.uber_rate}});
@@ -3652,23 +3637,15 @@ function 渲染批次佇列(){
 }
 
 async function 單張AI辨識(id){
-  const apiKey=取得ApiKey();
-  if(!apiKey){提示('請先在系統設定輸入 Claude API 金鑰');return}
   const item=_批次佇列.find(x=>x.id===id);
   if(!item)return;
   item.status='辨識中';渲染批次佇列();
   try{
     const base64=await 壓縮照片(item.file);
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,messages:[{role:'user',content:[
+    const json=await 呼叫Claude(600,[
         {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
         {type:'text',text:'從這張台灣餐廳結帳單提取數據，只回傳JSON，不要其他文字。欄位：date(日期,格式YYYY-MM-DD,找不到用今天),cash(現金收入),linepay(LINE Pay 與線上點餐金流的金額加總),twpay(台灣PAY),uber(Uber門市實收),guests(交易筆數),cashShould(錢櫃應收現金),cashActual(錢櫃實點現金),voidAmt(作廢金額),txItems(銷售數量)。找不到設0。'}
-      ]}]})
-    });
-    if(!resp.ok)throw new Error('API '+resp.status);
-    const json=await resp.json();
+    ]);
     const match=json.content[0].text.match(/\{[\s\S]*\}/);
     if(!match)throw new Error('無法解析');
     const r=JSON.parse(match[0]);
@@ -3921,11 +3898,6 @@ async function 渲染成本表(){
 
 // ===== AI 生成 SOP =====
 async function aiGenSOP(type,btn){
-  let key=取得ApiKey();
-  if(!key){
-    alert('請先到「系統設定」→「Claude API 金鑰」填入 API Key。');
-    return;
-  }
   const qtyStr=window.prompt(`生成 SOP 的製作數量是幾份？\n（例如：1桶麻醬=16份，4桶=64份）`,'1');
   if(qtyStr===null)return;
   const qty=+qtyStr||1;
@@ -3979,30 +3951,9 @@ ${recipe.join('\n')}
 - 不要有「文件資訊」「版本號」等欄位，直接從內容開始`;
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key':key,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
-      },
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',
-        max_tokens:1500,
-        messages:[{role:'user',content:aiPrompt}]
-      })
-    });
-    const data=await res.json();
-    if(data.error){
-      if(data.error.type==='authentication_error'){
-        localStorage.removeItem('hm_claude_key');
-        alert('API Key 無效，請到「系統設定」重新填入。');
-      } else {
-        alert('錯誤：'+data.error.message);
-      }
-      return;
-    }
+    let data;
+    try{data=await 呼叫Claude(1500,aiPrompt);}
+    catch(e){alert('錯誤：'+e.message);return;}
     const text=data.content?.[0]?.text||'';
     if(text){
       if(textarea.value&&!confirm('目前已有內容，確定要用 AI 生成的草稿覆蓋嗎？'))return;
@@ -4998,24 +4949,16 @@ function 更新進貨合計(){
 }
 
 async function 執行進貨AI辨識(){
-  const apiKey=取得ApiKey();
-  if(!apiKey){提示('請先設定 Claude API 金鑰');return;}
   const file=document.getElementById('pr-photo')?.files[0];
   if(!file){提示('請先上傳照片');return;}
   const statusEl=document.getElementById('pr-ai-status');
   statusEl.innerHTML='<div style="color:#888;font-size:13px;padding:.5rem 0">⏳ AI 辨識中，請稍候...</div>';
   try{
     const base64=await 壓縮照片(file);
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,messages:[{role:'user',content:[
+    const data=await 呼叫Claude(1000,[
         {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
         {type:'text',text:'這是一張台灣餐廳的食材進貨單，請辨識所有品項並只回傳JSON陣列，格式：[{"name":"品項名稱","qty":數量,"unit":"單位","amount":金額},...]。找不到的欄位設空字串或0。只回傳JSON不要其他文字。'}
-      ]}]})
-    });
-    if(!resp.ok)throw new Error(`API錯誤 ${resp.status}`);
-    const data=await resp.json();
+    ]);
     const match=data.content[0].text.match(/\[[\s\S]*\]/);
     if(!match)throw new Error('無法解析回應');
     const items=JSON.parse(match[0]);
