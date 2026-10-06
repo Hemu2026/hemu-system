@@ -421,8 +421,11 @@ function 顯示主介面(){
   建立導覽列(role,brand);
   建立頁面(role,brand);
   const 預設頁面=role==='staff'?`上傳-${brand}`:role==='sauce'?`內部訂購-${brand}`:role==='manager'?`每日-${brand}`:`每日-a`;
+  // 網址帶 #頁面（例如 #請假-a）就直接開該頁，方便傳連結給員工
+  const 網址頁面=decodeURIComponent(location.hash.slice(1));
   const 上次頁面=localStorage.getItem('hm_last_page');
-  切換頁面(上次頁面&&document.getElementById('page-'+上次頁面)?上次頁面:預設頁面);
+  const 開啟頁面=[網址頁面,上次頁面].find(p=>p&&document.getElementById('page-'+p));
+  切換頁面(開啟頁面||預設頁面);
 }
 
 // ===== 導覽列 =====
