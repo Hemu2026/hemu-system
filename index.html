@@ -433,6 +433,7 @@ function 建立導覽列(role,brand){
     html+=`<div class="nav-group">
       <div class="nav-group-label">${品牌名稱[brand]}</div>
       <div class="nav-item" data-page="內部訂購-${brand}"><span class="nav-dot dot-${brand}"></span>內部訂購</div>
+      <div class="nav-item" data-page="請假-${brand}"><span class="nav-dot dot-${brand}"></span>請假單</div>
     </div>`;
   } else if(role==='staff'){
     html+=`<div class="nav-group">
@@ -440,6 +441,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="上傳-${brand}"><span class="nav-dot dot-${brand}"></span>上傳結帳單</div>
       <div class="nav-item" data-page="確認-${brand}"><span class="nav-dot dot-${brand}"></span>今日確認</div>
       <div class="nav-item" data-page="內部訂購-${brand}"><span class="nav-dot dot-${brand}"></span>內部訂購</div>
+      <div class="nav-item" data-page="請假-${brand}"><span class="nav-dot dot-${brand}"></span>請假單</div>
     </div>
     <div class="nav-group">
       <div class="nav-group-label">央廚</div>
@@ -454,6 +456,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="歷史-${brand}"><span class="nav-dot dot-${brand}"></span>歷史記錄</div>
       <div class="nav-item" data-page="月報-${brand}"><span class="nav-dot dot-${brand}"></span>月報表</div>
       <div class="nav-item" data-page="內部訂購-${brand}"><span class="nav-dot dot-${brand}"></span>內部訂購</div>
+      <div class="nav-item" data-page="請假-${brand}"><span class="nav-dot dot-${brand}"></span>請假單</div>
     </div>
     <div class="nav-group">
       <div class="nav-group-label">央廚</div>
@@ -472,6 +475,7 @@ function 建立導覽列(role,brand){
         <div class="nav-item" data-page="歷史-${br}"><span class="nav-dot dot-${br}"></span>歷史記錄</div>
         <div class="nav-item" data-page="月報-${br}"><span class="nav-dot dot-${br}"></span>月報表</div>
         <div class="nav-item" data-page="薪資-${br}"><span class="nav-dot dot-${br}"></span>員工薪資</div>
+        <div class="nav-item" data-page="請假-${br}"><span class="nav-dot dot-${br}"></span>請假單</div>
         <div class="nav-item" data-page="內部訂購-${br}"><span class="nav-dot dot-${br}"></span>內部訂購</div>
         <div class="nav-item" data-page="菜單成本-${br}"><span class="nav-dot dot-${br}"></span>門市成本表</div>
         <div class="nav-item" data-page="營養標示-${br}"><span class="nav-dot dot-${br}"></span>營養標示</div>
@@ -512,13 +516,13 @@ function 建立頁面(role,brand){
   const main=document.getElementById('main-content');
   let pages=[];
   if(role==='sauce'){
-    pages=[`內部訂購-${brand}`];
+    pages=[`內部訂購-${brand}`,`請假-${brand}`];
   } else if(role==='staff'){
-    pages=[`上傳-${brand}`,`確認-${brand}`,`內部訂購-${brand}`,'進貨申報','生產紀錄','批次成本紀錄'];
+    pages=[`上傳-${brand}`,`確認-${brand}`,`內部訂購-${brand}`,`請假-${brand}`,'進貨申報','生產紀錄','批次成本紀錄'];
   } else if(role==='manager'){
-    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,'進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄','顧客回饋'];
+    pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,`請假-${brand}`,'進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄','顧客回饋'];
   } else {
-    ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`內部訂購-${br}`,`菜單成本-${br}`,`營養標示-${br}`));
+    ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`請假-${br}`,`內部訂購-${br}`,`菜單成本-${br}`,`營養標示-${br}`));
     pages.push('改善追蹤','顧客回饋','總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
@@ -579,6 +583,7 @@ function 切換頁面(page){
   else if(page==='商品管理')渲染商品管理();
   else if(page==='成本表')渲染成本表();
   else if(page.startsWith('內部訂購-'))渲染內部訂購(br);
+  else if(page.startsWith('請假-'))渲染請假頁(br);
   else if(page.startsWith('菜單成本-'))渲染門市成本表(br);
   else if(page.startsWith('營養標示-'))渲染營養標示(br);
   else if(page==='數據分析')渲染數據分析();
@@ -1956,12 +1961,13 @@ async function 帶入員工資料(br,id,profiles){
   const leaveRes=await 呼叫API({action:'getLeaveRecords',brand:br,month});
   const leaves=(leaveRes.data||[]).filter(l=>l.name===p.name&&!l.payrollProcessed);
   if(leaves.length){
-    const days=leaves.length;
+    const days=leaves.reduce((t,l)=>t+(+l.days||1),0);
+    const deductDays=leaves.reduce((t,l)=>t+(+l.days||1)*(假別扣薪比例[l.leaveType]??1),0);
     const daysInMonth=new Date(+month.slice(0,4),+month.slice(5,7),0).getDate();
     const dailyRate=Math.round((p.base||0)/daysInMonth);
-    const suggested=dailyRate*days;
+    const suggested=Math.round(dailyRate*deductDays);
     if(s('absent'))s('absent').value=suggested;
-    提示(`✓ ${p.name} 本月請假 ${days} 天（${leaves.map(l=>l.date).join('、')}），已自動帶入建議扣款 $${格式化金額(suggested)}，請確認`);
+    提示(`✓ ${p.name} 本月請假 ${days} 天（${leaves.map(l=>`${簡短日期(l.date)}${l.leaveType}${+l.days===0.5?'半天':''}`).join('、')}），已自動帶入建議扣款 $${格式化金額(suggested)}，請確認`);
   }
 }
 
@@ -4291,6 +4297,120 @@ async function 刪除內部訂購(br,id){
   載入中(false);
   提示('已刪除');
   渲染內部訂購(br);
+}
+
+// ===== 請假單（寫入「請假紀錄」，薪資頁依假別自動試算缺勤扣款） =====
+const 假別清單=['事假','病假','特休','生理假','婚假','喪假','公假','家庭照顧假','其他'];
+// 扣薪比例：1=全扣、0.5=半薪、0=不扣（僅供薪資頁試算建議值，可手動覆蓋）
+const 假別扣薪比例={事假:1,病假:0.5,特休:0,生理假:0.5,婚假:0,喪假:0,公假:0,家庭照顧假:1,其他:1};
+const _請假年份={};
+function 轉義HTML(t){return String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+async function 渲染請假頁(br){
+  const el=document.getElementById(`page-請假-${br}`);
+  const header=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">請假單</span></div>`;
+  el.innerHTML=header+`<div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  const thisYear=今日日期().slice(0,4);
+  const year=_請假年份[br]||thisYear;
+  const [resS,resL]=await Promise.all([
+    呼叫API({action:'getStaffNames',brand:br}),
+    呼叫API({action:'getLeaveRecords',brand:br,year})
+  ]);
+  const names=[...new Set((resS.data||[]).map(p=>p.name).filter(Boolean))];
+  const leaves=(resL.data||[]).sort((a,b)=>b.date.localeCompare(a.date));
+  const me=目前使用者?.name||'';
+  const 預設員工=names.find(n=>me&&(n===me||n.includes(me)||me.includes(n)))||'';
+  const isOwner=目前使用者?.role==='owner';
+  const today=今日日期();
+
+  // 年度統計：員工 × 假別
+  const stat={};
+  leaves.forEach(l=>{
+    stat[l.name]=stat[l.name]||{};
+    stat[l.name][l.leaveType]=(stat[l.name][l.leaveType]||0)+(+l.days||1);
+  });
+  const usedTypes=假別清單.filter(t=>leaves.some(l=>l.leaveType===t));
+  const 天數=v=>v?String(v):'—';
+  const statRows=Object.keys(stat).sort().map(n=>{
+    const total=Object.values(stat[n]).reduce((a,b)=>a+b,0);
+    return `<tr><td style="font-weight:600">${轉義HTML(n)}</td>${usedTypes.map(t=>`<td>${天數(stat[n][t])}</td>`).join('')}<td style="font-weight:700">${total}</td></tr>`;
+  }).join('');
+  const 星期=d=>'日一二三四五六'[new Date(d+'T00:00:00').getDay()];
+
+  el.innerHTML=header+`
+  <div class="card">
+    <div class="card-title">📝 填寫請假單</div>
+    <div class="g2">
+      <div class="field"><label>員工</label><select id="lv-name-${br}">
+        <option value="">請選擇</option>
+        ${names.map(n=>`<option${n===預設員工?' selected':''}>${轉義HTML(n)}</option>`).join('')}
+      </select></div>
+      <div class="field"><label>假別</label><select id="lv-type-${br}">${假別清單.map(t=>`<option>${t}</option>`).join('')}</select></div>
+      <div class="field"><label>開始日期</label><input type="date" id="lv-start-${br}" value="${today}" onchange="請假日期連動('${br}')"></div>
+      <div class="field"><label>結束日期</label><input type="date" id="lv-end-${br}" value="${today}"></div>
+      <div class="field"><label>時數</label><select id="lv-days-${br}" onchange="請假日期連動('${br}')"><option value="1">全天</option><option value="0.5">半天</option></select></div>
+      <div class="field"><label>原因（選填）</label><input type="text" id="lv-reason-${br}" placeholder="例如：看醫生"></div>
+    </div>
+    <button class="btn btn-${br} btn-full" style="margin-top:1rem" onclick="送出請假單('${br}')">送出請假單</button>
+  </div>
+  <div class="card">
+    <div class="btn-row" style="justify-content:space-between;margin-bottom:.5rem">
+      <div class="card-title" style="margin:0">📊 ${year} 年請假統計（天）</div>
+      <select class="inner-tab" onchange="_請假年份['${br}']=this.value;渲染請假頁('${br}')">
+        ${[0,1,2].map(i=>String(+thisYear-i)).map(y=>`<option${y===year?' selected':''}>${y}</option>`).join('')}
+      </select>
+    </div>
+    ${statRows?`<div class="table-wrap"><table><thead><tr><th>員工</th>${usedTypes.map(t=>`<th>${t}</th>`).join('')}<th>合計</th></tr></thead><tbody>${statRows}</tbody></table></div>`
+      :'<div style="color:#aaa;text-align:center;padding:1rem">這一年還沒有請假紀錄</div>'}
+  </div>
+  <div class="card">
+    <div class="card-title">📋 ${year} 年請假明細</div>
+    ${leaves.length?`<div class="table-wrap"><table><thead><tr><th>日期</th><th>員工</th><th>假別</th><th>天數</th><th>原因</th><th>薪資</th><th></th></tr></thead><tbody>
+      ${leaves.map(l=>`<tr>
+        <td>${簡短日期(l.date)}（${星期(l.date)}）</td>
+        <td>${轉義HTML(l.name)}</td>
+        <td>${轉義HTML(l.leaveType)}</td>
+        <td>${+l.days===0.5?'半天':'1'}</td>
+        <td style="white-space:normal;color:#888">${轉義HTML(l.reason)}</td>
+        <td>${l.payrollProcessed?'<span style="color:#27ae60">已計入</span>':'<span style="color:#bbb">未計入</span>'}</td>
+        <td>${!l.payrollProcessed||isOwner?`<button class="btn btn-danger btn-sm" onclick="刪除請假紀錄('${br}','${l.id}',${l.payrollProcessed})">刪除</button>`:''}</td>
+      </tr>`).join('')}
+    </tbody></table></div>`:'<div style="color:#aaa;text-align:center;padding:1rem">尚無紀錄</div>'}
+  </div>`;
+}
+
+function 請假日期連動(br){
+  const half=文字(`lv-days-${br}`)==='0.5';
+  const start=document.getElementById(`lv-start-${br}`),end=document.getElementById(`lv-end-${br}`);
+  if(half||end.value<start.value)end.value=start.value;
+  end.disabled=half;
+}
+
+async function 送出請假單(br){
+  const name=文字(`lv-name-${br}`);
+  if(!name){提示('請選擇員工');return}
+  const startDate=文字(`lv-start-${br}`),endDate=文字(`lv-end-${br}`)||startDate;
+  if(!startDate){提示('請選擇日期');return}
+  if(endDate<startDate){提示('結束日期不能早於開始日期');return}
+  const leaveType=文字(`lv-type-${br}`),days=+文字(`lv-days-${br}`);
+  載入中(true,'送出中...');
+  const res=await 呼叫API({action:'saveLeaveRequest',brand:br,name,leaveType,startDate,endDate,days,
+    reason:文字(`lv-reason-${br}`),createdBy:目前使用者?.name||''});
+  載入中(false);
+  if(!res.ok){提示('送出失敗：'+res.error);return}
+  提示(`✓ ${name} ${leaveType} 共 ${res.count*days} 天已登記`);
+  _請假年份[br]=startDate.slice(0,4);
+  渲染請假頁(br);
+}
+
+async function 刪除請假紀錄(br,id,processed){
+  if(!confirm(processed?'這筆已經算進薪資，刪除後不會自動改薪資，確定刪除？':'確定刪除這筆請假紀錄？'))return;
+  載入中(true);
+  const res=await 呼叫API({action:'deleteLeaveRecord',id,force:processed});
+  載入中(false);
+  if(!res.ok){提示('刪除失敗：'+res.error);return}
+  提示('已刪除');
+  渲染請假頁(br);
 }
 
 // ===== 門市菜單成本表（賣給顧客的餐點，跟供內部訂購/批發用的「商品」分開） =====
