@@ -1993,9 +1993,14 @@ async function 新增員工(br){
 async function 載入薪資(br){
   const month=文字(`pmon-${br}`)||new Date().toISOString().slice(0,7);
   載入中(true);
-  const res=await 呼叫API({action:'getPayroll',brand:br,month});
+  const [res,resSign]=await Promise.all([
+    呼叫API({action:'getPayroll',brand:br,month}),
+    呼叫API({action:'getPayslipSigns',brand:br,month})
+  ]);
   載入中(false);
   const emps=res.data||[];
+  const signs={};(resSign.data||[]).forEach(x=>signs[x.employee_name]=x);
+  emps.forEach(e=>e._sign=signs[e.employee_name]);
   const listEl=document.getElementById(`plist-${br}`);
   const sumEl=document.getElementById(`psum-${br}`);
   window[`_emps_${br}`]={br,month,emps};
@@ -2012,6 +2017,7 @@ async function 載入薪資(br){
           <div class="emp-net">$${格式化金額(net)}</div>
           <div style="font-size:11px;color:#aaa">實發金額</div>
           <div style="font-size:11px;margin-top:2px;color:${e.paidAt?'#27ae60':'#e67e22'}">${e.paidAt?'✓ 已扣款 '+e.paidAt:'未發放'}</div>
+          ${簽收狀態HTML(e,net)}
         </div>
       </div>
       <div class="g4" style="font-size:13px;gap:8px">
@@ -2026,6 +2032,8 @@ async function 載入薪資(br){
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         ${e.paidAt?'':`<button class="btn btn-hq btn-sm" onclick="個人發薪('${br}','${e.id}','${e.employee_name}',${net})">發薪（扣$${格式化金額(net)}）</button>`}
         <button class="btn btn-outline btn-sm" onclick="列印單人薪資條('${br}','${month}','${e.id}')">列印薪資條</button>
+        <button class="btn btn-outline btn-sm" onclick="複製簽收連結('${br}','${e.id}')">📎 複製簽收連結</button>
+        ${e._sign?.signedAt&&簽收後金額變動(e,net)?`<button class="btn btn-outline btn-sm" onclick="清除簽收('${br}','${e.id}')">請員工重簽</button>`:''}
         <button class="btn btn-${br} btn-sm" onclick="展開編輯薪資('${br}','${e.id}')">編輯</button>
         <button class="btn btn-danger btn-sm" onclick="刪除員工('${e.id}','${br}')">刪除</button>
       </div>
@@ -2140,10 +2148,43 @@ function 建立薪資條(e,ym,品牌,isCompanyCopy){
     ${e.note?`<div class="slip-footer">備註：${e.note}</div>`:''}
     <div class="slip-footer">「本人已確認上述薪資計算明細及工時紀錄無誤，並已收訖款項。」</div>
     ${isCompanyCopy?`<div class="slip-sign">
-      <div><div style="color:#888">員工簽名確認</div><div class="slip-sign-line"></div></div>
+      <div><div style="color:#888">員工簽名確認</div>${e._sign?.signedAt
+        ?`<img src="${e._sign.signature}" style="height:40px;display:block;margin-top:2px"><div style="font-size:10px;color:#888">線上簽收 ${簽收時間(e._sign.signedAt)}</div>`
+        :'<div class="slip-sign-line"></div>'}</div>
       <div><div style="color:#888">主管核准</div><div class="slip-sign-line"></div></div>
     </div>`:``}
   </div>`;
+}
+
+function 簽收時間(iso){const d=new Date(iso);return`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
+function 簽收後金額變動(e,net){return e._sign?.signedAt&&Math.round(+e._sign.netAtSign)!==Math.round(net)}
+function 簽收狀態HTML(e,net){
+  if(!e._sign?.signedAt)return`<div style="font-size:11px;margin-top:2px;color:#aaa">${e._sign?'未簽收（已產生連結）':'未簽收'}</div>`;
+  if(簽收後金額變動(e,net))return`<div style="font-size:11px;margin-top:2px;color:#c0392b">⚠ 簽收後金額有改（簽收時 $${格式化金額(e._sign.netAtSign)}）</div>`;
+  return`<div style="font-size:11px;margin-top:2px;color:#27ae60">✓ 已簽收 ${簽收時間(e._sign.signedAt)}</div>`;
+}
+async function 複製簽收連結(br,id){
+  const d=window[`_emps_${br}`];
+  const e=d?.emps?.find(x=>x.id===id);if(!e)return;
+  載入中(true,'產生連結中...');
+  const res=await 呼叫API({action:'getPayslipLink',brand:br,month:d.month,employee_name:e.employee_name});
+  載入中(false);
+  if(!res.ok){提示('產生失敗：'+res.error);return}
+  const url=new URL('sign.html?t='+res.token,location.href).href;
+  const msg=`${e.employee_name} 您好，這是您 ${d.month} 的薪資條，請點開確認後簽名：\n${url}`;
+  try{await navigator.clipboard.writeText(msg);提示(`✓ 已複製 ${e.employee_name} 的簽收連結，請用 LINE 私訊給本人`);}
+  catch(err){prompt('請複製以下內容，用 LINE 私訊給本人：',msg);}
+  if(!e._sign)載入薪資(br);
+}
+async function 清除簽收(br,id){
+  const d=window[`_emps_${br}`];
+  const e=d?.emps?.find(x=>x.id===id);if(!e)return;
+  if(!confirm(`清除 ${e.employee_name} 的簽名，請他用同一個連結重新簽收？`))return;
+  載入中(true);
+  const res=await 呼叫API({action:'resetPayslipSign',brand:br,month:d.month,employee_name:e.employee_name});
+  載入中(false);
+  if(!res.ok){提示('失敗：'+res.error);return}
+  提示('✓ 已清除，請通知員工重新簽收');載入薪資(br);
 }
 
 function 列印單人薪資條(br,month,id){

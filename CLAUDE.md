@@ -58,6 +58,7 @@ git push origin main
 | 月份成本 | 每月可調整的變動費用（電話/廣告/水電/其他/營業稅） |
 | 促銷試算 | F1 平台利潤極大化專員的輸入輸出表，欄位見下方 F1 章節 |
 | 請假紀錄 | 請假登記表，欄位 `id, name, date, brand, registeredAt, payrollProcessed, leaveType, days, reason, createdBy`（一天一列，days=1或0.5），由網頁「請假單」頁或 LINE「姓名 日期 假別」（如「小美 7/15 病假」，只打「請假」視為事假）寫入；`date` 被 Sheet 存成 Date 型別，讀取一律經 `leaveDateStr_()` 正規化。`savePayroll` 存檔後自動標記該員工當月紀錄為已核發 |
+| 薪資簽收 | 薪資條線上簽收（`sign.html?t=token`），欄位 `token, brand, month, employee_name, createdAt, signedAt, signature, netAtSign, snapshot`。用 brand+month+員工姓名 對應「薪資」（編輯薪資會刪掉重建、id 會變，所以不用薪資 id）；簽收時把當下薪資存成 snapshot、簽名存 PNG base64（<49000 字元）。薪資頁比對 netAtSign 跟目前實發，不同就提示「簽收後金額有改」，老闆可按「請員工重簽」清除簽名（連結不變）。簽收成功會 LINE 推播老闆 |
 | 林家涼麵 / 木谷食麵所 | 「每日記錄」的 FILTER 分頁，自動篩出對應品牌資料，唯讀用途 |
 
 ## 紅線規則

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex">
+<title>薪資條簽收</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--bg:#f2efe9;--card:#fff;--ink:#2f2d2a;--sub:#8b867e;--line:#e6e1d8;--accent:#7a6455;--ok:#4f7a57;--danger:#b5533c}
+body{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+.wrap{max-width:480px;margin:0 auto;padding:28px 16px 48px}
+.co{font-size:12px;color:var(--sub);letter-spacing:.12em;text-align:center}
+h1{font-size:22px;font-weight:700;text-align:center;margin:6px 0 20px}
+.card{background:var(--card);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.info{display:flex;justify-content:space-between;font-size:14px;margin-bottom:12px}
+.info span{color:var(--sub)}
+.row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row .minus{color:var(--danger)}
+.sec{font-size:11px;color:var(--sub);font-weight:700;letter-spacing:.1em;margin:12px 0 2px}
+.sec:first-child{margin-top:0}
+.net{display:flex;justify-content:space-between;align-items:baseline;padding-top:12px;margin-top:6px;border-top:2px solid var(--ink);font-weight:700}
+.net b{font-size:26px}
+.note{font-size:13px;color:var(--sub);margin-top:10px}
+.stmt{font-size:13px;line-height:1.7;color:var(--ink);margin-bottom:12px}
+.pad-wrap{position:relative;border:1.5px dashed #c9c2b6;border-radius:12px;background:#fdfcf9;height:180px;touch-action:none}
+.pad-wrap canvas{width:100%;height:100%;display:block}
+.pad-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#c2bbaf;font-size:14px;pointer-events:none}
+.btns{display:flex;gap:10px;margin-top:12px}
+button{font-family:inherit;font-size:15px;font-weight:700;border-radius:12px;padding:14px;cursor:pointer;border:none}
+.btn-clear{background:none;border:1.5px solid var(--line);color:var(--sub);flex:0 0 96px}
+.btn-sign{background:var(--accent);color:#fff;flex:1}
+.btn-sign:disabled{opacity:.45}
+.err{color:var(--danger);font-size:13px;text-align:center;margin-top:10px;min-height:18px}
+.done{text-align:center;color:var(--ok);font-weight:700;font-size:16px;margin-bottom:10px}
+.sig-img{display:block;max-width:100%;height:90px;margin:6px auto 4px;object-fit:contain}
+.sig-time{text-align:center;font-size:12px;color:var(--sub)}
+.center{text-align:center;color:var(--sub);padding:80px 20px;font-size:14px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="center">載入中...</div></div>
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbw-G6nMGsOQeqCTM9GgMWkzNk4bwB5ABBAEiF9ynzdQgqWWmxfe0ulgdxUnuFaK523m/exec';
+const 品牌名稱 = {a:'林家涼麵', b:'木谷食麵所'};
+const token = new URLSearchParams(location.search).get('t') || '';
+const app = document.getElementById('app');
+
+function 金額(v){return Math.round(+v||0).toLocaleString('zh-TW')}
+function 轉義(t){return String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function 時間(iso){const d=new Date(iso);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
+async function 呼叫API(p){
+  const res = await fetch(API+'?t='+Date.now(), {method:'POST', body:JSON.stringify(p)});
+  return res.json();
+}
+
+function 薪資條HTML(d){
+  const s = d.slip, [yy,mm] = d.month.split('-');
+  const net = (+s.base||0)+(+s.overtime||0)+(+s.bonus||0)-(+s.absent||0)-(+s.nhi_emp||0);
+  return `
+  <div class="co">${品牌名稱[d.brand]||''}（富郁霖企業社）</div>
+  <h1>${yy} 年 ${+mm} 月薪資明細</h1>
+  <div class="card">
+    <div class="info"><div><span>姓名　</span>${轉義(s.employee_name)}</div><div><span>職位　</span>${轉義(s.role)}</div></div>
+    <div class="sec">應發</div>
+    <div class="row"><span>本薪</span><span>$${金額(s.base)}</span></div>
+    <div class="row"><span>加班費</span><span>$${金額(s.overtime)}</span></div>
+    <div class="row"><span>獎金</span><span>$${金額(s.bonus)}</span></div>
+    <div class="sec">應扣</div>
+    <div class="row"><span>缺勤扣款</span><span class="minus">-$${金額(s.absent)}</span></div>
+    <div class="row"><span>勞健保自付</span><span class="minus">-$${金額(s.nhi_emp)}</span></div>
+    <div class="net"><span>實發金額</span><b>$${金額(net)}</b></div>
+    ${s.note?`<div class="note">備註：${轉義(s.note)}</div>`:''}
+  </div>`;
+}
+
+async function 載入(){
+  if(!token){app.innerHTML='<div class="center">連結不完整，請跟老闆確認</div>';return}
+  let d;
+  try{ d = await 呼叫API({action:'getPayslipByToken', token}); }
+  catch(e){ app.innerHTML='<div class="center">網路連線失敗，請重新整理再試</div>'; return; }
+  if(!d.ok){app.innerHTML=`<div class="center">${轉義(d.error)}</div>`;return}
+  if(d.signedAt){ 顯示已簽(d); return; }
+  app.innerHTML = 薪資條HTML(d) + `
+  <div class="card">
+    <div class="stmt">本人已確認上述薪資計算明細及工時紀錄無誤，並已收訖款項。</div>
+    <div class="pad-wrap"><canvas id="pad"></canvas><div class="pad-hint" id="hint">請在這裡用手指簽名</div></div>
+    <div class="btns">
+      <button class="btn-clear" onclick="清除()">清除</button>
+      <button class="btn-sign" id="btn-sign" disabled onclick="送出()">確認簽收</button>
+    </div>
+    <div class="err" id="err"></div>
+  </div>`;
+  初始化簽名板();
+  window._data = d;
+}
+
+function 顯示已簽(d){
+  app.innerHTML = 薪資條HTML(d) + `
+  <div class="card">
+    <div class="done">✓ 已簽收</div>
+    <img class="sig-img" src="${d.signature}" alt="簽名">
+    <div class="sig-time">簽收時間：${時間(d.signedAt)}</div>
+  </div>`;
+}
+
+let ctx, canvas, 有筆跡=false;
+function 初始化簽名板(){
+  canvas = document.getElementById('pad');
+  const dpr = window.devicePixelRatio || 1;
+  const r = canvas.getBoundingClientRect();
+  canvas.width = r.width*dpr; canvas.height = r.height*dpr;
+  ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1d1b19';
+  let drawing=false, last=null;
+  const pos = e => { const b=canvas.getBoundingClientRect(); return {x:e.clientX-b.left, y:e.clientY-b.top}; };
+  canvas.addEventListener('pointerdown', e => { drawing=true; last=pos(e); canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => {
+    if(!drawing) return;
+    const p = pos(e);
+    ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+    last = p;
+    if(!有筆跡){ 有筆跡=true; document.getElementById('hint').style.display='none'; document.getElementById('btn-sign').disabled=false; }
+  });
+  const end = () => { drawing=false; };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+}
+
+function 清除(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  有筆跡=false;
+  document.getElementById('hint').style.display='';
+  document.getElementById('btn-sign').disabled=true;
+}
+
+// 簽名縮小成固定尺寸再存，控制在試算表儲存格的容量內
+function 匯出簽名(){
+  const out = document.createElement('canvas');
+  out.width = 360; out.height = 135;
+  out.getContext('2d').drawImage(canvas, 0, 0, out.width, out.height);
+  return out.toDataURL('image/png');
+}
+
+async function 送出(){
+  const btn = document.getElementById('btn-sign'), err = document.getElementById('err');
+  btn.disabled = true; btn.textContent = '送出中...'; err.textContent = '';
+  try{
+    const signature = 匯出簽名();
+    const res = await 呼叫API({action:'signPayslip', token, signature});
+    if(!res.ok) throw new Error(res.error);
+    顯示已簽({...window._data, signedAt: res.signedAt, signature});
+  }catch(e){
+    err.textContent = '送出失敗：' + (e.message || '請再試一次');
+    btn.disabled = false; btn.textContent = '確認簽收';
+  }
+}
+
+載入();
+</script>
+</body>
+</html>
