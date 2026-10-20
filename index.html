@@ -2464,6 +2464,116 @@ async function 儲存月份成本(br){
 }
 
 // ===== 資金管理 =====
+// ===== 車貸周轉金（老闆個人名義汽車增貸，2026-10 起）=====
+// 老闆帳戶不算公司資金：老闆貸款戶＝個人戶頭裡的貸款資金池，股票帳戶＝用貸款投資的部分
+const 公司帳戶=['富郁霖卡','南閩卡','公司現金','央廚備用金'];
+const 老闆帳戶=['老闆貸款戶','股票帳戶'];
+// 台新大安租賃：貸款總額＝實際入帳 745,545 ＋ 清償原車貸 249,055；年利率由月付反推
+const 車貸設定={本金:994600,年利率:0.0669,期數:72,首期:'2026-11-07',月付:16810,原車貸:249055};
+
+function 車貸還款進度(today){
+  const r=車貸設定.年利率/12;
+  const [y,m,d]=車貸設定.首期.split('-').map(Number);
+  const fmt=dt=>`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  let 已繳=0;
+  while(已繳<車貸設定.期數&&fmt(new Date(y,m-1+已繳,d))<=today)已繳++;
+  let 本金餘額=車貸設定.本金;
+  for(let k=0;k<已繳;k++)本金餘額-=車貸設定.月付-本金餘額*r;
+  本金餘額=Math.max(0,本金餘額);
+  if(已繳>=車貸設定.期數)return{已繳,本金餘額:0,下期:null};
+  const 利息=本金餘額*r;
+  return{已繳,本金餘額,下期:{期:已繳+1,日期:fmt(new Date(y,m-1+已繳,d)),利息,本金:Math.min(本金餘額,車貸設定.月付-利息)}};
+}
+
+function 渲染車貸周轉金卡(sorted,餘額,公司總資金,正規化帳戶){
+  const 進度=車貸還款進度(今日日期());
+  // 從轉帳流水算三個桶
+  let 撥公司=0,公司還=0,投股=0,股回=0,股票快照日='';
+  sorted.forEach(r=>{
+    const acc=正規化帳戶(r.account),to=正規化帳戶(r.toAccount),amt=+r.amount||0;
+    if(r.type==='快照'&&acc==='股票帳戶')股票快照日=格式化日期(r.date);
+    if(r.type!=='轉帳')return;
+    if(acc==='老闆貸款戶'&&公司帳戶.includes(to))撥公司+=amt;
+    if(公司帳戶.includes(acc)&&to==='老闆貸款戶')公司還+=amt;
+    if(acc==='老闆貸款戶'&&to==='股票帳戶')投股+=amt;
+    if(acc==='股票帳戶'&&to==='老闆貸款戶')股回+=amt;
+  });
+  const 未動用=餘額['老闆貸款戶']||0;
+  const 公司欠款=撥公司-公司還;
+  const 股票投入=投股-股回;
+  const 股票市值=餘額['股票帳戶']||0;
+  const 股票損益=股票市值-股票投入;
+
+  // 本期月付與利息，依各桶金額比例分攤（原車貸部分按原始占比隨本金攤還遞減）
+  const 個人部分=進度.本金餘額*車貸設定.原車貸/車貸設定.本金;
+  const 桶=[['公司周轉',公司欠款],['股票投資',股票投入],['未動用（閒置）',未動用],['個人原車貸',個人部分]].map(([n,v])=>[n,Math.max(0,v)]);
+  const 桶合計=桶.reduce((s,[,v])=>s+v,0);
+  const 分攤列=進度.下期&&桶合計>0?桶.map(([n,v])=>{
+    const p=v/桶合計;
+    return`<tr><td>${n}</td><td>$${格式化金額(v)}</td><td>${(p*100).toFixed(1)}%</td><td>$${格式化金額(進度.下期.利息*p)}</td><td>$${格式化金額(車貸設定.月付*p)}</td></tr>`;
+  }).join(''):'';
+
+  // 現金跑道：近 3 個完整月份公司帳戶的收支淨額（不含快照/轉帳），再加上車貸月付
+  const 今=new Date();
+  const 月份=[3,2,1].map(k=>{const dt=new Date(今.getFullYear(),今.getMonth()-k,1);return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;});
+  const 月淨額=月份.map(ym=>sorted.reduce((s,r)=>{
+    if(!公司帳戶.includes(正規化帳戶(r.account))||!格式化日期(r.date).startsWith(ym))return s;
+    if(r.type==='支出')return s-(+r.amount||0);
+    if(r.type==='收入'||r.type==='週收款')return s+(+r.amount||0);
+    return s;
+  },0));
+  const 平均淨額=月淨額.reduce((s,v)=>s+v,0)/月淨額.length;
+  const 每月消耗=-平均淨額+(進度.下期?車貸設定.月付:0);
+  const 保守可用=未動用+公司總資金;
+  const 跑道=v=>每月消耗>0?`${(v/每月消耗).toFixed(1)} 個月`:'不受限';
+  const 跑道色=v=>每月消耗<=0?'#2a6b58':v/每月消耗<2?'#c0392b':v/每月消耗<4?'#e67e22':'#2a6b58';
+
+  const 列=(label,val,style='')=>`<div class="sum-row"><span class="sum-label">${label}</span><span style="font-weight:600;font-size:16px;${style}">${val}</span></div>`;
+  return`
+  <div class="card" style="border:1px solid #c8a96e">
+    <div class="card-title-lg" style="margin-bottom:6px">🚗 車貸周轉金</div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">老闆個人名義車貸增貸，不算公司資金。撥款／投資／還款都用「轉帳」記在老闆貸款戶、股票帳戶之間；股票市值每月用「對帳快照」更新。</div>
+    <div class="metric-grid">
+      <div class="metric green"><div class="metric-label">保守現金跑道</div><div class="metric-value" style="color:${跑道色(保守可用)}">${跑道(保守可用)}</div></div>
+      <div class="metric"><div class="metric-label">含股票跑道</div><div class="metric-value">${跑道(保守可用+股票市值)}</div></div>
+      <div class="metric amber"><div class="metric-label">車貸剩餘本金</div><div class="metric-value">$${格式化金額(進度.本金餘額)}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px 24px">
+      <div>
+        <div class="card-title">資金池</div>
+        ${列('未動用（老闆貸款戶）','$'+格式化金額(未動用))}
+        ${列('公司欠老闆（已撥 − 已還）','$'+格式化金額(公司欠款))}
+        ${列('股票投入淨額','$'+格式化金額(股票投入))}
+        ${列(`股票市值${股票快照日?`（${股票快照日} 更新）`:'（尚未填市值）'}`,'$'+格式化金額(股票市值))}
+        ${列('股票損益',`${股票損益<0?'-':'+'}$${格式化金額(Math.abs(股票損益))}${股票投入>0?`（${(股票損益/股票投入*100).toFixed(1)}%）`:''}`,`color:${股票損益<0?'#c0392b':'#2a6b58'}`)}
+      </div>
+      <div>
+        <div class="card-title">車貸進度</div>
+        ${列('已繳期數',`${進度.已繳} / ${車貸設定.期數} 期`)}
+        ${進度.下期?`
+        ${列(`下期（第 ${進度.下期.期} 期，${進度.下期.日期}）`,'$'+格式化金額(車貸設定.月付))}
+        ${列('　其中利息','$'+格式化金額(進度.下期.利息))}
+        ${列('　其中本金','$'+格式化金額(進度.下期.本金))}`:列('狀態','✓ 已全部繳清','color:#2a6b58')}
+        ${列('年利率',(車貸設定.年利率*100).toFixed(2)+'%')}
+      </div>
+    </div>
+    ${分攤列?`
+    <div class="card-title" style="margin-top:14px">本期月付分攤（依各桶金額比例）</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>用途</th><th>金額</th><th>占比</th><th>利息分攤</th><th>月付分攤</th></tr></thead>
+      <tbody>${分攤列}</tbody>
+    </table></div>
+    <div style="font-size:12px;color:#888;margin-top:6px">「公司周轉」那列＝公司本期應還老闆的金額；股票那列的利息是股票報酬要先贏過的成本。</div>`:''}
+    <div class="card-title" style="margin-top:14px">跑道計算明細</div>
+    ${月份.map((ym,i)=>列(`${ym} 公司收支淨額`,`${月淨額[i]<0?'-':'+'}$${格式化金額(Math.abs(月淨額[i]))}`,`color:${月淨額[i]<0?'#c0392b':'#2a6b58'}`)).join('')}
+    ${列('近 3 月平均',`${平均淨額<0?'-':'+'}$${格式化金額(Math.abs(平均淨額))}`)}
+    ${進度.下期?列('＋ 車貸月付','-$'+格式化金額(車貸設定.月付)):''}
+    ${列('每月現金消耗',每月消耗>0?'$'+格式化金額(每月消耗):'無（現金流為正）')}
+    ${列('保守可用（未動用 ＋ 公司總資金）','$'+格式化金額(保守可用))}
+    <div style="font-size:12px;color:#888;margin-top:6px">只計入資金管理有記帳的收入／支出；沒記在這裡的支出（例如房租另外付）會讓跑道看起來偏長。</div>
+  </div>`;
+}
+
 async function 渲染資金管理(){
   const el=document.getElementById('page-資金管理');
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">資金管理</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
@@ -2490,7 +2600,7 @@ async function 渲染資金管理(){
   window._frRecordsRaw=res.records||res.data||[];
 
   // 從流水反推各帳戶餘額（以最新快照為起點）
-  const 帳戶=['富郁霖卡','南閩卡','公司現金','央廚備用金'];
+  const 帳戶=[...公司帳戶,...老闆帳戶];
   // 舊帳戶名稱對應
   const 帳戶對應={'林家涼麵現金':'公司現金','木谷食麵所現金':'公司現金'};
   const 正規化帳戶=a=>帳戶對應[a]||a;
@@ -2557,6 +2667,7 @@ async function 渲染資金管理(){
       <div class="sum-row"><span class="sum-label">門市存放備用金</span><span style="font-weight:600;font-size:16px;color:${央廚備用金合計<3000?'#c0392b':央廚備用金合計<8000?'#e67e22':'#2a6b58'}">$${格式化金額(央廚備用金合計)}</span></div>
     </div>
   </div>
+  ${渲染車貸周轉金卡(sorted,餘額,總資金,正規化帳戶)}
   <div class="card" style="border:1px solid #c8a96e">
     <div class="card-title-lg" style="margin-bottom:14px">🧾 央廚備用金結算</div>
     <div style="font-size:12px;color:#888;margin-bottom:14px">試算「結算日期」當下央廚備用金應有餘額（撥入－支出），確認收回金額後，可一次記錄「收回」與「下期補款」兩筆轉帳。</div>
@@ -2573,7 +2684,7 @@ async function 渲染資金管理(){
     <div style="font-size:12px;color:#888;margin-bottom:14px">填入今日各帳戶的實際餘額，系統會以此為新起點計算後續流水。</div>
     <div class="g2" style="margin-bottom:12px">
       ${帳戶.map(a=>`<div class="field">
-        <label>${a}</label>
+        <label>${a==='股票帳戶'?'股票帳戶（目前市值）':a}</label>
         <input type="number" inputmode="decimal" id="snap-${a}" placeholder="0" style="font-size:18px;font-weight:600;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;width:100%">
       </div>`).join('')}
     </div>
@@ -2597,6 +2708,8 @@ async function 渲染資金管理(){
           <option value="央廚備用金">央廚備用金</option>
           <option value="富郁霖卡">富郁霖卡</option>
           <option value="南閩卡">南閩卡</option>
+          <option value="老闆貸款戶">老闆貸款戶</option>
+          <option value="股票帳戶">股票帳戶</option>
         </select>
       </div>
       <div class="field" id="fr-to-wrap" style="display:none"><label>轉入帳戶</label>
@@ -2605,6 +2718,8 @@ async function 渲染資金管理(){
           <option value="公司現金">公司現金</option>
           <option value="富郁霖卡">富郁霖卡</option>
           <option value="南閩卡">南閩卡</option>
+          <option value="老闆貸款戶">老闆貸款戶</option>
+          <option value="股票帳戶">股票帳戶</option>
         </select>
       </div>
     </div>
@@ -2637,7 +2752,7 @@ async function 渲染資金管理(){
       const 月份列表=[...分組.keys()];
       return 月份列表.map((ymKey,idx)=>{
         const rows=分組.get(ymKey);
-        const 小計=rows.reduce((s,r)=>r.type==='支出'?s-(+r.amount||0):(r.type==='收入'||r.type==='週收款'?s+(+r.amount||0):s),0);
+        const 小計=rows.filter(r=>!老闆帳戶.includes(r.account)).reduce((s,r)=>r.type==='支出'?s-(+r.amount||0):(r.type==='收入'||r.type==='週收款'?s+(+r.amount||0):s),0);
         return `<div class="month-group" style="margin-bottom:10px">
           <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.mg-arrow').textContent=this.nextElementSibling.style.display==='none'?'▶':'▼'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f5f5f0;border-radius:8px">
             <span><span class="mg-arrow" style="display:inline-block;width:14px">${idx===0?'▼':'▶'}</span><strong>${ymKey}</strong>（${rows.length}筆）</span>
@@ -2719,7 +2834,7 @@ async function 記入週結現金(amount,period,date){
 }
 
 async function 儲存月初快照(){
-  const 帳戶=['富郁霖卡','南閩卡','公司現金','央廚備用金'];
+  const 帳戶=[...公司帳戶,...老闆帳戶];
   const today=今日日期();
   // 只儲存有填值的帳戶，避免空白欄位蓋掉舊餘額
   const records=帳戶.map(a=>{
@@ -2839,7 +2954,7 @@ async function 刪除資金記錄(id,note='',amount=0){
 function 編輯資金記錄(id){
   const r=(window._frRecordsRaw||[]).find(x=>String(x.id)===String(id));
   if(!r){提示('找不到這筆記錄');return;}
-  const 帳戶清單=['公司現金','央廚備用金','富郁霖卡','南閩卡'];
+  const 帳戶清單=['公司現金','央廚備用金','富郁霖卡','南閩卡',...老闆帳戶];
   const opt=(sel,list)=>list.map(a=>`<option value="${a}"${a===sel?' selected':''}>${a}</option>`).join('');
   document.getElementById('detail-title').textContent='編輯資金記錄';
   document.getElementById('detail-content').innerHTML=`
