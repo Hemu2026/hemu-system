@@ -6168,6 +6168,11 @@ function fb渲染內容(){
   data.forEach(r=>{ const s=r.source||'未填'; 來源統計[s]=(來源統計[s]||0)+1; });
   const 來源排序 = Object.entries(來源統計).sort((a,b)=>b[1]-a[1]);
 
+  // 各桌填寫數（看哪個位置較容易產生回饋）
+  const 桌號map = {};
+  data.forEach(r=>{ const t=r.table||'未標桌號'; if(!桌號map[t]) 桌號map[t]=[]; 桌號map[t].push(r); });
+  const 桌號排序 = Object.entries(桌號map).sort((a,b)=>b[1].length-a[1].length);
+
   const 品牌選項 = [...new Set((_fb全部資料||[]).map(r=>r.brand))].filter(Boolean);
   const 店別選項 = [...new Set((_fb全部資料||[]).filter(r=>!_fb篩選.brand||r.brand===_fb篩選.brand).map(r=>r.store))].filter(Boolean);
   const 類別選項 = ['乾麵','湯麵','涼麵','飯食','其他'];
@@ -6268,6 +6273,13 @@ function fb渲染內容(){
       ${來源排序.length===0?'<div style="color:#bbb;font-size:13px">尚無資料</div>':
         來源排序.map(([s,c])=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0ede6">
           <span>${s}</span><span style="color:#888">${c} 次</span>
+        </div>`).join('')}
+    </div>
+    <div class="card" style="margin:0">
+      <div class="card-title">各桌填寫數</div>
+      ${桌號排序.length===0?'<div style="color:#bbb;font-size:13px">尚無資料</div>':
+        桌號排序.map(([t,list])=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0ede6">
+          <span>${t}</span><span style="color:#888">${list.length} 筆・平均 ${fb平均(list)} 分</span>
         </div>`).join('')}
     </div>
   </div>
