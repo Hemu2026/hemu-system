@@ -2667,7 +2667,6 @@ async function 渲染資金管理(){
       <div class="sum-row"><span class="sum-label">門市存放備用金</span><span style="font-weight:600;font-size:16px;color:${央廚備用金合計<3000?'#c0392b':央廚備用金合計<8000?'#e67e22':'#2a6b58'}">$${格式化金額(央廚備用金合計)}</span></div>
     </div>
   </div>
-  ${渲染車貸周轉金卡(sorted,餘額,總資金,正規化帳戶)}
   <div class="card" style="border:1px solid #c8a96e">
     <div class="card-title-lg" style="margin-bottom:14px">🧾 央廚備用金結算</div>
     <div style="font-size:12px;color:#888;margin-bottom:14px">試算「結算日期」當下央廚備用金應有餘額（撥入－支出），確認收回金額後，可一次記錄「收回」與「下期補款」兩筆轉帳。</div>
@@ -2774,7 +2773,8 @@ async function 渲染資金管理(){
         </div>`;
       }).join('');
     })()}
-  </div>`;
+  </div>
+  ${渲染車貸周轉金卡(sorted,餘額,總資金,正規化帳戶)}`;
   }catch(e){
     console.error('渲染資金管理錯誤:',e);
     el.innerHTML+=`<div style="color:#c0392b;padding:1rem;text-align:center">顯示錯誤：${e.message}<br><button class="btn" onclick="渲染資金管理()" style="margin-top:8px">重試</button></div>`;
