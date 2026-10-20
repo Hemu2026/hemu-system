@@ -2466,7 +2466,8 @@ async function 儲存月份成本(br){
 // ===== 資金管理 =====
 // ===== 車貸周轉金（老闆個人名義汽車增貸，2026-10 起）=====
 // 老闆帳戶不算公司資金：老闆貸款戶＝個人戶頭裡的貸款資金池，股票帳戶＝用貸款投資的部分
-const 公司帳戶=['富郁霖卡','南閩卡','公司現金','央廚備用金'];
+// 個人戶公司款：老闆個人戶頭裡屬於公司的錢（林家 Uber 入帳、繳電話/電費/網路），跟老闆貸款戶是同一個銀行戶頭
+const 公司帳戶=['富郁霖卡','南閩卡','個人戶公司款','公司現金','央廚備用金'];
 const 老闆帳戶=['老闆貸款戶','股票帳戶'];
 // 台新大安租賃：貸款總額＝實際入帳 745,545 ＋ 清償原車貸 249,055；年利率由月付反推
 const 車貸設定={本金:994600,年利率:0.0669,期數:72,首期:'2026-11-07',月付:16810,原車貸:249055};
@@ -2542,6 +2543,7 @@ function 渲染車貸周轉金卡(sorted,餘額,公司總資金,正規化帳戶)
       <div>
         <div class="card-title">資金池</div>
         ${列('未動用（老闆貸款戶）','$'+格式化金額(未動用))}
+        ${列('個人戶銀行應有餘額（貸款 ＋ 公司款）','$'+格式化金額(未動用+(餘額['個人戶公司款']||0)),'color:#8a6a2a')}
         ${列('公司欠老闆（已撥 − 已還）','$'+格式化金額(公司欠款))}
         ${列('股票投入淨額','$'+格式化金額(股票投入))}
         ${列(`股票市值${股票快照日?`（${股票快照日} 更新）`:'（尚未填市值）'}`,'$'+格式化金額(股票市值))}
@@ -2643,7 +2645,7 @@ async function 渲染資金管理(){
     if(r.type==='支出') 餘額[acc]-=(+r.amount||0);
     else 餘額[acc]+=(+r.amount||0);
   });
-  const 銀行合計=餘額['富郁霖卡']+餘額['南閩卡'];
+  const 銀行合計=餘額['富郁霖卡']+餘額['南閩卡']+餘額['個人戶公司款'];
   const 現金合計=餘額['公司現金'];
   const 央廚備用金合計=餘額['央廚備用金'];
   const 總資金=銀行合計+現金合計+央廚備用金合計;
@@ -2657,7 +2659,7 @@ async function 渲染資金管理(){
   </div>
   <div class="g2">
     <div class="card"><div class="card-title">銀行帳戶</div>
-      ${[['富郁霖卡','富郁霖卡'],['南閩卡','南閩卡']].map(([n,k])=>`
+      ${[['富郁霖卡','富郁霖卡'],['南閩卡','南閩卡'],['個人戶公司款（林家Uber）','個人戶公司款']].map(([n,k])=>`
       <div class="sum-row"><span class="sum-label">${n}</span><span style="font-weight:600;font-size:16px">$${格式化金額(餘額[k])}</span></div>`).join('')}
     </div>
     <div class="card"><div class="card-title">公司現金</div>
@@ -2685,6 +2687,8 @@ async function 渲染資金管理(){
       ${帳戶.map(a=>`<div class="field">
         <label>${a==='股票帳戶'?'股票帳戶（目前市值）':a}</label>
         <input type="number" inputmode="decimal" id="snap-${a}" placeholder="0" style="font-size:18px;font-weight:600;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;width:100%">
+        ${a==='個人戶公司款'?`<div style="font-size:12px;color:#888;margin-top:6px">同一個戶頭也放貸款的錢，不要直接填銀行餘額。填這裡自動換算：</div>
+        <input type="number" inputmode="decimal" id="snap-個人戶銀行" placeholder="個人戶銀行實際餘額" oninput="換算個人戶公司款(${餘額['老闆貸款戶']||0})" style="font-size:15px;padding:8px 12px;border:1px dashed #c8a96e;border-radius:8px;font-family:inherit;width:100%;margin-top:4px">`:''}
       </div>`).join('')}
     </div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -2707,6 +2711,7 @@ async function 渲染資金管理(){
           <option value="央廚備用金">央廚備用金</option>
           <option value="富郁霖卡">富郁霖卡</option>
           <option value="南閩卡">南閩卡</option>
+          <option value="個人戶公司款">個人戶公司款</option>
           <option value="老闆貸款戶">老闆貸款戶</option>
           <option value="股票帳戶">股票帳戶</option>
         </select>
@@ -2717,6 +2722,7 @@ async function 渲染資金管理(){
           <option value="公司現金">公司現金</option>
           <option value="富郁霖卡">富郁霖卡</option>
           <option value="南閩卡">南閩卡</option>
+          <option value="個人戶公司款">個人戶公司款</option>
           <option value="老闆貸款戶">老闆貸款戶</option>
           <option value="股票帳戶">股票帳戶</option>
         </select>
@@ -2831,6 +2837,15 @@ async function 記入週結現金(amount,period,date){
   載入中(false);
   提示('✓ 已記入資金管理');
   渲染資金管理();
+}
+
+// 個人戶銀行餘額 − 老闆貸款戶（同次對帳有填就用填的，否則用系統目前餘額）＝ 個人戶公司款
+function 換算個人戶公司款(系統貸款餘額){
+  const bank=document.getElementById('snap-個人戶銀行')?.value;
+  const loanInput=document.getElementById('snap-老闆貸款戶')?.value;
+  const loan=loanInput!==''&&loanInput!=null?+loanInput:系統貸款餘額;
+  const target=document.getElementById('snap-個人戶公司款');
+  if(target)target.value=bank===''?'':Math.round(+bank-loan);
 }
 
 async function 儲存月初快照(){
@@ -2954,7 +2969,7 @@ async function 刪除資金記錄(id,note='',amount=0){
 function 編輯資金記錄(id){
   const r=(window._frRecordsRaw||[]).find(x=>String(x.id)===String(id));
   if(!r){提示('找不到這筆記錄');return;}
-  const 帳戶清單=['公司現金','央廚備用金','富郁霖卡','南閩卡',...老闆帳戶];
+  const 帳戶清單=['公司現金','央廚備用金','富郁霖卡','南閩卡','個人戶公司款',...老闆帳戶];
   const opt=(sel,list)=>list.map(a=>`<option value="${a}"${a===sel?' selected':''}>${a}</option>`).join('');
   document.getElementById('detail-title').textContent='編輯資金記錄';
   document.getElementById('detail-content').innerHTML=`
