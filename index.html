@@ -6175,7 +6175,8 @@ function fb渲染內容(){
 
   const 品牌選項 = [...new Set((_fb全部資料||[]).map(r=>r.brand))].filter(Boolean);
   const 店別選項 = [...new Set((_fb全部資料||[]).filter(r=>!_fb篩選.brand||r.brand===_fb篩選.brand).map(r=>r.store))].filter(Boolean);
-  const 類別選項 = ['乾麵','湯麵','涼麵','飯食','其他'];
+  // 各品牌問卷的餐點類別不同（木谷：乾麵/湯麵…；林家：涼的/熱的…），從實際資料取
+  const 類別選項 = [...new Set((_fb全部資料||[]).filter(r=>!_fb篩選.brand||r.brand===_fb篩選.brand).map(r=>r.category))].filter(Boolean);
 
   const 留言列表 = data.filter(r=>r.comment).sort((a,b)=>String(b.datetime).localeCompare(String(a.datetime))).slice(0,20);
   const 負評列表 = data.filter(r=>r.isLowRating===true||r.isLowRating==='TRUE'||r.isLowRating==='true').sort((a,b)=>String(b.datetime).localeCompare(String(a.datetime)));

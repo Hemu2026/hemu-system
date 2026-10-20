@@ -65,8 +65,11 @@ textarea:focus{outline:none;border-color:var(--accent)}
 <script>
 // ===== 品牌設定表（未來新增品牌/分店只要在這裡加一筆，不需要改判斷邏輯）=====
 const BRAND_CONFIG = {
-  b: { name:'木谷食麵所', mark:'MOKU — THE NOODLE PLACE', accent:'#6f8c6f', accentDark:'#4f6b52', accentSoft:'#e6ede4', bg:'#f4f2ec' },
-  a: { name:'林家涼麵', mark:'LIN CHIA NOODLE', accent:'#a87d52', accentDark:'#7a5a38', accentSoft:'#f0e6d8', bg:'#f7f2ea' },
+  // short：「怎麼知道X的」用；lineUrl：LINE官方帳號「回饋禮-冷泡茶一瓶」優惠券分享連結（新舊好友都適用），空字串時完成頁不顯示領券按鈕
+  b: { name:'木谷食麵所', short:'木谷', mark:'MOKU — THE NOODLE PLACE', accent:'#6f8c6f', accentDark:'#4f6b52', accentSoft:'#e6ede4', bg:'#f4f2ec',
+       categories:['乾麵','湯麵','涼麵','飯食','其他'], lineUrl:'https://lin.ee/RDcRFED' },
+  a: { name:'林家涼麵', short:'林家', mark:'', accent:'#a87d52', accentDark:'#7a5a38', accentSoft:'#f0e6d8', bg:'#f7f2ea',
+       categories:['涼的','熱的','湯品','小菜'], lineUrl:'' },
 };
 
 const API = 'https://script.google.com/macros/s/AKfycbw-G6nMGsOQeqCTM9GgMWkzNk4bwB5ABBAEiF9ynzdQgqWWmxfe0ulgdxUnuFaK523m/exec';
@@ -92,7 +95,7 @@ const 狀態 = {
   submitting: false,
 };
 
-const CATEGORY_OPTIONS = ['乾麵','湯麵','涼麵','飯食','其他'];
+const CATEGORY_OPTIONS = CFG.categories;
 const SOURCE_OPTIONS = ['路過看到','Google','Instagram','Threads','Facebook','親友推薦','外送平台','以前就知道','其他'];
 const TAG_OPTIONS = ['味道','麵條口感','份量','環境','服務','出餐速度','其他'];
 
@@ -117,7 +120,7 @@ function render(){
   el.innerHTML = `
   <div class="wrap">
     <div class="hero">
-      <div class="hero-mark">${CFG.mark}</div>
+      ${CFG.mark?`<div class="hero-mark">${CFG.mark}</div>`:''}
       <div class="hero-title">今天吃得還好嗎？</div>
       <div class="hero-sub">花 20 秒告訴我們，讓下一碗麵更好吃</div>
       <div class="hero-meta">${metaChips.map(c=>`<span class="meta-chip">${c}</span>`).join('')}</div>
@@ -141,7 +144,7 @@ function render(){
     </div>
 
     <div class="card">
-      <div class="q-label">怎麼知道木谷的呢？ <span class="q-required">必填</span></div>
+      <div class="q-label">怎麼知道${CFG.short}的呢？ <span class="q-required">必填</span></div>
       <div class="chip-grid" id="source-grid"></div>
     </div>
 
@@ -214,7 +217,7 @@ function renderChips(containerId, field, options, multi){
 function 驗證(){
   if(狀態.rating===0) return '請先點選星星評分';
   if(!狀態.category) return '請選擇今天吃的餐點類別';
-  if(!狀態.source) return '請選擇怎麼知道木谷的';
+  if(!狀態.source) return '請選擇怎麼知道'+CFG.short+'的';
   return '';
 }
 
@@ -249,9 +252,6 @@ async function 送出(){
   renderDone();
 }
 
-// 木谷食麵所LINE官方帳號「回饋禮-冷泡茶一瓶」優惠券分享連結（新舊好友都適用，點擊後引導加好友+領券）
-const MOGU_LINE_URL = 'https://lin.ee/RDcRFED';
-
 function renderDone(){
   const el = document.getElementById('app');
   el.innerHTML = `
@@ -260,7 +260,7 @@ function renderDone(){
     <div class="done-title">謝謝你的回饋！<br>下次來店，招待你冷泡茶一瓶</div>
     <div class="done-sub">請先領取 LINE 招待券，下次來店消費時出示，即可兌換。</div>
     <div class="done-sub">${CFG.name}${参店()?'　'+参店():''}</div>
-    <a class="btn-line" href="${MOGU_LINE_URL}" target="_blank" rel="noopener">前往 LINE 領取招待券</a>
+    ${CFG.lineUrl?`<a class="btn-line" href="${CFG.lineUrl}" target="_blank" rel="noopener">前往 LINE 領取招待券</a>`:''}
   </div>`;
 }
 
