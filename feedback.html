@@ -65,11 +65,11 @@ textarea:focus{outline:none;border-color:var(--accent)}
 <script>
 // ===== 品牌設定表（未來新增品牌/分店只要在這裡加一筆，不需要改判斷邏輯）=====
 const BRAND_CONFIG = {
-  // short：「怎麼知道X的」用；lineUrl：LINE官方帳號「回饋禮-冷泡茶一瓶」優惠券分享連結（新舊好友都適用），空字串時完成頁不顯示領券按鈕
+  // short：「怎麼知道X的」用；lineUrl：LINE官方帳號「回饋禮-冷泡茶一瓶」優惠券分享連結（新舊好友都適用），空字串＝不送贈品，完成頁只顯示感謝（不出現招待文案與領券按鈕）
   b: { name:'木谷食麵所', short:'木谷', mark:'MOKU — THE NOODLE PLACE', accent:'#6f8c6f', accentDark:'#4f6b52', accentSoft:'#e6ede4', bg:'#f4f2ec',
        categories:['乾麵','湯麵','涼麵','其他'], lineUrl:'https://lin.ee/YSkQHYg' },
   a: { name:'林家涼麵', short:'林家', mark:'', accent:'#a87d52', accentDark:'#7a5a38', accentSoft:'#f0e6d8', bg:'#f7f2ea',
-       categories:['涼的','熱的','湯品','小菜'], lineUrl:'https://lin.ee/vEpskKd' },
+       categories:['涼的','熱的','湯品','小菜'], lineUrl:'' },
 };
 
 const API = 'https://script.google.com/macros/s/AKfycbw-G6nMGsOQeqCTM9GgMWkzNk4bwB5ABBAEiF9ynzdQgqWWmxfe0ulgdxUnuFaK523m/exec';
@@ -257,8 +257,10 @@ function renderDone(){
   el.innerHTML = `
   <div class="done-wrap">
     <div class="done-icon">🍜</div>
+    ${CFG.lineUrl?`
     <div class="done-title">謝謝你的回饋！<br>下次來店，招待你冷泡茶一瓶</div>
-    <div class="done-sub">請先領取 LINE 招待券，下次來店消費時出示，即可兌換。</div>
+    <div class="done-sub">請先領取 LINE 招待券，下次來店消費時出示，即可兌換。</div>`:`
+    <div class="done-title">謝謝你的回饋！<br>我們會認真看每一則意見</div>`}
     <div class="done-sub">${CFG.name}${参店()?'　'+参店():''}</div>
     ${CFG.lineUrl?`<a class="btn-line" href="${CFG.lineUrl}" target="_blank" rel="noopener">前往 LINE 領取招待券</a>`:''}
   </div>`;
