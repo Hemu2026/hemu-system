@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `index.html`：主系統（登入、每日記錄、月報、薪資、原物料、生產紀錄、央廚等所有頁面），前端邏輯全部塞在一個 `<script>` 裡，函式與變數命名大量使用中文（例如 `格式化金額`、`渲染月報資料`、`儲存每日記錄`），修改時延續同樣的命名風格
 - `sauceman.html`：對外批發網站「醬醬人 SauceMan」的獨立靜態頁面，跟 `index.html` 不共用 JS，是給批發客戶看的行銷頁+申請表單
-- **本地並沒有 GAS 原始碼檔案**（`.gs`）。GAS 後端只存在 Google Apps Script 雲端專案（無 clasp 同步），修改後端一律要打開雲端編輯器操作
+- **repo 裡沒有 GAS 原始碼**。可用 clasp：把 `/Users/gua/Downloads/hemu-gas-export/.clasp.json` 複製到空資料夾 → `clasp pull` → 改 → `clasp push -f` → `clasp deploy -i <正式部署id> -d "說明"`（正式部署 id 就是 `const API` 網址裡那串，這樣 exec URL 不變）。也可以打開雲端編輯器操作
   - GAS 專案編輯器：`https://script.google.com/home/projects/1-j-vb--RuCtYWOotRmWf9HVxSK0iaXUHIdIhNJ-YoV0SG5KzimdiIyJl/edit`（注意是大寫 I 的 `diIyJl`）
   - 部署後的 exec URL 寫死在 `index.html` 的 `const API = '...'`，GAS 改完程式碼一定要「部署→管理部署作業→編輯現有部署→建立新版本→部署」，單純存檔（Cmd+S）不會讓已上線的 `/exec` 或 LINE webhook 吃到新程式碼
 
@@ -54,12 +54,24 @@ git push origin main
 | 員工資料 | 完整人事資料（身分證/學歷/緊急聯絡人/勞健保） |
 | 進貨申報 | LINE 拍照/文字進貨記帳的存放表，**這張表沒有表頭列**（第一列就是資料），讀取時不能用 `headers.indexOf()`，要用寫死的欄位 index |
 | 員工訂購 | 員工內部訂購紀錄（用內部供應價結算，不是食材成本價） |
-| 生產紀錄 | 商品生產登記，送出時自動扣原物料庫存、加商品庫存，刪除時回沖 |
+| 生產紀錄 | 商品生產登記，送出時自動扣原物料庫存、加商品庫存，刪除時回沖。見下方「庫存異動規則」 |
 | 月份成本 | 每月可調整的變動費用（電話/廣告/水電/其他/營業稅） |
 | 促銷試算 | F1 平台利潤極大化專員的輸入輸出表，欄位見下方 F1 章節 |
 | 請假紀錄 | 請假登記表，欄位 `id, name, date, brand, registeredAt, payrollProcessed, leaveType, days, reason, createdBy`（一天一列，days=1或0.5），由網頁「請假單」頁或 LINE「姓名 日期 假別」（如「小美 7/15 病假」，只打「請假」視為事假）寫入；`date` 被 Sheet 存成 Date 型別，讀取一律經 `leaveDateStr_()` 正規化。`savePayroll` 存檔後自動標記該員工當月紀錄為已核發 |
 | 薪資簽收 | 薪資條線上簽收（`sign.html?t=token`），欄位 `token, brand, month, employee_name, createdAt, signedAt, signature, netAtSign, snapshot`。用 brand+month+員工姓名 對應「薪資」（編輯薪資會刪掉重建、id 會變，所以不用薪資 id）；簽收時把當下薪資存成 snapshot、簽名存 PNG base64（<49000 字元）。薪資頁比對 netAtSign 跟目前實發，不同就提示「簽收後金額有改」，老闆可按「請員工重簽」清除簽名（連結不變）。簽收成功會 LINE 推播老闆 |
 | 林家涼麵 / 木谷食麵所 | 「每日記錄」的 FILTER 分頁，自動篩出對應品牌資料，唯讀用途 |
+
+## 庫存異動規則（2026-10-22 修正，GAS 133版）
+
+修正前的問題：網頁內部訂購對「有配方的商品」會再扣一次原物料（生產時已扣過，等於重複扣）；LINE「生產」沒加成品庫存；LINE「叫貨」完全不扣庫存；前端用頁面打開時的舊資料整筆 `saveProduct` 覆蓋庫存，會蓋掉別人同時的異動。10-22 起改成：
+
+- **庫存加減一律在 GAS 做**（`adjustProductStock_`／`adjustMaterialStocks_`，讀最新數字再算、LockService 防同時寫入），前端不再自己 `saveProduct`/`saveMaterial` 改庫存
+- **生產**（`saveProductionRecord`，網頁和 LINE 共用）：依配方扣原物料（先用 id 比對、沒 id 才用名稱）＋加成品；ingredients 存檔時補上 id/unit、數字取兩位小數
+- **內部叫貨**（`saveInternalOrder`，網頁和 LINE 共用）：只扣成品。商品勾了「出貨時直接扣原料」（商品表 `directIssue`=1，整罐/整包轉出、不經生產的品項）才再依配方扣原物料，實際扣的明細存在 `materialsDeducted` 供刪除時回沖。10-22 設定為 directIssue 的：涼麵專用牛腱、涼麵專用牛肚、黑蓋胖胖瓶500ml、花生粒、冷泡茶、婦友醬油
+- **防重複送出**：每次送出帶 `requestId`（網頁 `WEB+時間+亂數`，LINE 用 `LINE+message.id+_序號`，擋 webhook 重送），同 requestId 第二次直接回傳原紀錄不再異動
+- **刪除回沖只回沖當初真的有做的部分**：生產紀錄看 `productAdded`=1 才退成品；叫貨看 `stockApplied`=1 才退庫存。10-22 前的舊紀錄沒有這些欄位，刪除時只退原物料（生產）或不退（叫貨），因為舊的扣法不一致
+- 成品庫存允許變負數（不再 `Math.max(0,…)`）：負數代表「沒登記生產就出貨」，盤點時看得出來
+- 測試方式：建「ZZ測試原料/商品」走 生產→重送→叫貨→勾 directIssue 叫貨→逐筆刪除，確認每步數字，測完刪除（scratchpad 的 test_stock.py 寫法）
 
 ## 資金管理：車貸周轉金（2026-10-20 上線）
 

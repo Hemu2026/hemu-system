@@ -3155,6 +3155,9 @@ function 顯示商品表單(p={}){
         <input type="number" id="pf-stock" value="${p.currentStock||0}" placeholder="0" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div class="field"><label>得率%（半成品才需填，煮熟/加工後會變輕的品項）</label>
         <input type="number" id="pf-yield" value="${p.yieldRate||100}" min="1" max="300" placeholder="100" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
+      <div class="field full" style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="pf-direct-issue" ${['1','true','TRUE',1,true].includes(p.directIssue)?'checked':''} style="width:16px;height:16px">
+        <label for="pf-direct-issue" style="margin:0;font-size:13px">出貨時直接扣原料（整罐/整包轉出、不經生產的品項才勾，例如婦友醬油、牛腱）</label></div>
     </div>
     <div style="background:#f0f7ff;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #cce0ff">
       <div style="font-size:13px;font-weight:600;margin-bottom:10px">🏪 B2B 批發設定</div>
@@ -3339,6 +3342,7 @@ async function 儲存商品(id){
     sop:document.getElementById('pf-sop')?.value?.trim()||'',
     sopPT:document.getElementById('pf-sop-pt')?.value?.trim()||'',
     yieldRate:+document.getElementById('pf-yield')?.value||100,
+    directIssue:document.getElementById('pf-direct-issue')?.checked?1:0,
   };
   載入中(true,'儲存中...');
   const res=await 呼叫API({action:'saveProduct',record});
@@ -4441,41 +4445,18 @@ async function 送出內部訂購(br){
   });
   if(items.length===0){提示('請至少選擇一項商品數量');return;}
   載入中(true,'送出中...');
-  const results=await Promise.all(items.map(item=>
-    呼叫API({action:'saveInternalOrder',record:{brand:br,date,...item}})
-  ));
+  // 庫存由後端扣：成品一律扣；商品勾「出貨直接扣原料」才再依配方扣原物料
+  const results=[];
+  for(const item of items){
+    const requestId='WEB'+Date.now()+Math.random().toString(36).slice(2,8);
+    results.push(await 呼叫API({action:'saveInternalOrder',record:{brand:br,date,...item,requestId}}));
+  }
   載入中(false);
-  if(results.every(r=>r.ok)){
-    // 扣商品庫存
-    const resP=await 呼叫API({action:'getProducts'});
-    const prods=resP.data||[];
-    await Promise.all(items.map(item=>{
-      const prod=prods.find(p=>p.id===item.productId);
-      if(!prod)return;
-      const newStock=Math.max(0,(+prod.currentStock||0)-item.qty);
-      return 呼叫API({action:'saveProduct',record:{...prod,currentStock:newStock}});
-    }));
-    // 商品有配方（例如原物料整罐直接轉出）的話，額外扣原物料庫存
-    const 配方扣料={};
-    items.forEach(item=>{
-      const prod=prods.find(p=>p.id===item.productId);
-      const recipe=prod?.recipe?JSON.parse(prod.recipe):[];
-      recipe.forEach(r=>{配方扣料[r.id]=(配方扣料[r.id]||0)+(+r.amount||0)*item.qty;});
-    });
-    if(Object.keys(配方扣料).length>0){
-      const resM=await 呼叫API({action:'getMaterials'});
-      const mats=resM.data||[];
-      await Promise.all(Object.keys(配方扣料).map(mid=>{
-        const mat=mats.find(m=>m.id===mid);
-        if(!mat)return;
-        const newStock=Math.max(0,(+mat.currentStock||0)-配方扣料[mid]);
-        return 呼叫API({action:'saveMaterial',record:{...mat,currentStock:newStock}});
-      }));
-    }
-    items.forEach(item=>{delete _io數量[`${br}-${item.productId}`];});
+  items.forEach((item,i)=>{if(results[i]?.ok)delete _io數量[`${br}-${item.productId}`];});
+  if(results.every(r=>r?.ok)){
     提示('✓ 訂購已記錄，庫存已扣減');
-    渲染內部訂購(br);
-  } else 提示('部分儲存失敗，請重試');
+  } else 提示('部分儲存失敗，畫面上留著的數量是沒存進去的，請再送一次');
+  渲染內部訂購(br);
 }
 
 async function 刪除內部訂購(br,id){
@@ -5438,7 +5419,11 @@ async function 渲染生產紀錄(){
 function 渲染消耗摘要(ingredientsJson){
   try{
     const arr=typeof ingredientsJson==='string'?JSON.parse(ingredientsJson):ingredientsJson;
-    return arr.map(i=>`${i.name} ${i.totalAmount}${i.unit}`).join('、');
+    // 舊的 LINE 生產紀錄沒存單位，從原物料表補；數字取一位小數（避免 7040.000000000001）
+    return arr.map(i=>{
+      const unit=i.unit||(_prodMaterials.find(m=>(i.id&&m.id===i.id)||m.name===i.name)?.unit)||'';
+      return `${i.name} ${Math.round((+i.totalAmount||0)*10)/10}${unit}`;
+    }).join('、');
   }catch(e){return '';}
 }
 
@@ -5481,14 +5466,13 @@ async function 送出生產紀錄(){
   if(qty<=0)return alert('請輸入數量');
   const p=_prodProducts.find(x=>x.id===pid);
   const recipe=JSON.parse(p.recipe||'[]');
-  const ingredients=recipe.map(r=>({name:r.name,unit:r.unit,amountEach:r.amount,totalAmount:Math.round(r.amount*qty*100)/100}));
+  const ingredients=recipe.map(r=>({id:r.id,name:r.name,unit:r.unit,amountEach:r.amount,totalAmount:Math.round(r.amount*qty*100)/100}));
+  // requestId：同一次送出重試時，後端認得是同一筆，不會重複扣庫
+  const requestId='WEB'+Date.now()+Math.random().toString(36).slice(2,8);
   載入中(true);
-  const res=await 呼叫API({action:'saveProductionRecord',record:{date,productId:pid,productName:p.name,qty,ingredients:JSON.stringify(ingredients),note,atContractor}});
-  if(res.error){載入中(false);return alert('錯誤：'+res.error);}
-  // 更新商品庫存（+qty）
-  const newStock=(+p.currentStock||0)+qty;
-  await 呼叫API({action:'saveProduct',record:{...p,currentStock:newStock}});
+  const res=await 呼叫API({action:'saveProductionRecord',record:{date,productId:pid,productName:p.name,qty,ingredients:JSON.stringify(ingredients),note,atContractor,requestId}});
   載入中(false);
+  if(!res||res.error||!res.success)return alert('❌ 生產紀錄沒有存進去，庫存也沒有異動，請再送一次'+(res&&res.error?'\n（'+res.error+'）':''));
   提示('✓ 生產紀錄已儲存，原物料與商品庫存已更新');
   渲染生產紀錄();
 }
@@ -5496,18 +5480,10 @@ async function 送出生產紀錄(){
 async function 刪除生產紀錄(id,name,productId,qty){
   if(!confirm(`確定刪除「${name}」這筆生產紀錄？\n（會退回原物料與商品庫存）`))return;
   載入中(true);
+  // 原物料與商品庫存都由後端退回
   const res=await 呼叫API({action:'deleteProductionRecord',id});
-  if(res.error){載入中(false);return alert('錯誤：'+res.error);}
-  // 退回商品庫存（-qty）
-  if(productId&&qty>0){
-    const resP=await 呼叫API({action:'getProducts'});
-    const prod=(resP.data||[]).find(p=>p.id===productId);
-    if(prod){
-      const newStock=Math.max(0,(+prod.currentStock||0)-qty);
-      await 呼叫API({action:'saveProduct',record:{...prod,currentStock:newStock}});
-    }
-  }
   載入中(false);
+  if(res.error)return alert('錯誤：'+res.error);
   提示('已刪除，原物料與商品庫存已退回');
   渲染生產紀錄();
 }
