@@ -42,6 +42,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .badge-hq{color:#9b8ec4 !important}
 .page-title{font-size:30px;font-weight:800;color:#111;line-height:1.1;letter-spacing:-.01em}
 .card{background:#fff;border:none;border-radius:18px;padding:1.75rem;margin-bottom:1.125rem;box-shadow:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04)}
+.sb-toggle{position:fixed;top:10px;left:174px;z-index:50;width:28px;height:28px;border-radius:8px;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:15px;line-height:1;cursor:pointer;font-family:inherit}
+.sb-toggle:hover{background:rgba(255,255,255,.3)}
+.sb-collapsed .sidebar{display:none}
+.sb-collapsed .sb-toggle{left:10px;background:#8c8479}
+.sb-collapsed .sb-toggle:hover{background:#6f685e}
 .hub-search{width:100%;padding:13px 18px;border-radius:14px;border:1px solid #e5e2dc;background:#fff;font-size:15px;font-family:inherit;box-shadow:0 1px 4px rgba(0,0,0,.05)}
 .hub-search:focus{outline:none;border-color:#9b8ec4;box-shadow:0 0 0 3px rgba(155,142,196,.15)}
 .hub-meta{font-size:12px;color:#999;margin:10px 4px 16px}
@@ -185,6 +190,8 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
   .nav-group-label{display:none}
   .nav-group{display:flex;flex-wrap:wrap;padding:0}
   .nav-item{padding:6px 10px;font-size:11px}
+  .sb-toggle{display:none}
+  .sb-collapsed .sidebar{display:flex}
   .g3,.g4{grid-template-columns:1fr 1fr}
   .hq-brand-split{grid-template-columns:1fr}
   .page{padding:1rem}
@@ -280,6 +287,7 @@ hr.divider{border:none;border-top:1px solid #eee;margin:1rem 0}
 
 <div id="app-screen" style="display:none">
 <div class="app">
+<button class="sb-toggle" id="sb-toggle" onclick="切換側邊欄()" title="收合／展開選單">«</button>
 <nav class="sidebar">
   <div class="sidebar-logo">
     <h1>和木餐飲</h1>
@@ -628,6 +636,19 @@ window.addEventListener('popstate',(e)=>{
     _跳過歷史記錄=false;
   }
 });
+
+// ===== 側邊欄收合（記住上次狀態）=====
+function 套用側邊欄狀態(收起){
+  document.body.classList.toggle('sb-collapsed',收起);
+  const 鈕=document.getElementById('sb-toggle');
+  if(鈕)鈕.textContent=收起?'☰':'«';
+}
+function 切換側邊欄(){
+  const 收起=!document.body.classList.contains('sb-collapsed');
+  localStorage.setItem('hm_sb_collapsed',收起?'1':'');
+  套用側邊欄狀態(收起);
+}
+套用側邊欄狀態(!!localStorage.getItem('hm_sb_collapsed'));
 
 // ===== 中控首頁（老闆）=====
 // 所有工具依用途分類成卡片，可搜尋；新增頁面時記得也加進這裡
