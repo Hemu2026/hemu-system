@@ -339,17 +339,51 @@ function 簡短日期(d){const ymd=格式化日期(d);if(!ymd)return'';const[,m,
 function 百分比(v,t){return t?((v/t)*100).toFixed(1)+'%':'—'}
 function 數值(id){return parseFloat(document.getElementById(id)?.value)||0}
 function 文字(id){return document.getElementById(id)?.value||''}
+// ===== 平台抽成歷史費率 =====
+// 只用來補「當天日結沒存費率」的紀錄（5～7 月初很多天費率欄空白）；有存費率的天照用當天存的，絕不用現行設定回算歷史
+// 格式：[生效日, 費率%]，依生效日由舊到新排列；改費率時在最後加一行新的生效日，不要改舊的
+const 平台費率歷史={
+  a:{lp:[['2026-01-01',3]],uber:[['2026-01-01',31],['2026-07-09',33]]},
+  b:{lp:[['2026-01-01',3]],uber:[['2026-01-01',33],['2026-07-09',35]],panda:[['2026-01-01',35]]}
+};
+function 適用費率(br,平台,日期){
+  const 表=平台費率歷史[br]?.[平台]||[];
+  let 費率=null;
+  表.forEach(([生效日,v])=>{if(生效日<=日期)費率=v;});
+  return 費率;
+}
+// 平台手續費（單一平台）：有填當月「實際入帳」→ 營收－實際入帳（已含抽成、促銷、平台廣告等所有平台扣款）；
+// 沒填 → 逐日用當天存的費率估算，當天沒存費率才用 平台費率歷史
+function 平台費(recs,br,平台,營收欄,費率欄,實際入帳){
+  const 營收=recs.reduce((a,r)=>a+營收欄(r),0);
+  if(實際入帳>0){
+    const 費用=Math.max(0,營收-實際入帳);
+    const 合約=適用費率(br,平台,recs.map(r=>格式化日期(r.date)).sort().pop()||'');
+    return{費用,方式:'實際結算',扣款率:營收?費用/營收*100:0,合約,補費率天數:0};
+  }
+  let 費用=0,補費率天數=0;
+  recs.forEach(r=>{
+    const 額=營收欄(r);if(!額)return;
+    let 率=r[費率欄];
+    if(率===''||率==null||isNaN(+率)){率=適用費率(br,平台,格式化日期(r.date))??0;補費率天數++;}
+    費用+=額*(+率)/100;
+  });
+  return{費用,方式:營收?'費率估算':'無',扣款率:營收?費用/營收*100:0,合約:null,補費率天數};
+}
+
 // ===== 損益計算（門市月報與總部月報共用同一套口徑，兩邊才對得起來）=====
 // s＝品牌設定＋該月「月份成本」；後端設定欄位叫 platform_fee/pos_fee，前端存檔後叫 platform/pos，兩種都認
-function 計算品牌損益(recs,s,emps,tInternalCost=0){
+function 計算品牌損益(recs,s,emps,tInternalCost=0,br=recs[0]?.brand){
   const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
   const tRev=n('total'),tGuests=n('guests'),tHours=n('hours');
-  // 平台手續費：LINE Pay 依每日費率估算；Uber／熊貓有填「實際入帳」就用實際差額，否則依費率估算
   const tUber=n('uber'),tPanda=n('panda');
-  const lpFee=recs.reduce((a,r)=>a+((+r.lp||0)+(+r.lp_online||0))*(+r.lp_rate||0)/100,0);
   const uberActual=+s.uber_actual||0,pandaActual=+s.panda_actual||0;
-  const uberFee=uberActual>0?Math.max(0,tUber-uberActual):recs.reduce((a,r)=>a+(+r.uber||0)*(+r.uber_rate||0)/100,0);
-  const pandaFee=pandaActual>0?Math.max(0,tPanda-pandaActual):recs.reduce((a,r)=>a+(+r.panda||0)*(+r.panda_rate||0)/100,0);
+  const 平台={
+    lp:平台費(recs,br,'lp',r=>(+r.lp||0)+(+r.lp_online||0),'lp_rate',0),
+    uber:平台費(recs,br,'uber',r=>+r.uber||0,'uber_rate',uberActual),
+    panda:平台費(recs,br,'panda',r=>+r.panda||0,'panda_rate',pandaActual)
+  };
+  const lpFee=平台.lp.費用,uberFee=平台.uber.費用,pandaFee=平台.panda.費用;
   const tPFee=lpFee+uberFee+pandaFee;
   // 食材：現場進貨＋央廚進貨（舊欄位）＋內部訂購（內部供應價）；不用每日填報的 food_cost（7 月起已不填）
   const tMarket=n('market'),tCentral=n('central'),tFood=tMarket+tCentral+tInternalCost;
@@ -365,7 +399,7 @@ function 計算品牌損益(recs,s,emps,tInternalCost=0){
   const fxC=rent+platformPos+monthly;
   const varCost=tFood+tPack+tMeal+tGas+tMisc+tPFee;
   const tCost=fxC+varCost+laborTotal,netProfit=tRev-tCost;
-  return{tRev,tGuests,tHours,tUber,tPanda,lpFee,uberFee,pandaFee,tPFee,uberActual,pandaActual,
+  return{tRev,tGuests,tHours,tUber,tPanda,lpFee,uberFee,pandaFee,tPFee,uberActual,pandaActual,平台,
     tMarket,tCentral,tInternalCost,tFood,tPack,tMeal,tGas,tMisc,
     grossSalary,nhiEmp,nhiCo,netSalary,laborTotal,empCount:emps.length,
     rent,platformPos,monthly,fxC,varCost,tCost,netProfit,days:recs.length,
@@ -382,6 +416,17 @@ function 月結狀態(ym,P,recs){
   if(!P.tFood)缺.push('食材未填報');
   if(!P.monthly)缺.push('月份變動費用（電話／廣告／水電／其他／營業稅）未填');
   return{進行中,缺,暫估:進行中||缺.length>0,最後日};
+}
+// 各平台手續費的計算方式（實際結算或費率估算），實際扣款率低於合約費率時提醒，可能是結算期間跟月份不一致
+function 平台費說明HTML(P){
+  const 名={lp:'LINE Pay',uber:'Uber Eats',panda:'熊貓'};
+  return['uber','panda','lp'].filter(k=>P.平台[k].方式!=='無').map(k=>{
+    const x=P.平台[k];
+    const 說明=x.方式==='實際結算'?`實際結算（扣款率 ${x.扣款率.toFixed(1)}%，含抽成／促銷／平台廣告）`
+      :`費率估算（${x.扣款率.toFixed(1)}%）${x.補費率天數?`，其中 ${x.補費率天數} 天日結沒存費率，用當時適用費率補算`:''}`;
+    const 警告=x.方式==='實際結算'&&x.合約&&x.扣款率<x.合約?`<br><small style="color:#c0392b">⚠ 低於合約費率 ${x.合約}%，請確認實際入帳是否跟本月營收同一段期間</small>`:'';
+    return`<div style="font-size:11px;color:#999;padding:2px 0 2px 12px">${名[k]}：$${格式化金額(x.費用)}　${說明}${警告}</div>`;
+  }).join('');
 }
 function 暫估說明HTML(st){
   if(!st.暫估)return'';
@@ -1660,7 +1705,9 @@ function 建立月報HTML(recs,s,emps,allRecs=[],tInternalCost=0,weekSettle=null
       ${[['現金收入',tCash],['LINE Pay（門市）',tLP],['線上點餐金流',tLPOnline],['台灣 PAY',tTW],['Uber Eats（門市）',tUber],['熊貓（門市）',tPanda]].filter(([,v],i)=>i<5||v>0).map(([l,v])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
       <div class="sum-row"><span class="sum-label">Uber實際入帳（選填，覆蓋估算費率）</span><span style="display:flex;align-items:center;gap:6px"><input type="number" value="${s.uber_actual||''}" placeholder="平台後台淨額" style="width:100px;padding:2px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right" onchange="快速儲存月份成本(this.value,'uber_actual')"></span></div>
       <div class="sum-row"><span class="sum-label">熊貓實際入帳（選填，覆蓋估算費率）</span><span style="display:flex;align-items:center;gap:6px"><input type="number" value="${s.panda_actual||''}" placeholder="平台後台淨額" style="width:100px;padding:2px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right" onchange="快速儲存月份成本(this.value,'panda_actual')"></span></div>
-      <div class="sum-row"><span class="sum-label">平台手續費（支出）${uberActual>0||pandaActual>0?'<small style="color:#c8a96e">（已用實際入帳覆蓋）</small>':''}</span><span style="color:#c0392b">-$${格式化金額(tPFeeAdj)}</span></div>
+      <div class="sum-row"><span class="sum-label">平台手續費（支出）</span><span style="color:#c0392b">-$${格式化金額(tPFeeAdj)}</span></div>
+      ${平台費說明HTML(P)}
+      ${P.平台.uber.方式==='實際結算'||P.平台.panda.方式==='實際結算'?'<div style="font-size:11px;color:#c8a96e;padding:2px 0 4px 12px">有填實際入帳的平台，平台自行扣的促銷／廣告已含在手續費裡，月份成本的「廣告」請不要再重複填</div>':''}
       <div class="sum-row"><span>實收淨額</span><span>$${格式化金額(tRev-tPFeeAdj)}</span></div>
     </div>
     <div class="card"><div class="card-title-lg">🚦 FLR 成本率燈號</div>
@@ -1671,6 +1718,7 @@ function 建立月報HTML(recs,s,emps,allRecs=[],tInternalCost=0,weekSettle=null
     ${[['月營收',tRev,false,false],['現場進貨',tMarket,true,false],['央廚進貨',tCentral,true,false],['內部醬料成本（內部供應價）',tInternalCost,true,false],['包材／餐具',P.tPack,true,false],['員工餐費',P.tMeal,true,false],['瓦斯',P.tGas,true,false],['平台手續費',tPFeeAdj,true,false],['其他當日雜支',P.tMisc,true,false],[P.empCount?`應發薪資（含員工自付勞健保 $${格式化金額(P.nhiEmp)}）`:'薪資（待月結）',P.grossSalary,true,false],['勞健退（公司負擔）',P.nhiCo,true,false],['房租',P.rent,true,false],['平台月費／POS',P.platformPos,true,false],['電話費／網路費',s.phone||0,true,'phone'],['廣告／文宣費',s.ads||0,true,'ads'],['水電費',s.utility||0,true,'utility'],['其他固定雜支',s.other||0,true,'other'],['營業稅',s.tax||0,true,'tax']]
       .map(([l,v,isE,field])=>field?`<div class="sum-row"><span class="sum-label">${l}</span><span style="display:flex;align-items:center;gap:6px"><input type="number" value="${v}" style="width:90px;padding:2px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right" onchange="快速儲存月份成本(this.value,'${field}')">　<small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`:`<div class="sum-row"><span class="sum-label">${l}</span><span>${isE?'-':''}$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
     <div class="sum-row"><span>月淨利${st.暫估?'（暫估）':''}</span><span style="color:${netProfit>=0?'#27ae60':'#c0392b'}">${netProfit>=0?'+':'-'}$${格式化金額(Math.abs(netProfit))} (${profitRate.toFixed(1)}%)</span></div>
+    <div style="font-size:11px;color:#aaa;margin-top:6px">管理損益：食材＝本月進貨＋內部訂購，尚未依期初、期末庫存計算實際耗用。</div>
     <div class="progress-wrap">
       <div style="font-size:12px;color:#888;margin-bottom:6px">損益兩平進度：$${格式化金額(tRev)} / $${格式化金額(breakeven)}${損平註?`<br><small style="color:#c8a96e">${損平註}</small>`:''}</div>
       <div class="progress-bar"><div class="progress-fill ${tRev<breakeven?'danger':''}" style="width:${progress.toFixed(1)}%"></div></div>
@@ -2461,7 +2509,9 @@ async function 渲染總部報表(ym){
   document.getElementById('hqbody').innerHTML=`
   ${暫估說明HTML({暫估,進行中:stA.進行中,最後日,缺:缺項})}
   <div style="background:#f5f3ef;border-radius:10px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:#777;line-height:1.7">
-    <strong style="color:#555">這是「兩店管理損益」，不是已確認的公司真實淨利。</strong>尚未包含：
+    <strong style="color:#555">這是「兩店管理損益」，不是已確認的公司真實淨利。</strong>
+    食材成本是「門市進貨＋內部訂購」的管理口徑，<strong>尚未依期初、期末庫存計算實際耗用</strong>（月底庫存多買少用都會影響當月數字）。
+    平台費：有填實際入帳的平台用實際結算（已含抽成、促銷、平台廣告），沒填的依當時適用費率估算。尚未包含：
     央廚營運成本（人工、租金、水電瓦斯、耗損；門市食材是用內部供應價計算，不是央廚實際進貨成本）、
     總部費用與資金管理中未對應到月報科目的支出（設備、維修、保險、利息等）、車貸利息、醬醬人批發損益、所得稅。
   </div>
