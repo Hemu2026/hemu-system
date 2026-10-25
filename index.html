@@ -339,49 +339,38 @@ function 簡短日期(d){const ymd=格式化日期(d);if(!ymd)return'';const[,m,
 function 百分比(v,t){return t?((v/t)*100).toFixed(1)+'%':'—'}
 function 數值(id){return parseFloat(document.getElementById(id)?.value)||0}
 function 文字(id){return document.getElementById(id)?.value||''}
-// ===== 平台抽成歷史費率 =====
-// 只用來補「當天日結沒存費率」的紀錄（5～7 月初很多天費率欄空白）；有存費率的天照用當天存的，絕不用現行設定回算歷史
-// 格式：[生效日, 費率%]，依生效日由舊到新排列；改費率時在最後加一行新的生效日，不要改舊的
-const 平台費率歷史={
-  a:{lp:[['2026-01-01',3]],uber:[['2026-01-01',31],['2026-07-09',33]]},
-  b:{lp:[['2026-01-01',3]],uber:[['2026-01-01',33],['2026-07-09',35]],panda:[['2026-01-01',35]]}
-};
-function 適用費率(br,平台,日期){
-  const 表=平台費率歷史[br]?.[平台]||[];
-  let 費率=null;
-  表.forEach(([生效日,v])=>{if(生效日<=日期)費率=v;});
-  return 費率;
-}
-// 平台手續費（單一平台）：有填當月「實際入帳」→ 營收－實際入帳（已含抽成、促銷、平台廣告等所有平台扣款）；
-// 沒填 → 逐日用當天存的費率估算，當天沒存費率才用 平台費率歷史
-function 平台費(recs,br,平台,營收欄,費率欄,實際入帳){
+// 平台手續費（單一平台）
+// ・實際入帳 > 0 且對帳狀態＝「已對帳」（老闆人工確認期間一致）→ 營收－實際入帳（已含抽成、促銷、平台廣告等所有平台扣款）
+// ・其他情況一律估算：逐日用當天日結存的費率；當天沒存費率，暫用「成本設定」裡該店該平台的現行費率補算
+// ・歷史費率都還沒正式確認，估算一律標「歷史費率待確認」；有實際入帳但未對帳的，只列出撥款金額、標「待對帳」，不拿來相減
+function 平台費(recs,平台,營收欄,費率欄,實際入帳,對帳狀態,現行費率){
   const 營收=recs.reduce((a,r)=>a+營收欄(r),0);
-  if(實際入帳>0){
+  const 已對帳=實際入帳>0&&對帳狀態==='已對帳';
+  if(已對帳){
     const 費用=Math.max(0,營收-實際入帳);
-    const 合約=適用費率(br,平台,recs.map(r=>格式化日期(r.date)).sort().pop()||'');
-    return{費用,方式:'實際結算',扣款率:營收?費用/營收*100:0,合約,補費率天數:0};
+    return{費用,方式:'實際結算',營收,扣款率:營收?費用/營收*100:0,現行費率,實際入帳,當日費率天數:0,補算天數:0,待對帳:false};
   }
-  let 費用=0,補費率天數=0;
+  let 費用=0,當日費率天數=0,補算天數=0;
   recs.forEach(r=>{
     const 額=營收欄(r);if(!額)return;
-    let 率=r[費率欄];
-    if(率===''||率==null||isNaN(+率)){率=適用費率(br,平台,格式化日期(r.date))??0;補費率天數++;}
-    費用+=額*(+率)/100;
+    const 存的=r[費率欄];
+    if(存的===''||存的==null||isNaN(+存的)){費用+=額*(+現行費率||0)/100;補算天數++;}
+    else{費用+=額*(+存的)/100;當日費率天數++;}
   });
-  return{費用,方式:營收?'費率估算':'無',扣款率:營收?費用/營收*100:0,合約:null,補費率天數};
+  return{費用,方式:營收?'估算':'無',營收,扣款率:營收?費用/營收*100:0,現行費率,實際入帳,當日費率天數,補算天數,待對帳:實際入帳>0};
 }
 
 // ===== 損益計算（門市月報與總部月報共用同一套口徑，兩邊才對得起來）=====
 // s＝品牌設定＋該月「月份成本」；後端設定欄位叫 platform_fee/pos_fee，前端存檔後叫 platform/pos，兩種都認
-function 計算品牌損益(recs,s,emps,tInternalCost=0,br=recs[0]?.brand){
+function 計算品牌損益(recs,s,emps,tInternalCost=0){
   const n=k=>recs.reduce((a,r)=>a+(+r[k]||0),0);
   const tRev=n('total'),tGuests=n('guests'),tHours=n('hours');
   const tUber=n('uber'),tPanda=n('panda');
   const uberActual=+s.uber_actual||0,pandaActual=+s.panda_actual||0;
   const 平台={
-    lp:平台費(recs,br,'lp',r=>(+r.lp||0)+(+r.lp_online||0),'lp_rate',0),
-    uber:平台費(recs,br,'uber',r=>+r.uber||0,'uber_rate',uberActual),
-    panda:平台費(recs,br,'panda',r=>+r.panda||0,'panda_rate',pandaActual)
+    lp:平台費(recs,'lp',r=>(+r.lp||0)+(+r.lp_online||0),'lp_rate',0,'',s.lp_rate),
+    uber:平台費(recs,'uber',r=>+r.uber||0,'uber_rate',uberActual,s.uber_status,s.uber_rate),
+    panda:平台費(recs,'panda',r=>+r.panda||0,'panda_rate',pandaActual,s.panda_status,s.panda_rate)
   };
   const lpFee=平台.lp.費用,uberFee=平台.uber.費用,pandaFee=平台.panda.費用;
   const tPFee=lpFee+uberFee+pandaFee;
@@ -415,16 +404,19 @@ function 月結狀態(ym,P,recs){
   if(!P.empCount)缺.push('人事未入帳');
   if(!P.tFood)缺.push('食材未填報');
   if(!P.monthly)缺.push('月份變動費用（電話／廣告／水電／其他／營業稅）未填');
+  const 外送估算=['uber','panda'].filter(k=>P.平台[k].營收&&P.平台[k].方式!=='實際結算');
+  if(外送估算.length)缺.push(`外送平台費為估算（${外送估算.map(k=>k==='uber'?'Uber':'熊貓').join('、')} 未對帳，歷史費率待確認）`);
   return{進行中,缺,暫估:進行中||缺.length>0,最後日};
 }
-// 各平台手續費的計算方式（實際結算或費率估算），實際扣款率低於合約費率時提醒，可能是結算期間跟月份不一致
+// 各平台手續費的來源：實際結算（已對帳）或估算（當日紀錄費率／現行費率補算的天數），未對帳的撥款標「待對帳」
 function 平台費說明HTML(P){
   const 名={lp:'LINE Pay',uber:'Uber Eats',panda:'熊貓'};
   return['uber','panda','lp'].filter(k=>P.平台[k].方式!=='無').map(k=>{
     const x=P.平台[k];
-    const 說明=x.方式==='實際結算'?`實際結算（扣款率 ${x.扣款率.toFixed(1)}%，含抽成／促銷／平台廣告）`
-      :`費率估算（${x.扣款率.toFixed(1)}%）${x.補費率天數?`，其中 ${x.補費率天數} 天日結沒存費率，用當時適用費率補算`:''}`;
-    const 警告=x.方式==='實際結算'&&x.合約&&x.扣款率<x.合約?`<br><small style="color:#c0392b">⚠ 低於合約費率 ${x.合約}%，請確認實際入帳是否跟本月營收同一段期間</small>`:'';
+    const 說明=x.方式==='實際結算'?`<span style="color:#2a6b58">實際結算・已對帳</span>（扣款率 ${x.扣款率.toFixed(1)}%，含抽成／促銷／平台廣告）`
+      :`<span style="color:#c8a96e">估算</span>（${x.扣款率.toFixed(1)}%）：當日紀錄費率 ${x.當日費率天數} 天、暫用現行費率 ${x.現行費率||'未設定'}% 補算 ${x.補算天數} 天${k==='lp'?'':'・<span style="color:#c0392b">歷史費率待確認</span>'}`;
+    const 警告=(x.待對帳?`<br><small style="color:#c0392b">⚠ 待對帳：平台撥款 $${格式化金額(x.實際入帳)} 尚未確認期間是否一致，未採用</small>`:'')
+      +(x.方式==='實際結算'&&+x.現行費率&&x.扣款率<+x.現行費率?`<br><small style="color:#c0392b">⚠ 實際扣款率低於現行費率 ${x.現行費率}%，請再確認撥款期間</small>`:'');
     return`<div style="font-size:11px;color:#999;padding:2px 0 2px 12px">${名[k]}：$${格式化金額(x.費用)}　${說明}${警告}</div>`;
   }).join('');
 }
@@ -440,6 +432,8 @@ function 合併月份成本(br,ym,mc){
   const ls=JSON.parse(localStorage.getItem(`hm_mc_${br}_${ym}`)||'{}');
   const o={};
   ['phone','ads','utility','other','tax','uber_actual','panda_actual'].forEach(f=>{o[f]=+(mc||{})[f]||+ls[f]||0;});
+  // 對帳狀態只看後端（跨裝置一致），不用瀏覽器暫存；空白或其他值都當「未確認」
+  ['uber_status','panda_status'].forEach(f=>{o[f]=(mc||{})[f]==='已對帳'?'已對帳':'未確認';});
   return o;
 }
 // 未完成月份跟上個月比：只取上個月同樣日數（1 號到本月最後有資料那天）
@@ -1647,10 +1641,22 @@ async function 快速儲存月份成本(val,field){
   if(!br||!ym)return;
   const mc={...window._月報_mc,[field]:+val||0};
   window._月報_mc=mc;
-  // 永遠先存 localStorage，確保刷新後不丟失
+  // 先存 localStorage 當備援；後端只寫這次改的欄位，不會用這台瀏覽器的舊暫存蓋掉其他欄位
   localStorage.setItem(`hm_mc_${br}_${ym}`,JSON.stringify(mc));
-  呼叫API({action:'saveMonthCost',brand:br,month:ym,phone:mc.phone||0,ads:mc.ads||0,utility:mc.utility||0,other:mc.other||0,tax:mc.tax||0,uber_actual:mc.uber_actual||0,panda_actual:mc.panda_actual||0});
-  提示('✓ 已儲存');
+  const res=await 呼叫API({action:'saveMonthCost',brand:br,month:ym,[field]:+val||0});
+  提示(res.ok?'✓ 已儲存':'儲存失敗：'+(res.error||''));
+}
+// 平台對帳狀態：只有老闆人工核對過撥款期間跟本月營收一致，才勾「已對帳」，勾了才用實際入帳計算平台費
+async function 儲存對帳狀態(field,勾選,el){
+  const br=window._月報_br,ym=window._月報_ym;
+  if(!br||!ym)return;
+  const 平台名=field==='uber_status'?'Uber':'熊貓';
+  if(勾選&&!confirm(`確認 ${ym} ${平台名} 的撥款期間跟本月營收一致、已核對平台結算資料？\n勾選後平台費改用「營收－實際入帳」計算。`)){el.checked=false;return;}
+  const 狀態=勾選?'已對帳':'未確認';
+  const res=await 呼叫API({action:'saveMonthCost',brand:br,month:ym,[field]:狀態});
+  if(!res.ok){提示('儲存失敗：'+(res.error||''));el.checked=!勾選;return;}
+  提示(`✓ ${平台名}：${狀態}`);
+  渲染月報資料(br,ym);
 }
 
 // FLR 燈號：na 有值代表資料不完整，顯示灰燈＋原因，不判定好壞
@@ -1703,8 +1709,8 @@ function 建立月報HTML(recs,s,emps,allRecs=[],tInternalCost=0,weekSettle=null
   <div class="g2">
     <div class="card"><div class="card-title-lg">📊 收入結構</div>
       ${[['現金收入',tCash],['LINE Pay（門市）',tLP],['線上點餐金流',tLPOnline],['台灣 PAY',tTW],['Uber Eats（門市）',tUber],['熊貓（門市）',tPanda]].filter(([,v],i)=>i<5||v>0).map(([l,v])=>`<div class="sum-row"><span class="sum-label">${l}</span><span>$${格式化金額(v)} <small style="color:#aaa">${百分比(v,tRev)}</small></span></div>`).join('')}
-      <div class="sum-row"><span class="sum-label">Uber實際入帳（選填，覆蓋估算費率）</span><span style="display:flex;align-items:center;gap:6px"><input type="number" value="${s.uber_actual||''}" placeholder="平台後台淨額" style="width:100px;padding:2px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right" onchange="快速儲存月份成本(this.value,'uber_actual')"></span></div>
-      <div class="sum-row"><span class="sum-label">熊貓實際入帳（選填，覆蓋估算費率）</span><span style="display:flex;align-items:center;gap:6px"><input type="number" value="${s.panda_actual||''}" placeholder="平台後台淨額" style="width:100px;padding:2px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right" onchange="快速儲存月份成本(this.value,'panda_actual')"></span></div>
+      <div class="sum-row"><span class="sum-label">Uber實際入帳（平台撥款淨額）</span><span style="display:flex;align-items:center;gap:6px"><input type="number" value="${s.uber_actual||''}" placeholder="平台後台淨額" style="width:100px;padding:2px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right" onchange="快速儲存月份成本(this.value,'uber_actual')"><label style="font-size:11px;color:#888;white-space:nowrap"><input type="checkbox" ${s.uber_status==='已對帳'?'checked':''} onchange="儲存對帳狀態('uber_status',this.checked,this)"> 已對帳</label></span></div>
+      <div class="sum-row"><span class="sum-label">熊貓實際入帳（平台撥款淨額）</span><span style="display:flex;align-items:center;gap:6px"><input type="number" value="${s.panda_actual||''}" placeholder="平台後台淨額" style="width:100px;padding:2px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right" onchange="快速儲存月份成本(this.value,'panda_actual')"><label style="font-size:11px;color:#888;white-space:nowrap"><input type="checkbox" ${s.panda_status==='已對帳'?'checked':''} onchange="儲存對帳狀態('panda_status',this.checked,this)"> 已對帳</label></span></div>
       <div class="sum-row"><span class="sum-label">平台手續費（支出）</span><span style="color:#c0392b">-$${格式化金額(tPFeeAdj)}</span></div>
       ${平台費說明HTML(P)}
       ${P.平台.uber.方式==='實際結算'||P.平台.panda.方式==='實際結算'?'<div style="font-size:11px;color:#c8a96e;padding:2px 0 4px 12px">有填實際入帳的平台，平台自行扣的促銷／廣告已含在手續費裡，月份成本的「廣告」請不要再重複填</div>':''}
@@ -2511,7 +2517,7 @@ async function 渲染總部報表(ym){
   <div style="background:#f5f3ef;border-radius:10px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:#777;line-height:1.7">
     <strong style="color:#555">這是「兩店管理損益」，不是已確認的公司真實淨利。</strong>
     食材成本是「門市進貨＋內部訂購」的管理口徑，<strong>尚未依期初、期末庫存計算實際耗用</strong>（月底庫存多買少用都會影響當月數字）。
-    平台費：有填實際入帳的平台用實際結算（已含抽成、促銷、平台廣告），沒填的依當時適用費率估算。尚未包含：
+    外送平台費：只有標記「已對帳」的平台用實際結算（已含抽成、促銷、平台廣告）；其他一律估算（當日紀錄費率，沒有就暫用現行費率），歷史費率待確認。尚未包含：
     央廚營運成本（人工、租金、水電瓦斯、耗損；門市食材是用內部供應價計算，不是央廚實際進貨成本）、
     總部費用與資金管理中未對應到月報科目的支出（設備、維修、保險、利息等）、車貸利息、醬醬人批發損益、所得稅。
   </div>
