@@ -3173,6 +3173,13 @@ function 顯示商品表單(p={}){
         <div class="field"><label>每袋數量（包/袋）</label>
           <input type="number" id="pf-b2b-pkg" value="${p.packageSize||''}" placeholder="100" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px" oninput="更新批發毛利()"></div>
       </div>
+      <div style="margin-top:10px;font-size:12px;color:#1a7fd4">以下 3 欄會公開顯示在醬醬人批發目錄（不要寫成本、配方、供應商）</div>
+      <div class="field" style="margin-top:6px"><label>適用對象</label>
+        <textarea id="pf-b2b-use" rows="2" placeholder="例：早午餐店、小吃店、便當店，想快速出一碗清雞湯麵的業者" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">${p.b2bUse||''}</textarea></div>
+      <div class="field"><label>使用方式 / 比例</label>
+        <textarea id="pf-b2b-usage" rows="2" placeholder="例：整包隔水加熱 8 分鐘，倒入碗中，加入煮好的麵 150g 即可出餐" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px">${p.b2bUsage||''}</textarea></div>
+      <div class="field"><label>保存方式與期限</label>
+        <input type="text" id="pf-b2b-storage" value="${p.b2bStorage||''}" placeholder="例：冷凍 -18°C，保存 6 個月" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px"></div>
       <div style="margin-top:10px">
         <div class="field"><label>🏠 內部供應價（元/袋，供林家/木谷）</label>
           <div style="display:flex;gap:8px;align-items:center">
@@ -3337,6 +3344,9 @@ async function 儲存商品(id){
     recipe:JSON.stringify(recipe),
     b2bEnabled:document.getElementById('pf-b2b-enabled')?.checked?'true':'false',
     b2bPrice:+document.getElementById('pf-b2b-price')?.value||0,
+    b2bUse:document.getElementById('pf-b2b-use')?.value?.trim()||'',
+    b2bUsage:document.getElementById('pf-b2b-usage')?.value?.trim()||'',
+    b2bStorage:document.getElementById('pf-b2b-storage')?.value?.trim()||'',
     internalPrice:+document.getElementById('pf-internal-price')?.value||0,
     currentStock:+document.getElementById('pf-stock')?.value||0,
     sop:document.getElementById('pf-sop')?.value?.trim()||'',

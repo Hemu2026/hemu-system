@@ -142,6 +142,39 @@ footer strong{color:#d4a870;font-weight:600}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .state-box{text-align:center;padding:60px 20px;color:#b09080;grid-column:1/-1}
 .state-box .icon{font-size:40px;margin-bottom:14px}
+
+/* ── PRODUCT DETAIL ── */
+.product-card{cursor:pointer}
+.product-img img{width:100%;height:100%;object-fit:cover}
+.product-use{font-size:12px;color:#7a6050;line-height:1.6;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.product-more{font-size:12px;color:#c47a3a;font-weight:600}
+.price-locked{font-size:12px;color:#b09080}
+.modal-mask{display:none;position:fixed;inset:0;background:rgba(44,26,14,.55);z-index:500;align-items:center;justify-content:center;padding:16px}
+.modal-mask.show{display:flex}
+.modal{background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto}
+.modal-img{height:200px;display:flex;align-items:center;justify-content:center;font-size:64px;background:linear-gradient(135deg,#fdf6ee 0%,#f5e8d4 100%);border-radius:16px 16px 0 0;overflow:hidden}
+.modal-img img{width:100%;height:100%;object-fit:cover}
+.modal-body{padding:24px}
+.modal-body h3{font-size:20px;font-weight:700;color:#2c1a0e;margin-bottom:4px}
+.modal-spec{font-size:13px;color:#a07860;margin-bottom:18px}
+.detail-row{padding:12px 0;border-top:1px solid #f5ede4}
+.detail-label{font-size:11px;font-weight:600;letter-spacing:.1em;color:#c47a3a;margin-bottom:4px}
+.detail-val{font-size:14px;color:#382f2d;line-height:1.75;white-space:pre-line}
+.modal-actions{display:flex;gap:10px;margin-top:18px}
+.modal-actions button{flex:1}
+
+/* ── FLOW / NOTICE ── */
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding-bottom:16px}
+@media(max-width:700px){.flow{grid-template-columns:1fr 1fr}}
+.flow-step{background:#fdf8f3;border:1px solid #ede0d0;border-radius:12px;padding:18px 16px}
+.flow-num{font-size:11px;font-weight:700;letter-spacing:.14em;color:#c47a3a;margin-bottom:6px}
+.flow-title{font-size:15px;font-weight:700;color:#2c1a0e;margin-bottom:6px}
+.flow-desc{font-size:12px;color:#887060;line-height:1.7}
+.notice{max-width:640px;margin:0 auto;padding-bottom:16px}
+.notice li{list-style:none;font-size:14px;color:#5a4538;line-height:1.8;padding:12px 0 12px 22px;border-bottom:1px solid #f5ede4;position:relative}
+.notice li::before{content:'';position:absolute;left:4px;top:21px;width:6px;height:6px;border-radius:50%;background:#c47a3a}
+footer .footer-info{margin-top:10px;color:#8a6a55}
+footer a{color:#d4a870}
 </style>
 </head>
 <body>
@@ -162,7 +195,7 @@ footer strong{color:#d4a870;font-weight:600}
   <div class="hero-content">
     <div class="hero-tag">Handcrafted Sauce · Wholesale</div>
     <h1 class="hero-title">職人手工醬料<br><span>直接批發</span>合作</h1>
-    <p class="hero-desc">嚴選在地食材，以傳統工法小量製作。椒麻、日式、油醋⋯每一瓶醬料都是對料理的堅持。歡迎餐廳、早午餐、小吃業者洽談長期合作。</p>
+    <p class="hero-desc">嚴選在地食材，以傳統工法小量製作。麻醬、椒麻、日式醬料，到真空包湯品與配料，每一項都在自家門市每天出餐驗證過。歡迎餐廳、早午餐、小吃業者洽談長期合作。</p>
     <div class="hero-btns">
       <button class="btn-hero-primary" onclick="document.getElementById('products').scrollIntoView({behavior:'smooth'})">瀏覽商品目錄</button>
       <button class="btn-hero-secondary" onclick="document.getElementById('app-section').scrollIntoView({behavior:'smooth'})">登入 / 申請批發</button>
@@ -184,13 +217,47 @@ footer strong{color:#d4a870;font-weight:600}
 <div id="products" class="section">
   <div class="section-header">
     <div class="eyebrow">Our Products</div>
-    <h2>批發商品目錄</h2>
-    <p>以下為開放批發的醬料商品，所有價格均為批發含稅價</p>
+    <h2>業務用商品目錄</h2>
+    <p>點商品可看適用對象、使用方式與保存方式。批發價請登入批發帳號後查看</p>
   </div>
   <div class="cat-filters" id="cat-filters"></div>
   <div class="product-grid" id="product-list">
     <div class="state-box"><div class="icon skeleton" style="width:48px;height:48px;border-radius:50%;margin:0 auto 14px"></div><p>商品載入中...</p></div>
   </div>
+</div>
+
+<!-- FLOW -->
+<div class="section">
+  <div class="section-header">
+    <div class="eyebrow">How It Works</div>
+    <h2>合作流程</h2>
+    <p>先試再訂，確認適合你的菜單再開始固定配送</p>
+  </div>
+  <div class="flow">
+    <div class="flow-step"><div class="flow-num">STEP 01</div><div class="flow-title">需求確認</div><div class="flow-desc">填寫下方申請表，告訴我們你的店型、想用的品項與大約用量</div></div>
+    <div class="flow-step"><div class="flow-num">STEP 02</div><div class="flow-title">樣品試吃</div><div class="flow-desc">依需求安排樣品，確認口味與出餐流程是否適合</div></div>
+    <div class="flow-step"><div class="flow-num">STEP 03</div><div class="flow-title">小量試單</div><div class="flow-desc">審核通過後開通批發帳號，先小量下單實際上線</div></div>
+    <div class="flow-step"><div class="flow-num">STEP 04</div><div class="flow-title">固定配送</div><div class="flow-desc">穩定後依你的節奏固定訂貨，線上下單即可</div></div>
+  </div>
+</div>
+
+<!-- NOTICE -->
+<div class="section">
+  <div class="section-header">
+    <div class="eyebrow">Ordering Notes</div>
+    <h2>訂購須知</h2>
+  </div>
+  <ul class="notice">
+    <li>線上下單後，我們會確認訂單並回覆，一般約 3 天到貨，可在下單時指定希望到貨日期</li>
+    <li>冷凍、冷藏品以低溫配送，收貨後請立即依各商品標示的保存方式存放</li>
+    <li>配送範圍以高雄地區為主，其他地區請先透過 LINE 洽詢</li>
+    <li>首次合作可提供出餐操作說明，協助你的現場人員快速上手</li>
+  </ul>
+</div>
+
+<!-- PRODUCT DETAIL MODAL -->
+<div class="modal-mask" id="product-modal" onclick="if(event.target===this)關閉商品()">
+  <div class="modal" id="product-modal-content"></div>
 </div>
 
 <!-- BRAND STORY -->
@@ -216,7 +283,11 @@ footer strong{color:#d4a870;font-weight:600}
 <footer>
   <strong>醬醬人 SauceMan</strong><br>
   和木餐飲｜富郁霖企業社<br>
-  批發洽詢請填寫上方申請表單
+  批發洽詢請填寫上方申請表單，或加入官方 LINE <a href="https://line.me/R/ti/p/@163vphbk" target="_blank" rel="noopener">@163vphbk</a>
+  <div class="footer-info">
+    統一編號：82732756｜食品業者登錄字號：E-182732756-00000-2<br>
+    業務聯絡：0976-788-217
+  </div>
 </footer>
 
 <div class="toast" id="toast"></div>
@@ -224,7 +295,27 @@ footer strong{color:#d4a870;font-weight:600}
 <script>
 const API='https://script.google.com/macros/s/AKfycbw-G6nMGsOQeqCTM9GgMWkzNk4bwB5ABBAEiF9ynzdQgqWWmxfe0ulgdxUnuFaK523m/exec';
 
-const EMOJI={醬料:'🫙',配料:'🧄',蔬菜:'🥬',包材:'📦',肉類:'🥩',乾貨:'🌾',其他:'✨'};
+const EMOJI={醬料:'🫙',配料:'🧄',蔬菜:'🥬',包材:'📦',肉類:'🥩',乾貨:'🌾',真空包:'🍲',飲品:'🍵',其他:'✨'};
+function 分類圖示(cat){
+  if(EMOJI[cat]) return EMOJI[cat];
+  if(/醬/.test(cat)) return '🫙';
+  if(/湯|真空/.test(cat)) return '🍲';
+  return '✨';
+}
+function 跳脫(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function 已登入批發(){return session&&session.status==='approved'}
+function 商品圖(p){return p.imageUrl?`<img src="${跳脫(p.imageUrl)}" alt="${跳脫(p.name)}" loading="lazy">`:分類圖示(p.category||'其他')}
+function 價格區(p){
+  if(!已登入批發()) return`<div class="price-locked">🔒 登入後顯示批發價</div>`;
+  const b2bPrice=+p.b2bPrice||0;
+  const pkgSize=+p.packageSize||0;
+  const unit=p.packageUnit||'包';
+  const perUnit=pkgSize&&b2bPrice?(b2bPrice/pkgSize).toFixed(0):null;
+  return`<div>
+    <div class="product-price">$${格式化金額(b2bPrice)} <span style="font-size:12px;font-weight:400;color:#b09080">/ 袋</span></div>
+    ${pkgSize?`<div class="product-unit">每袋 ${pkgSize} ${跳脫(unit)}${perUnit?`　$${perUnit}/${跳脫(unit)}`:''}</div>`:''}
+  </div>`;
+}
 
 async function 呼叫API(p){
   const r=await fetch(API+'?t='+Date.now(),{method:'POST',body:JSON.stringify(p)});
@@ -279,28 +370,49 @@ function 渲染商品(){
     return;
   }
   el.innerHTML=list.map(p=>{
-    const b2bPrice=+p.b2bPrice||0;
-    const pkgSize=+p.packageSize||0;
-    const unit=p.packageUnit||'包';
-    const perUnit=pkgSize&&b2bPrice?(b2bPrice/pkgSize).toFixed(0):null;
     const cat=p.category||'其他';
-    const em=EMOJI[cat]||'✨';
-    return`<div class="product-card">
-      <div class="product-img">${em}</div>
+    return`<div class="product-card" onclick="開啟商品('${跳脫(p.id)}')">
+      <div class="product-img">${商品圖(p)}</div>
       <div class="product-body">
-        <div class="product-cat">${cat}</div>
-        <div class="product-name">${p.name}${p.spec?` <span style="font-size:12px;font-weight:400;color:#a07860">${p.spec}</span>`:''}</div>
-        ${p.note?`<div class="product-spec">${p.note}</div>`:''}
+        <div class="product-cat">${跳脫(cat)}</div>
+        <div class="product-name">${跳脫(p.name)}${p.spec?` <span style="font-size:12px;font-weight:400;color:#a07860">${跳脫(p.spec)}</span>`:''}</div>
+        ${p.b2bUse?`<div class="product-use">${跳脫(p.b2bUse)}</div>`:''}
+        ${p.b2bStorage?`<div class="product-spec">${跳脫(p.b2bStorage)}</div>`:''}
         <div class="product-footer">
-          <div>
-            <div class="product-price">$${格式化金額(b2bPrice)} <span style="font-size:12px;font-weight:400;color:#b09080">/ 袋</span></div>
-            ${pkgSize?`<div class="product-unit">每袋 ${pkgSize} ${unit}${perUnit?`　$${perUnit}/${unit}`:''}</div>`:''}
-          </div>
+          ${價格區(p)}
+          <span class="product-more">詳細 →</span>
         </div>
       </div>
     </div>`;
   }).join('');
 }
+
+function 開啟商品(id){
+  const p=allProducts.find(x=>String(x.id)===String(id));
+  if(!p) return;
+  const rows=[
+    ['適用對象',p.b2bUse],
+    ['使用方式',p.b2bUsage],
+    ['保存方式',p.b2bStorage],
+  ].filter(r=>r[1]);
+  document.getElementById('product-modal-content').innerHTML=`
+    <div class="modal-img">${商品圖(p)}</div>
+    <div class="modal-body">
+      <div class="product-cat">${跳脫(p.category||'其他')}</div>
+      <h3>${跳脫(p.name)}</h3>
+      <div class="modal-spec">${p.spec?'規格：'+跳脫(p.spec):''}</div>
+      ${rows.map(r=>`<div class="detail-row"><div class="detail-label">${r[0]}</div><div class="detail-val">${跳脫(r[1])}</div></div>`).join('')}
+      ${rows.length?'':`<div class="detail-row"><div class="detail-val" style="color:#b09080">詳細使用說明請透過 LINE 洽詢</div></div>`}
+      <div class="detail-row">${價格區(p)}</div>
+      <div class="modal-actions">
+        <button class="btn-outline-sm" onclick="關閉商品()">關閉</button>
+        <button class="btn-submit" style="margin-top:0" onclick="關閉商品();document.getElementById('app-section').scrollIntoView({behavior:'smooth'})">${已登入批發()?'前往下單':'登入 / 申請批發'}</button>
+      </div>
+    </div>`;
+  document.getElementById('product-modal').classList.add('show');
+}
+function 關閉商品(){document.getElementById('product-modal').classList.remove('show')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')關閉商品()});
 
 async function 送出申請(){
   const name=document.getElementById('a-name').value.trim();
@@ -345,6 +457,7 @@ function App載入(show,text){
 function 文字(id){return document.getElementById(id)?.value?.trim()||'';}
 
 function 渲染App(){
+  if(allProducts.length) 渲染商品();
   if(!session) return 渲染首頁App();
   if(session.status==='pending') return 渲染等待審核App();
   if(session.status==='approved') return 渲染下單頁App();
