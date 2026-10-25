@@ -42,6 +42,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .badge-hq{color:#9b8ec4 !important}
 .page-title{font-size:30px;font-weight:800;color:#111;line-height:1.1;letter-spacing:-.01em}
 .card{background:#fff;border:none;border-radius:18px;padding:1.75rem;margin-bottom:1.125rem;box-shadow:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04)}
+.hub-search{width:100%;padding:13px 18px;border-radius:14px;border:1px solid #e5e2dc;background:#fff;font-size:15px;font-family:inherit;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.hub-search:focus{outline:none;border-color:#9b8ec4;box-shadow:0 0 0 3px rgba(155,142,196,.15)}
+.hub-meta{font-size:12px;color:#999;margin:10px 4px 16px}
+.hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.hub-card{background:#fff;border-radius:18px;padding:1.1rem 1.1rem .8rem;box-shadow:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04)}
+.hub-card-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.hub-icon{font-size:20px}
+.hub-name{font-size:16px;font-weight:800;color:#111;flex:1}
+.hub-count{font-size:11px;font-weight:700;color:#fff;background:#8c8479;border-radius:20px;padding:1px 8px}
+.hub-tool{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:9px;font-size:14px;cursor:pointer;color:#333}
+.hub-tool:hover{background:#f4f1ec}
+.hub-brand{font-size:10px;font-weight:700;border-radius:6px;padding:0 6px;margin-left:auto}
+.hub-brand-a{color:#a5864a;background:#f5ecdc}
+.hub-brand-b{color:#4f8a74;background:#e3f0ea}
+.hub-ext{margin-left:auto;color:#aaa;font-size:12px}
+.hub-empty{text-align:center;color:#999;padding:2rem}
 .card-title{font-size:10px;font-weight:800;color:#ccc;text-transform:uppercase;letter-spacing:.14em;margin-bottom:18px}
 .card-title-lg{font-size:16px;font-weight:700;color:#111;margin-bottom:18px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -420,7 +436,7 @@ function 顯示主介面(){
   document.getElementById('sb-role').textContent=角色名稱[role]||role;
   建立導覽列(role,brand);
   建立頁面(role,brand);
-  const 預設頁面=role==='staff'?`上傳-${brand}`:role==='sauce'?`內部訂購-${brand}`:role==='manager'?`每日-${brand}`:`每日-a`;
+  const 預設頁面=role==='staff'?`上傳-${brand}`:role==='sauce'?`內部訂購-${brand}`:role==='manager'?`每日-${brand}`:'中控';
   // 網址帶 #頁面（例如 #請假-a）就直接開該頁，方便傳連結給員工
   const 網址頁面=decodeURIComponent(location.hash.slice(1));
   const 上次頁面=localStorage.getItem('hm_last_page');
@@ -471,6 +487,9 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="顧客回饋"><span class="nav-dot dot-hq"></span>顧客回饋</div>
     </div>`;
   } else {
+    html+=`<div class="nav-group">
+      <div class="nav-item" data-page="中控"><span class="nav-dot dot-hq"></span>🏠 中控首頁</div>
+    </div>`;
     ['a','b'].forEach(br=>{
       html+=`<div class="nav-group">
         <div class="nav-group-label">${品牌名稱[br]}</div>
@@ -525,6 +544,7 @@ function 建立頁面(role,brand){
   } else if(role==='manager'){
     pages=[`每日-${brand}`,`歷史-${brand}`,`月報-${brand}`,`內部訂購-${brand}`,`請假-${brand}`,'進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄','顧客回饋'];
   } else {
+    pages.push('中控');
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`請假-${br}`,`內部訂購-${br}`,`菜單成本-${br}`,`營養標示-${br}`));
     pages.push('改善追蹤','顧客回饋','總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄');
   }
@@ -576,6 +596,7 @@ function 切換頁面(page){
   else if(page.startsWith('歷史-'))渲染歷史記錄(br);
   else if(page.startsWith('月報-'))渲染月報選擇(br);
   else if(page.startsWith('薪資-'))渲染薪資頁(br);
+  else if(page==='中控')渲染中控首頁();
   else if(page==='總部')渲染總部選擇();
   else if(page==='資金管理')渲染資金管理();
   else if(page==='帳號管理')渲染帳號管理();
@@ -606,6 +627,86 @@ window.addEventListener('popstate',(e)=>{
     切換頁面(page);
     _跳過歷史記錄=false;
   }
+});
+
+// ===== 中控首頁（老闆）=====
+// 所有工具依用途分類成卡片，可搜尋；新增頁面時記得也加進這裡
+const 中控分類=[
+  {名:'門市日常',圖示:'🏪',工具:[
+    {頁:'每日-a',名:'每日輸入'},{頁:'歷史-a',名:'歷史記錄'},{頁:'月報-a',名:'月報表'},
+    {頁:'每日-b',名:'每日輸入'},{頁:'歷史-b',名:'歷史記錄'},{頁:'月報-b',名:'月報表'},
+    {頁:'批次上傳',名:'批次上傳結帳單'}]},
+  {名:'財務資金',圖示:'💰',工具:[
+    {頁:'總部',名:'總部月報表'},{頁:'資金管理',名:'資金管理',關鍵字:'車貸 帳戶 對帳 現金'},
+    {頁:'系統設定',名:'成本設定',關鍵字:'房租 費率 固定費用'}]},
+  {名:'人資',圖示:'👥',工具:[
+    {頁:'薪資-a',名:'員工薪資',關鍵字:'簽收'},{頁:'請假-a',名:'請假單'},
+    {頁:'薪資-b',名:'員工薪資',關鍵字:'簽收'},{頁:'請假-b',名:'請假單'},
+    {頁:'帳號管理',名:'帳號管理',關鍵字:'登入 權限'}]},
+  {名:'央廚生產',圖示:'🍳',工具:[
+    {頁:'進貨申報',名:'進貨申報',關鍵字:'採購 叫貨'},{頁:'進貨結算',名:'進貨結算'},
+    {頁:'生產紀錄',名:'生產紀錄'},{頁:'批次成本紀錄',名:'批次成本紀錄'},
+    {頁:'庫存盤點',名:'庫存盤點',關鍵字:'庫存'},
+    {頁:'內部訂購-a',名:'內部訂購',關鍵字:'叫貨'},{頁:'內部訂購-b',名:'內部訂購',關鍵字:'叫貨'}]},
+  {名:'成本商品',圖示:'🧾',工具:[
+    {頁:'原物料管理',名:'原物料管理',關鍵字:'食材 進價'},{頁:'商品管理',名:'商品管理'},
+    {頁:'成本表',名:'成本表',關鍵字:'配方'},
+    {頁:'菜單成本-a',名:'門市成本表',關鍵字:'菜單 毛利 外送'},{頁:'菜單成本-b',名:'門市成本表',關鍵字:'菜單 毛利 外送'},
+    {頁:'營養標示-a',名:'營養標示'},{頁:'營養標示-b',名:'營養標示'}]},
+  {名:'數據改善',圖示:'📊',工具:[
+    {頁:'數據分析',名:'數據分析',關鍵字:'圖表 營收'},{頁:'改善追蹤',名:'改善追蹤'},
+    {頁:'顧客回饋',名:'顧客回饋',關鍵字:'問卷 負評'}]},
+  {名:'醬醬人批發',圖示:'📦',工具:[
+    {頁:'批發管理',名:'批發管理',關鍵字:'B2B 訂單'},
+    {網址:'sauceman.html',名:'批發目錄（對外）',關鍵字:'SauceMan B2B'}]},
+  {名:'對外連結',圖示:'🔗',工具:[
+    {網址:'feedback.html?brand=a',名:'林家顧客問卷',關鍵字:'回饋 QR'},
+    {網址:'feedback.html?brand=b',名:'木谷顧客問卷',關鍵字:'回饋 QR'},
+    {網址:'https://docs.google.com/spreadsheets/d/1qW2Zlle_UYGzP-6-4B8ypuQtnuYR0WEMdcFFEpx_l4Q',名:'Google 試算表（資料庫）',關鍵字:'sheet'}]},
+];
+
+function 渲染中控首頁(){
+  const el=document.getElementById('page-中控');
+  const 工具數=中控分類.reduce((n,c)=>n+c.工具.length,0);
+  el.innerHTML=`
+  <div class="brand-header"><span class="brand-badge badge-hq">和木餐飲</span><span class="page-title">營運中控</span></div>
+  <input id="hub-search" class="hub-search" type="search" placeholder="搜尋工具名稱、品牌或分類…（按 / 快速搜尋）" oninput="篩選中控(this.value)">
+  <div class="hub-meta">${中控分類.length} 類・${工具數} 個工具</div>
+  <div class="hub-grid">${中控分類.map((c,ci)=>`
+    <div class="hub-card" data-cat="${ci}">
+      <div class="hub-card-head"><span class="hub-icon">${c.圖示}</span><span class="hub-name">${c.名}</span><span class="hub-count">${c.工具.length}</span></div>
+      ${c.工具.map(t=>{
+        const br=t.頁&&/-(a|b)$/.test(t.頁)?t.頁.slice(-1):'';
+        const 標籤=br?`<span class="hub-brand hub-brand-${br}">${br==='a'?'林家':'木谷'}</span>`:'';
+        const 搜尋字=[c.名,t.名,t.關鍵字||'',br?品牌名稱[br]:''].join(' ').toLowerCase();
+        const 動作=t.網址?`onclick="window.open('${t.網址}','_blank')"`:`onclick="切換頁面('${t.頁}')"`;
+        return `<div class="hub-tool" data-search="${搜尋字}" ${動作}><span class="nav-dot dot-${br||'hq'}"></span>${t.名}${標籤}${t.網址?'<span class="hub-ext">↗</span>':''}</div>`;
+      }).join('')}
+    </div>`).join('')}
+  </div>
+  <div id="hub-empty" class="hub-empty" style="display:none">找不到符合的工具</div>`;
+}
+
+function 篩選中控(q){
+  const 字=q.trim().toLowerCase();
+  let 有結果=false;
+  document.querySelectorAll('#page-中控 .hub-card').forEach(card=>{
+    let 顯示數=0;
+    card.querySelectorAll('.hub-tool').forEach(t=>{
+      const 符合=!字||t.dataset.search.includes(字);
+      t.style.display=符合?'':'none';
+      if(符合)顯示數++;
+    });
+    card.style.display=顯示數?'':'none';
+    if(顯示數)有結果=true;
+  });
+  document.getElementById('hub-empty').style.display=有結果?'none':'block';
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key!=='/'||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
+  const 搜尋=document.querySelector('#page-中控.active #hub-search');
+  if(搜尋){e.preventDefault();搜尋.focus();}
 });
 
 // ===== 每日輸入（店長/老闆）=====
