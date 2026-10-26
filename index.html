@@ -652,6 +652,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="總部"><span class="nav-dot dot-hq"></span>總部月報表</div>
       <div class="nav-item" data-page="資金管理"><span class="nav-dot dot-hq"></span>資金管理</div>
       <div class="nav-item" data-page="帳號管理"><span class="nav-dot dot-hq"></span>帳號管理</div>
+      <div class="nav-item" data-page="LINE員工"><span class="nav-dot dot-hq"></span>LINE 員工</div>
       <div class="nav-item" data-page="系統設定"><span class="nav-dot dot-hq"></span>成本設定</div>
       <div class="nav-item" data-page="批發管理"><span class="nav-dot dot-hq"></span>批發管理</div>
       <div class="nav-item" data-page="批次上傳"><span class="nav-dot dot-hq"></span>批次上傳結帳單</div>
@@ -687,7 +688,7 @@ function 建立頁面(role,brand){
   } else {
     pages.push('中控');
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`請假-${br}`,`內部訂購-${br}`,`菜單成本-${br}`,`營養標示-${br}`));
-    pages.push('改善追蹤','顧客回饋','總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄');
+    pages.push('改善追蹤','顧客回饋','總部','資金管理','帳號管理','LINE員工','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -759,6 +760,7 @@ function 切換頁面(page){
   else if(page==='庫存盤點')渲染庫存盤點();
   else if(page==='改善追蹤')渲染改善追蹤();
   else if(page==='顧客回饋')渲染顧客回饋();
+  else if(page==='LINE員工')渲染LINE員工();
 }
 
 window.addEventListener('popstate',(e)=>{
@@ -783,6 +785,61 @@ function 切換側邊欄(){
 }
 套用側邊欄狀態(!!localStorage.getItem('hm_sb_collapsed'));
 
+// ===== LINE 員工白名單（老闆）=====
+// 員工官方帳號只有「核准」的人能用；新的人傳「綁定林家／木谷」會出現在待核准，這裡核准、改門市、停權、刪除，下一則訊息就生效
+async function 渲染LINE員工(){
+  const el=document.getElementById('page-LINE員工');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">LINE 員工</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  const res=await 呼叫API({action:'getLineStaff'});
+  const list=res.data||[];
+  const 店={a:'林家',b:'木谷',both:'兩店'};
+  const 狀態色={核准:'#2a6b58',待核准:'#e67e22',停權:'#c0392b'};
+  const 排序={待核准:0,核准:1,停權:2};
+  const 列=list.slice().sort((x,y)=>(排序[x.status]??3)-(排序[y.status]??3)).map(r=>{
+    const uid=String(r.userId).replace(/[^A-Za-z0-9]/g,'');
+    return`<tr>
+      <td>${r.lineName||'—'}<div style="font-size:11px;color:#aaa">…${uid.slice(-6)}</div></td>
+      <td><input id="ls-name-${uid}" value="${String(r.name||'').replace(/"/g,'&quot;')}" placeholder="員工姓名" style="width:90px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-family:inherit"></td>
+      <td><span style="color:${狀態色[r.status]||'#888'};font-weight:600">${r.status}</span>${r.status==='待核准'&&r.requestedBrand?`<div style="font-size:11px;color:#888">申請：${店[r.requestedBrand]||''}</div>`:''}</td>
+      <td><select id="ls-brand-${uid}" style="padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-family:inherit">
+        ${['a','b','both'].map(b=>`<option value="${b}"${(r.brand||r.requestedBrand)===b?' selected':''}>${店[b]}</option>`).join('')}</select></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:#2a6b58;color:#fff" onclick="儲存LINE員工('${uid}','approve')">${r.status==='核准'?'更新':'核准'}</button>
+        ${r.status==='核准'?`<button class="btn btn-sm" style="background:#e67e22;color:#fff" onclick="儲存LINE員工('${uid}','suspend')">停權</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="儲存LINE員工('${uid}','delete')">刪除</button>
+      </td></tr>`;
+  }).join('');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">LINE 員工</span></div>
+  <div class="card" style="font-size:13px;color:#666;line-height:1.7">只有「核准」的 LINE 帳號能用員工官方帳號叫貨、生產、日結、請假、進貨記帳。新員工傳「綁定林家」或「綁定木谷」就會出現在這裡等你核准。離職或暫停請按「停權」，改門市後按「更新」，都是下一則訊息就生效。</div>
+  <div class="card"><div class="table-wrap"><table>
+    <thead><tr><th>LINE 名稱</th><th>員工姓名</th><th>狀態</th><th>門市</th><th></th></tr></thead>
+    <tbody>${列||'<tr><td colspan="5" style="text-align:center;color:#aaa;padding:1.5rem">目前沒有任何 LINE 帳號</td></tr>'}</tbody>
+  </table></div>
+  <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="匯入既有LINE綁定()">匯入既有的「綁定」紀錄（上線切換時用）</button></div>`;
+  window._LINE員工=list;
+}
+async function 儲存LINE員工(uid,op){
+  const r=(window._LINE員工||[]).find(x=>String(x.userId).replace(/[^A-Za-z0-9]/g,'')===uid);
+  if(!r)return;
+  const 名=document.getElementById('ls-name-'+uid)?.value||'';
+  const 門市=document.getElementById('ls-brand-'+uid)?.value;
+  const 說明={approve:`核准／更新「${r.lineName||名||'這個帳號'}」為 ${({a:'林家',b:'木谷',both:'兩店'})[門市]}`,suspend:`停權「${r.lineName||名}」`,delete:`刪除「${r.lineName||名}」（之後要用必須重新申請）`}[op];
+  if(!confirm(說明+'？'))return;
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'saveLineStaff',userId:r.userId,op,brand:門市,name:名});
+  載入中(false);
+  提示(res.ok?'✓ 已更新':'失敗：'+(res.error||''));
+  渲染LINE員工();
+}
+async function 匯入既有LINE綁定(){
+  if(!confirm('把目前已經綁定過門市的 LINE 帳號匯入名單並直接核准？'))return;
+  載入中(true,'匯入中...');
+  const res=await 呼叫API({action:'importLineBindings'});
+  載入中(false);
+  提示(res.ok?`✓ 匯入 ${res.imported} 個`:'失敗：'+(res.error||''));
+  渲染LINE員工();
+}
+
 // ===== 中控首頁（老闆）=====
 // 所有工具依用途分類成卡片，可搜尋；新增頁面時記得也加進這裡
 const 中控分類=[
@@ -796,7 +853,7 @@ const 中控分類=[
   {名:'人資',圖示:'👥',工具:[
     {頁:'薪資-a',名:'員工薪資',關鍵字:'簽收'},{頁:'請假-a',名:'請假單'},
     {頁:'薪資-b',名:'員工薪資',關鍵字:'簽收'},{頁:'請假-b',名:'請假單'},
-    {頁:'帳號管理',名:'帳號管理',關鍵字:'登入 權限'}]},
+    {頁:'帳號管理',名:'帳號管理',關鍵字:'登入 權限'},{頁:'LINE員工',名:'LINE 員工',關鍵字:'綁定 核准 停權'}]},
   {名:'央廚生產',圖示:'🍳',工具:[
     {頁:'進貨申報',名:'進貨申報',關鍵字:'採購 叫貨'},{頁:'進貨結算',名:'進貨結算'},
     {頁:'生產紀錄',名:'生產紀錄'},{頁:'批次成本紀錄',名:'批次成本紀錄'},
