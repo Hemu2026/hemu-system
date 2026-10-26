@@ -473,14 +473,19 @@ function 載入中(顯示,訊息='處理中...'){
   if(訊息)el.querySelector('.loading-text').textContent=訊息;
 }
 
+// 每次呼叫都帶登入通行證（放在請求內容，不放網址）；後端回「登入已失效」就回到登入畫面
 async function 呼叫API(參數){
   const ctrl=new AbortController();
   const timer=setTimeout(()=>ctrl.abort(),30000);
   try{
-    const res=await fetch(API+'?t='+Date.now(),{method:'POST',body:JSON.stringify(參數),signal:ctrl.signal});
+    const session=localStorage.getItem('hm_session')||'';
+    const res=await fetch(API+'?t='+Date.now(),{method:'POST',body:JSON.stringify({...參數,session}),signal:ctrl.signal});
     const text=await res.text();
-    try{return JSON.parse(text);}
+    let data;
+    try{data=JSON.parse(text);}
     catch(e){console.error('API回傳非JSON:',text.slice(0,500));throw new Error(text.slice(0,200));}
+    if(data&&data.code==='AUTH'&&參數.action!=='googleLogin'){登入失效();}
+    return data;
   }catch(e){
     if(e.name==='AbortError')throw new Error('API 逾時（30秒），請重新整理再試');
     throw e;
@@ -490,7 +495,8 @@ async function 呼叫API(參數){
 // ===== 登入登出 =====
 async function 初始化(){
   const saved=localStorage.getItem('hm_user');
-  if(saved){
+  // 舊版只存使用者資料、沒有通行證，一律重新登入
+  if(saved&&localStorage.getItem('hm_session')){
     目前使用者=JSON.parse(saved);
     await 載入品牌設定();
     顯示主介面();
@@ -522,12 +528,24 @@ async function handleGoogleCredential(resp){
   }
   目前使用者=res.user;
   localStorage.setItem('hm_user',JSON.stringify(目前使用者));
+  localStorage.setItem('hm_session',res.session||'');
   await 載入品牌設定();
   顯示主介面();
 }
 
+// 登出：先請後端作廢這張通行證，再清掉本機資料
 function doLogout(){
+  if(localStorage.getItem('hm_session'))呼叫API({action:'logout'}).catch(()=>{});
+  清除登入並顯示登入畫面();
+}
+let _已提示失效=false;
+function 登入失效(){
+  if(!_已提示失效){_已提示失效=true;提示('登入已失效，請重新登入');}
+  清除登入並顯示登入畫面();
+}
+function 清除登入並顯示登入畫面(){
   localStorage.removeItem('hm_user');
+  localStorage.removeItem('hm_session');
   目前使用者=null;
   if(window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
   document.getElementById('app-screen').style.display='none';
@@ -797,8 +815,7 @@ const 中控分類=[
     {網址:'sauceman.html',名:'批發目錄（對外）',關鍵字:'SauceMan B2B'}]},
   {名:'對外連結',圖示:'🔗',工具:[
     {網址:'feedback.html?brand=a',名:'林家顧客問卷',關鍵字:'回饋 QR'},
-    {網址:'feedback.html?brand=b',名:'木谷顧客問卷',關鍵字:'回饋 QR'},
-    {網址:'https://docs.google.com/spreadsheets/d/1qW2Zlle_UYGzP-6-4B8ypuQtnuYR0WEMdcFFEpx_l4Q',名:'Google 試算表（資料庫）',關鍵字:'sheet'}]},
+    {網址:'feedback.html?brand=b',名:'木谷顧客問卷',關鍵字:'回饋 QR'}]},
 ];
 
 function 渲染中控首頁(){
@@ -1606,19 +1623,21 @@ async function 渲染月報資料(br,ym){
   const recs=allRecs.filter(r=>格式化日期(r.date).startsWith(ym));
   const s=品牌設定[br]||{};
   載入中(true);
-  const [payRes,mcRes,ioRes,wsRes,staffRes]=await Promise.all([
-    呼叫API({action:'getPayroll',brand:br,month:ym}),
+  // 月報只拿人事「總額」（店長也看這頁，不能讀到個人薪資）
+  const [sumRes,mcRes,ioRes,wsRes]=await Promise.all([
+    呼叫API({action:'getPayrollSummary',brand:br,month:ym}),
     呼叫API({action:'getMonthCost',brand:br,month:ym}),
     呼叫API({action:'getInternalOrders',brand:br}),
-    呼叫API({action:'getWeekSettle',brand:br}),
-    呼叫API({action:'getStaffProfiles',brand:br})
+    呼叫API({action:'getWeekSettle',brand:br})
   ]);
   載入中(false);
   const mergedMc=合併月份成本(br,ym,mcRes.data);
   const sWithMonth={...s,...mergedMc};
-  const emps=payRes.data||[];
+  const 人事=sumRes.data||{};
+  // 計算品牌損益() 吃員工陣列，用一筆合計資料代表（有人事資料才放）
+  const emps=人事.empCount?[{base:人事.grossSalary,nhi_emp:人事.nhiEmp,nhi_co:人事.nhiCo}]:[];
   // 人事未入帳時，損益兩平改用員工資料的底薪＋公司負擔估算
-  const 預估人事=(staffRes.data||[]).filter(p=>p.active!==false&&p.active!=='FALSE').reduce((a,p)=>a+(+p.base||0)+(+p.nhi_co||0),0);
+  const 預估人事=+人事.estimate||0;
   const ioOrders=(ioRes.orders||[]).filter(o=>格式化日期(o.date)?.startsWith(ym));
   const tInternalCost=ioOrders.reduce((s,o)=>s+(+o.totalCost||0),0);
   window._月報_br=br; window._月報_ym=ym; window._月報_mc={...mergedMc};
@@ -2723,8 +2742,9 @@ async function 儲存月份成本(br){
 // 個人戶公司款：老闆個人戶頭裡屬於公司的錢（林家 Uber 入帳、繳電話/電費/網路），跟老闆貸款戶是同一個銀行戶頭
 const 公司帳戶=['富郁霖卡','南閩卡','個人戶公司款','公司現金','央廚備用金'];
 const 老闆帳戶=['老闆貸款戶','股票帳戶'];
-// 台新大安租賃：貸款總額＝實際入帳 745,545 ＋ 清償原車貸 249,055；年利率由月付反推
-const 車貸設定={本金:994600,年利率:0.0669,期數:72,首期:'2026-11-07',月付:16810,原車貸:249055};
+// 貸款條件（本金、年利率、期數、首期、月付、原車貸）不寫在公開程式碼，存在 GAS 指令碼屬性 OWNER_LOAN_CONFIG，
+// 老闆登入後由 getOwnerConfig 讀取；讀不到就不顯示車貸卡
+let 車貸設定=null;
 
 function 車貸還款進度(today){
   const r=車貸設定.年利率/12;
@@ -2841,11 +2861,14 @@ async function 渲染資金管理(){
   const ym=今日日期().slice(0,7);
   let res,resA,resB;
   try{
-    [res,resA,resB]=await Promise.all([
+    let cfg;
+    [res,resA,resB,cfg]=await Promise.all([
       呼叫API({action:'getFundRecords'}),
       呼叫API({action:'getRecords',brand:'a',role:'owner',month:ym}),
-      呼叫API({action:'getRecords',brand:'b',role:'owner',month:ym})
+      呼叫API({action:'getRecords',brand:'b',role:'owner',month:ym}),
+      呼叫API({action:'getOwnerConfig'})
     ]);
+    車貸設定=cfg&&cfg.ok&&cfg.data&&cfg.data.loan||null;
   }catch(e){
     載入中(false);
     el.innerHTML+=`<div style="color:#c0392b;padding:1rem;text-align:center">載入失敗：${e.message}<br><button class="btn" onclick="渲染資金管理()" style="margin-top:8px">重試</button></div>`;
@@ -3006,7 +3029,7 @@ async function 渲染資金管理(){
   <div class="card"><div class="card-title">資金流水記錄</div>
     ${渲染資金流水表(records.filter(r=>!是車貸記錄(r)),'尚無記錄，請先設定各帳戶初始餘額')}
   </div>
-  ${渲染車貸周轉金卡(sorted,餘額,總資金,正規化帳戶)}
+  ${車貸設定?渲染車貸周轉金卡(sorted,餘額,總資金,正規化帳戶):'<div class="card" style="color:#999;font-size:13px">🚗 車貸周轉金：尚未設定貸款條件（GAS 指令碼屬性 OWNER_LOAN_CONFIG）</div>'}
   <div class="card"><div class="card-title">🚗 車貸周轉金流水記錄</div>
     ${渲染資金流水表(records.filter(是車貸記錄),'尚無記錄。先到「月初對帳」填老闆貸款戶餘額，之後撥款／投資／還款用「轉帳」記',false)}
   </div>`;
