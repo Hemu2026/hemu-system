@@ -797,10 +797,11 @@ async function 渲染LINE員工(){
   const 排序={待核准:0,核准:1,停權:2};
   const 列=list.slice().sort((x,y)=>(排序[x.status]??3)-(排序[y.status]??3)).map(r=>{
     const uid=String(r.userId).replace(/[^A-Za-z0-9]/g,'');
+    // LINE 名稱是員工自己設定的，一律跳脫後才放進畫面
     return`<tr>
-      <td>${r.lineName||'—'}<div style="font-size:11px;color:#aaa">…${uid.slice(-6)}</div></td>
-      <td><input id="ls-name-${uid}" value="${String(r.name||'').replace(/"/g,'&quot;')}" placeholder="員工姓名" style="width:90px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-family:inherit"></td>
-      <td><span style="color:${狀態色[r.status]||'#888'};font-weight:600">${r.status}</span>${r.status==='待核准'&&r.requestedBrand?`<div style="font-size:11px;color:#888">申請：${店[r.requestedBrand]||''}</div>`:''}</td>
+      <td>${轉義HTML(r.lineName||'—')}<div style="font-size:11px;color:#aaa">…${uid.slice(-6)}</div>${r.note?`<div style="font-size:11px;color:#e67e22">${轉義HTML(r.note)}</div>`:''}</td>
+      <td><input id="ls-name-${uid}" value="${轉義HTML(r.name||'')}" placeholder="員工姓名" style="width:90px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-family:inherit"></td>
+      <td><span style="color:${狀態色[r.status]||'#888'};font-weight:600">${轉義HTML(r.status)}</span>${r.status==='待核准'&&r.requestedBrand?`<div style="font-size:11px;color:#888">申請：${店[r.requestedBrand]||''}</div>`:''}</td>
       <td><select id="ls-brand-${uid}" style="padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-family:inherit">
         ${['a','b','both'].map(b=>`<option value="${b}"${(r.brand||r.requestedBrand)===b?' selected':''}>${店[b]}</option>`).join('')}</select></td>
       <td style="display:flex;gap:6px;flex-wrap:wrap">
@@ -815,7 +816,8 @@ async function 渲染LINE員工(){
     <thead><tr><th>LINE 名稱</th><th>員工姓名</th><th>狀態</th><th>門市</th><th></th></tr></thead>
     <tbody>${列||'<tr><td colspan="5" style="text-align:center;color:#aaa;padding:1.5rem">目前沒有任何 LINE 帳號</td></tr>'}</tbody>
   </table></div>
-  <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="匯入既有LINE綁定()">匯入既有的「綁定」紀錄（上線切換時用）</button></div>`;
+  <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="預覽既有LINE綁定()">預覽既有的「綁定」紀錄（上線切換時用）</button>
+  <div id="ls-preview"></div></div>`;
   window._LINE員工=list;
 }
 async function 儲存LINE員工(uid,op){
@@ -831,8 +833,23 @@ async function 儲存LINE員工(uid,op){
   提示(res.ok?'✓ 已更新':'失敗：'+(res.error||''));
   渲染LINE員工();
 }
+// 先列出既有綁定給老闆核對（不寫入），確認後才匯入，匯入後一律是「待核准」，要逐一填姓名、選門市再核准
+async function 預覽既有LINE綁定(){
+  載入中(true,'讀取中...');
+  const res=await 呼叫API({action:'importLineBindings',preview:true});
+  載入中(false);
+  const box=document.getElementById('ls-preview');
+  if(!res.ok){box.innerHTML=`<div style="color:#c0392b;margin-top:10px">讀取失敗：${轉義HTML(res.error||'')}</div>`;return;}
+  const 店={a:'林家',b:'木谷'};
+  const 新的=res.data.filter(x=>!x.inList);
+  box.innerHTML=`<div style="margin-top:12px;font-size:13px;color:#666">既有綁定共 ${res.data.length} 個，其中 ${新的.length} 個還不在名單。請核對下列 LINE 帳號是否都是自己的員工：</div>
+  <div class="table-wrap"><table><thead><tr><th>LINE 名稱</th><th>原本綁定門市</th><th>目前狀態</th></tr></thead><tbody>
+  ${res.data.map(x=>`<tr><td>${轉義HTML(x.lineName||'（讀不到名稱）')}<div style="font-size:11px;color:#aaa">…${轉義HTML(String(x.userId).slice(-6))}</div></td><td>${店[x.oldBrand]||轉義HTML(x.oldBrand)}</td><td>${x.inList?轉義HTML(x.status)+'（已在名單）':'未匯入'}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:#aaa">沒有既有綁定</td></tr>'}
+  </tbody></table></div>
+  ${新的.length?`<button class="btn btn-sm" style="margin-top:10px;background:#e67e22;color:#fff" onclick="匯入既有LINE綁定()">匯入這 ${新的.length} 個為「待核准」</button>`:''}`;
+}
 async function 匯入既有LINE綁定(){
-  if(!confirm('把目前已經綁定過門市的 LINE 帳號匯入名單並直接核准？'))return;
+  if(!confirm('把清單上的 LINE 帳號匯入名單（狀態為「待核准」）？匯入後請逐一填員工姓名、選門市再按核准。'))return;
   載入中(true,'匯入中...');
   const res=await 呼叫API({action:'importLineBindings'});
   載入中(false);
