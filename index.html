@@ -473,14 +473,19 @@ function 載入中(顯示,訊息='處理中...'){
   if(訊息)el.querySelector('.loading-text').textContent=訊息;
 }
 
+// 每次呼叫都帶登入通行證（放在請求內容，不放網址）；後端回「登入已失效」就回到登入畫面
 async function 呼叫API(參數){
   const ctrl=new AbortController();
   const timer=setTimeout(()=>ctrl.abort(),30000);
   try{
-    const res=await fetch(API+'?t='+Date.now(),{method:'POST',body:JSON.stringify(參數),signal:ctrl.signal});
+    const session=localStorage.getItem('hm_session')||'';
+    const res=await fetch(API+'?t='+Date.now(),{method:'POST',body:JSON.stringify({...參數,session}),signal:ctrl.signal});
     const text=await res.text();
-    try{return JSON.parse(text);}
+    let data;
+    try{data=JSON.parse(text);}
     catch(e){console.error('API回傳非JSON:',text.slice(0,500));throw new Error(text.slice(0,200));}
+    if(data&&data.code==='AUTH'&&參數.action!=='googleLogin'){登入失效();}
+    return data;
   }catch(e){
     if(e.name==='AbortError')throw new Error('API 逾時（30秒），請重新整理再試');
     throw e;
@@ -490,7 +495,8 @@ async function 呼叫API(參數){
 // ===== 登入登出 =====
 async function 初始化(){
   const saved=localStorage.getItem('hm_user');
-  if(saved){
+  // 舊版只存使用者資料、沒有通行證，一律重新登入
+  if(saved&&localStorage.getItem('hm_session')){
     目前使用者=JSON.parse(saved);
     await 載入品牌設定();
     顯示主介面();
@@ -522,12 +528,24 @@ async function handleGoogleCredential(resp){
   }
   目前使用者=res.user;
   localStorage.setItem('hm_user',JSON.stringify(目前使用者));
+  localStorage.setItem('hm_session',res.session||'');
   await 載入品牌設定();
   顯示主介面();
 }
 
+// 登出：先請後端作廢這張通行證，再清掉本機資料
 function doLogout(){
+  if(localStorage.getItem('hm_session'))呼叫API({action:'logout'}).catch(()=>{});
+  清除登入並顯示登入畫面();
+}
+let _已提示失效=false;
+function 登入失效(){
+  if(!_已提示失效){_已提示失效=true;提示('登入已失效，請重新登入');}
+  清除登入並顯示登入畫面();
+}
+function 清除登入並顯示登入畫面(){
   localStorage.removeItem('hm_user');
+  localStorage.removeItem('hm_session');
   目前使用者=null;
   if(window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
   document.getElementById('app-screen').style.display='none';
@@ -634,6 +652,7 @@ function 建立導覽列(role,brand){
       <div class="nav-item" data-page="總部"><span class="nav-dot dot-hq"></span>總部月報表</div>
       <div class="nav-item" data-page="資金管理"><span class="nav-dot dot-hq"></span>資金管理</div>
       <div class="nav-item" data-page="帳號管理"><span class="nav-dot dot-hq"></span>帳號管理</div>
+      <div class="nav-item" data-page="LINE員工"><span class="nav-dot dot-hq"></span>LINE 員工</div>
       <div class="nav-item" data-page="系統設定"><span class="nav-dot dot-hq"></span>成本設定</div>
       <div class="nav-item" data-page="批發管理"><span class="nav-dot dot-hq"></span>批發管理</div>
       <div class="nav-item" data-page="批次上傳"><span class="nav-dot dot-hq"></span>批次上傳結帳單</div>
@@ -669,7 +688,7 @@ function 建立頁面(role,brand){
   } else {
     pages.push('中控');
     ['a','b'].forEach(br=>pages.push(`每日-${br}`,`歷史-${br}`,`月報-${br}`,`薪資-${br}`,`請假-${br}`,`內部訂購-${br}`,`菜單成本-${br}`,`營養標示-${br}`));
-    pages.push('改善追蹤','顧客回饋','總部','資金管理','帳號管理','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄');
+    pages.push('改善追蹤','顧客回饋','總部','資金管理','帳號管理','LINE員工','系統設定','批發管理','批次上傳','原物料管理','商品管理','成本表','數據分析','進貨申報','進貨結算','生產紀錄','庫存盤點','批次成本紀錄');
   }
   main.innerHTML=pages.map(p=>`<div id="page-${p}" class="page"></div>`).join('');
 }
@@ -741,6 +760,7 @@ function 切換頁面(page){
   else if(page==='庫存盤點')渲染庫存盤點();
   else if(page==='改善追蹤')渲染改善追蹤();
   else if(page==='顧客回饋')渲染顧客回饋();
+  else if(page==='LINE員工')渲染LINE員工();
 }
 
 window.addEventListener('popstate',(e)=>{
@@ -765,6 +785,78 @@ function 切換側邊欄(){
 }
 套用側邊欄狀態(!!localStorage.getItem('hm_sb_collapsed'));
 
+// ===== LINE 員工白名單（老闆）=====
+// 員工官方帳號只有「核准」的人能用；新的人傳「綁定林家／木谷」會出現在待核准，這裡核准、改門市、停權、刪除，下一則訊息就生效
+async function 渲染LINE員工(){
+  const el=document.getElementById('page-LINE員工');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">LINE 員工</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
+  const res=await 呼叫API({action:'getLineStaff'});
+  const list=res.data||[];
+  const 店={a:'林家',b:'木谷',both:'兩店'};
+  const 狀態色={核准:'#2a6b58',待核准:'#e67e22',停權:'#c0392b'};
+  const 排序={待核准:0,核准:1,停權:2};
+  const 列=list.slice().sort((x,y)=>(排序[x.status]??3)-(排序[y.status]??3)).map(r=>{
+    const uid=String(r.userId).replace(/[^A-Za-z0-9]/g,'');
+    // LINE 名稱是員工自己設定的，一律跳脫後才放進畫面
+    return`<tr>
+      <td>${轉義HTML(r.lineName||'—')}<div style="font-size:11px;color:#aaa">…${uid.slice(-6)}</div>${r.note?`<div style="font-size:11px;color:#e67e22">${轉義HTML(r.note)}</div>`:''}</td>
+      <td><input id="ls-name-${uid}" value="${轉義HTML(r.name||'')}" placeholder="員工姓名" style="width:90px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-family:inherit"></td>
+      <td><span style="color:${狀態色[r.status]||'#888'};font-weight:600">${轉義HTML(r.status)}</span>${r.status==='待核准'&&r.requestedBrand?`<div style="font-size:11px;color:#888">申請：${店[r.requestedBrand]||''}</div>`:''}</td>
+      <td><select id="ls-brand-${uid}" style="padding:4px 6px;border-radius:6px;border:1px solid #ddd;font-family:inherit">
+        ${['a','b','both'].map(b=>`<option value="${b}"${(r.brand||r.requestedBrand)===b?' selected':''}>${店[b]}</option>`).join('')}</select></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:#2a6b58;color:#fff" onclick="儲存LINE員工('${uid}','approve')">${r.status==='核准'?'更新':'核准'}</button>
+        ${r.status==='核准'?`<button class="btn btn-sm" style="background:#e67e22;color:#fff" onclick="儲存LINE員工('${uid}','suspend')">停權</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="儲存LINE員工('${uid}','delete')">刪除</button>
+      </td></tr>`;
+  }).join('');
+  el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">LINE 員工</span></div>
+  <div class="card" style="font-size:13px;color:#666;line-height:1.7">只有「核准」的 LINE 帳號能用員工官方帳號叫貨、生產、日結、請假、進貨記帳。新員工傳「綁定林家」或「綁定木谷」就會出現在這裡等你核准。離職或暫停請按「停權」，改門市後按「更新」，都是下一則訊息就生效。</div>
+  <div class="card"><div class="table-wrap"><table>
+    <thead><tr><th>LINE 名稱</th><th>員工姓名</th><th>狀態</th><th>門市</th><th></th></tr></thead>
+    <tbody>${列||'<tr><td colspan="5" style="text-align:center;color:#aaa;padding:1.5rem">目前沒有任何 LINE 帳號</td></tr>'}</tbody>
+  </table></div>
+  <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="預覽既有LINE綁定()">預覽既有的「綁定」紀錄（上線切換時用）</button>
+  <div id="ls-preview"></div></div>`;
+  window._LINE員工=list;
+}
+async function 儲存LINE員工(uid,op){
+  const r=(window._LINE員工||[]).find(x=>String(x.userId).replace(/[^A-Za-z0-9]/g,'')===uid);
+  if(!r)return;
+  const 名=document.getElementById('ls-name-'+uid)?.value||'';
+  const 門市=document.getElementById('ls-brand-'+uid)?.value;
+  const 說明={approve:`核准／更新「${r.lineName||名||'這個帳號'}」為 ${({a:'林家',b:'木谷',both:'兩店'})[門市]}`,suspend:`停權「${r.lineName||名}」`,delete:`刪除「${r.lineName||名}」（之後要用必須重新申請）`}[op];
+  if(!confirm(說明+'？'))return;
+  載入中(true,'儲存中...');
+  const res=await 呼叫API({action:'saveLineStaff',userId:r.userId,op,brand:門市,name:名});
+  載入中(false);
+  提示(res.ok?'✓ 已更新':'失敗：'+(res.error||''));
+  渲染LINE員工();
+}
+// 先列出既有綁定給老闆核對（不寫入），確認後才匯入，匯入後一律是「待核准」，要逐一填姓名、選門市再核准
+async function 預覽既有LINE綁定(){
+  載入中(true,'讀取中...');
+  const res=await 呼叫API({action:'importLineBindings',preview:true});
+  載入中(false);
+  const box=document.getElementById('ls-preview');
+  if(!res.ok){box.innerHTML=`<div style="color:#c0392b;margin-top:10px">讀取失敗：${轉義HTML(res.error||'')}</div>`;return;}
+  const 店={a:'林家',b:'木谷'};
+  const 新的=res.data.filter(x=>!x.inList);
+  box.innerHTML=`<div style="margin-top:12px;font-size:13px;color:#666">既有綁定共 ${res.data.length} 個，其中 ${新的.length} 個還不在名單。請核對下列 LINE 帳號是否都是自己的員工：</div>
+  <div class="table-wrap"><table><thead><tr><th>LINE 名稱</th><th>原本綁定門市</th><th>目前狀態</th></tr></thead><tbody>
+  ${res.data.map(x=>`<tr><td>${轉義HTML(x.lineName||'（讀不到名稱）')}<div style="font-size:11px;color:#aaa">…${轉義HTML(String(x.userId).slice(-6))}</div></td><td>${店[x.oldBrand]||轉義HTML(x.oldBrand)}</td><td>${x.inList?轉義HTML(x.status)+'（已在名單）':'未匯入'}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:#aaa">沒有既有綁定</td></tr>'}
+  </tbody></table></div>
+  ${新的.length?`<button class="btn btn-sm" style="margin-top:10px;background:#e67e22;color:#fff" onclick="匯入既有LINE綁定()">匯入這 ${新的.length} 個為「待核准」</button>`:''}`;
+}
+async function 匯入既有LINE綁定(){
+  if(!confirm('把清單上的 LINE 帳號匯入名單（狀態為「待核准」）？匯入後請逐一填員工姓名、選門市再按核准。'))return;
+  載入中(true,'匯入中...');
+  const res=await 呼叫API({action:'importLineBindings'});
+  載入中(false);
+  提示(res.ok?`✓ 匯入 ${res.imported} 個`:'失敗：'+(res.error||''));
+  渲染LINE員工();
+}
+
 // ===== 中控首頁（老闆）=====
 // 所有工具依用途分類成卡片，可搜尋；新增頁面時記得也加進這裡
 const 中控分類=[
@@ -778,7 +870,7 @@ const 中控分類=[
   {名:'人資',圖示:'👥',工具:[
     {頁:'薪資-a',名:'員工薪資',關鍵字:'簽收'},{頁:'請假-a',名:'請假單'},
     {頁:'薪資-b',名:'員工薪資',關鍵字:'簽收'},{頁:'請假-b',名:'請假單'},
-    {頁:'帳號管理',名:'帳號管理',關鍵字:'登入 權限'}]},
+    {頁:'帳號管理',名:'帳號管理',關鍵字:'登入 權限'},{頁:'LINE員工',名:'LINE 員工',關鍵字:'綁定 核准 停權'}]},
   {名:'央廚生產',圖示:'🍳',工具:[
     {頁:'進貨申報',名:'進貨申報',關鍵字:'採購 叫貨'},{頁:'進貨結算',名:'進貨結算'},
     {頁:'生產紀錄',名:'生產紀錄'},{頁:'批次成本紀錄',名:'批次成本紀錄'},
@@ -797,8 +889,7 @@ const 中控分類=[
     {網址:'sauceman.html',名:'批發目錄（對外）',關鍵字:'SauceMan B2B'}]},
   {名:'對外連結',圖示:'🔗',工具:[
     {網址:'feedback.html?brand=a',名:'林家顧客問卷',關鍵字:'回饋 QR'},
-    {網址:'feedback.html?brand=b',名:'木谷顧客問卷',關鍵字:'回饋 QR'},
-    {網址:'https://docs.google.com/spreadsheets/d/1qW2Zlle_UYGzP-6-4B8ypuQtnuYR0WEMdcFFEpx_l4Q',名:'Google 試算表（資料庫）',關鍵字:'sheet'}]},
+    {網址:'feedback.html?brand=b',名:'木谷顧客問卷',關鍵字:'回饋 QR'}]},
 ];
 
 function 渲染中控首頁(){
@@ -1606,19 +1697,21 @@ async function 渲染月報資料(br,ym){
   const recs=allRecs.filter(r=>格式化日期(r.date).startsWith(ym));
   const s=品牌設定[br]||{};
   載入中(true);
-  const [payRes,mcRes,ioRes,wsRes,staffRes]=await Promise.all([
-    呼叫API({action:'getPayroll',brand:br,month:ym}),
+  // 月報只拿人事「總額」（店長也看這頁，不能讀到個人薪資）
+  const [sumRes,mcRes,ioRes,wsRes]=await Promise.all([
+    呼叫API({action:'getPayrollSummary',brand:br,month:ym}),
     呼叫API({action:'getMonthCost',brand:br,month:ym}),
     呼叫API({action:'getInternalOrders',brand:br}),
-    呼叫API({action:'getWeekSettle',brand:br}),
-    呼叫API({action:'getStaffProfiles',brand:br})
+    呼叫API({action:'getWeekSettle',brand:br})
   ]);
   載入中(false);
   const mergedMc=合併月份成本(br,ym,mcRes.data);
   const sWithMonth={...s,...mergedMc};
-  const emps=payRes.data||[];
+  const 人事=sumRes.data||{};
+  // 計算品牌損益() 吃員工陣列，用一筆合計資料代表（有人事資料才放）
+  const emps=人事.empCount?[{base:人事.grossSalary,nhi_emp:人事.nhiEmp,nhi_co:人事.nhiCo}]:[];
   // 人事未入帳時，損益兩平改用員工資料的底薪＋公司負擔估算
-  const 預估人事=(staffRes.data||[]).filter(p=>p.active!==false&&p.active!=='FALSE').reduce((a,p)=>a+(+p.base||0)+(+p.nhi_co||0),0);
+  const 預估人事=+人事.estimate||0;
   const ioOrders=(ioRes.orders||[]).filter(o=>格式化日期(o.date)?.startsWith(ym));
   const tInternalCost=ioOrders.reduce((s,o)=>s+(+o.totalCost||0),0);
   window._月報_br=br; window._月報_ym=ym; window._月報_mc={...mergedMc};
@@ -2723,8 +2816,9 @@ async function 儲存月份成本(br){
 // 個人戶公司款：老闆個人戶頭裡屬於公司的錢（林家 Uber 入帳、繳電話/電費/網路），跟老闆貸款戶是同一個銀行戶頭
 const 公司帳戶=['富郁霖卡','南閩卡','個人戶公司款','公司現金','央廚備用金'];
 const 老闆帳戶=['老闆貸款戶','股票帳戶'];
-// 台新大安租賃：貸款總額＝實際入帳 745,545 ＋ 清償原車貸 249,055；年利率由月付反推
-const 車貸設定={本金:994600,年利率:0.0669,期數:72,首期:'2026-11-07',月付:16810,原車貸:249055};
+// 貸款條件（本金、年利率、期數、首期、月付、原車貸）不寫在公開程式碼，存在 GAS 指令碼屬性 OWNER_LOAN_CONFIG，
+// 老闆登入後由 getOwnerConfig 讀取；讀不到就不顯示車貸卡
+let 車貸設定=null;
 
 function 車貸還款進度(today){
   const r=車貸設定.年利率/12;
@@ -2841,11 +2935,14 @@ async function 渲染資金管理(){
   const ym=今日日期().slice(0,7);
   let res,resA,resB;
   try{
-    [res,resA,resB]=await Promise.all([
+    let cfg;
+    [res,resA,resB,cfg]=await Promise.all([
       呼叫API({action:'getFundRecords'}),
       呼叫API({action:'getRecords',brand:'a',role:'owner',month:ym}),
-      呼叫API({action:'getRecords',brand:'b',role:'owner',month:ym})
+      呼叫API({action:'getRecords',brand:'b',role:'owner',month:ym}),
+      呼叫API({action:'getOwnerConfig'})
     ]);
+    車貸設定=cfg&&cfg.ok&&cfg.data&&cfg.data.loan||null;
   }catch(e){
     載入中(false);
     el.innerHTML+=`<div style="color:#c0392b;padding:1rem;text-align:center">載入失敗：${e.message}<br><button class="btn" onclick="渲染資金管理()" style="margin-top:8px">重試</button></div>`;
@@ -3006,7 +3103,7 @@ async function 渲染資金管理(){
   <div class="card"><div class="card-title">資金流水記錄</div>
     ${渲染資金流水表(records.filter(r=>!是車貸記錄(r)),'尚無記錄，請先設定各帳戶初始餘額')}
   </div>
-  ${渲染車貸周轉金卡(sorted,餘額,總資金,正規化帳戶)}
+  ${車貸設定?渲染車貸周轉金卡(sorted,餘額,總資金,正規化帳戶):'<div class="card" style="color:#999;font-size:13px">🚗 車貸周轉金：尚未設定貸款條件（GAS 指令碼屬性 OWNER_LOAN_CONFIG）</div>'}
   <div class="card"><div class="card-title">🚗 車貸周轉金流水記錄</div>
     ${渲染資金流水表(records.filter(是車貸記錄),'尚無記錄。先到「月初對帳」填老闆貸款戶餘額，之後撥款／投資／還款用「轉帳」記',false)}
   </div>`;
