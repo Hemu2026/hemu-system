@@ -492,6 +492,37 @@ async function 呼叫API(參數){
   }finally{clearTimeout(timer);}
 }
 
+// 讀取用：把「讀不到」跟「真的沒資料」分開，報表與資金頁讀不到時不可以當成 0 或尚無記錄
+// 有的 API 成功時不帶 ok（例如 getInternalOrders），所以只看 ok:false 或 error 判斷失敗
+async function 讀取API(參數){
+  try{
+    const res=await 呼叫API(參數);
+    if(res&&res.ok!==false&&!res.error)return{ok:true,res};
+    const 類型=res?.code==='AUTH'?'登入失效':res?.code==='DENY'?'權限不足':'伺服器錯誤';
+    return{ok:false,類型,訊息:res?.error||''};
+  }catch(e){return{ok:false,類型:'連線失敗',訊息:e.message};}
+}
+// 多個讀取只要有一個失敗就回傳那個失敗（登入失效優先），全部成功回傳 null
+function 第一個讀取失敗(結果們){
+  const 失敗=結果們.filter(r=>!r.ok);
+  return 失敗.find(r=>r.類型==='登入失效')||失敗[0]||null;
+}
+function 讀取失敗HTML(失敗,重試){
+  const 說明={
+    '登入失效':'登入已失效，請重新用 Google 登入後再開這一頁。',
+    '權限不足':'這個帳號沒有權限讀取這一頁的資料。',
+    '連線失敗':'連不到系統，請確認網路後按「重試」；一直不行請按 ⌘⇧R（手機下拉）重新整理。',
+    '伺服器錯誤':'系統讀取資料時發生錯誤，請按「重試」；一直不行請截圖給老闆。'
+  }[失敗.類型]||'讀取失敗，請按「重試」。';
+  const 細節=失敗.訊息?`<div style="font-size:12px;color:#999;margin-top:6px">${轉義HTML(String(失敗.訊息).slice(0,200))}</div>`:'';
+  const 按鈕=失敗.類型==='登入失效'?`<button class="btn" onclick="登入失效()" style="margin-top:10px">重新登入</button>`
+    :失敗.類型==='權限不足'?'':`<button class="btn" onclick="${重試}" style="margin-top:10px">重試</button>`;
+  return`<div class="card" style="border-left:4px solid #c0392b;text-align:center;padding:1.25rem">
+    <div style="font-weight:600;color:#c0392b;margin-bottom:6px">⚠ 資料讀取失敗（${失敗.類型}）</div>
+    <div style="font-size:14px;color:#555">${說明}</div>
+    <div style="font-size:12px;color:#999;margin-top:6px">這不代表資料是 0 或已刪除，只是這次沒有讀到。</div>${細節}${按鈕}</div>`;
+}
+
 // ===== 登入登出 =====
 async function 初始化(){
   const saved=localStorage.getItem('hm_user');
@@ -499,6 +530,8 @@ async function 初始化(){
   if(saved&&localStorage.getItem('hm_session')){
     目前使用者=JSON.parse(saved);
     await 載入品牌設定();
+    // 通行證已失效時，載入設定那一步已經回到登入頁（目前使用者被清空），不可以再蓋回主畫面
+    if(!目前使用者)return;
     顯示主介面();
   } else {
     載入中(false);
@@ -527,6 +560,7 @@ async function handleGoogleCredential(resp){
     return;
   }
   目前使用者=res.user;
+  _已提示失效=false;
   localStorage.setItem('hm_user',JSON.stringify(目前使用者));
   localStorage.setItem('hm_session',res.session||'');
   await 載入品牌設定();
@@ -542,6 +576,7 @@ let _已提示失效=false;
 function 登入失效(){
   if(!_已提示失效){_已提示失效=true;提示('登入已失效，請重新登入');}
   清除登入並顯示登入畫面();
+  顯示登入錯誤('登入已失效，請重新用 Google 登入');
 }
 function 清除登入並顯示登入畫面(){
   localStorage.removeItem('hm_user');
@@ -1678,9 +1713,13 @@ async function 渲染月報選擇(br){
   const el=document.getElementById(`page-月報-${br}`);
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">月報表</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
   載入中(true);
-  const res=await 呼叫API({action:'getRecords',brand:br,role:目前使用者?.role});
+  const 讀=await 讀取API({action:'getRecords',brand:br,role:目前使用者?.role});
   載入中(false);
-  const recs=res.data||[];
+  if(!讀.ok){
+    el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">月報表</span></div>${讀取失敗HTML(讀,`渲染月報選擇('${br}')`)}`;
+    return;
+  }
+  const recs=讀.res.data||[];
   const months=[...new Set(recs.map(r=>格式化日期(r.date)?.slice(0,7)))].filter(Boolean).sort().reverse();
   el.innerHTML=`
   <div class="brand-header"><span class="brand-badge badge-${br}">${品牌名稱[br]}</span><span class="page-title">月報表</span></div>
@@ -1698,13 +1737,17 @@ async function 渲染月報資料(br,ym){
   const s=品牌設定[br]||{};
   載入中(true);
   // 月報只拿人事「總額」（店長也看這頁，不能讀到個人薪資）
-  const [sumRes,mcRes,ioRes,wsRes]=await Promise.all([
-    呼叫API({action:'getPayrollSummary',brand:br,month:ym}),
-    呼叫API({action:'getMonthCost',brand:br,month:ym}),
-    呼叫API({action:'getInternalOrders',brand:br}),
-    呼叫API({action:'getWeekSettle',brand:br})
+  const 讀=await Promise.all([
+    讀取API({action:'getPayrollSummary',brand:br,month:ym}),
+    讀取API({action:'getMonthCost',brand:br,month:ym}),
+    讀取API({action:'getInternalOrders',brand:br}),
+    讀取API({action:'getWeekSettle',brand:br})
   ]);
   載入中(false);
+  // 讀不到就不算損益，也不做下面的週結算搬遷寫入（讀不到 GAS 會被誤判成「GAS 還沒有」）
+  const 失敗=第一個讀取失敗(讀);
+  if(失敗){document.getElementById(`mbody-${br}`).innerHTML=讀取失敗HTML(失敗,`渲染月報資料('${br}','${ym}')`);return;}
+  const [sumRes,mcRes,ioRes,wsRes]=讀.map(r=>r.res);
   const mergedMc=合併月份成本(br,ym,mcRes.data);
   const sWithMonth={...s,...mergedMc};
   const 人事=sumRes.data||{};
@@ -2555,11 +2598,17 @@ async function 渲染總部選擇(){
   const el=document.getElementById('page-總部');
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">總部月報表</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
   載入中(true);
-  const [resA,resB]=await Promise.all([
-    呼叫API({action:'getRecords',brand:'a',role:'owner'}),
-    呼叫API({action:'getRecords',brand:'b',role:'owner'})
+  const 讀=await Promise.all([
+    讀取API({action:'getRecords',brand:'a',role:'owner'}),
+    讀取API({action:'getRecords',brand:'b',role:'owner'})
   ]);
   載入中(false);
+  const 失敗=第一個讀取失敗(讀);
+  if(失敗){
+    el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">總部月報表</span></div>${讀取失敗HTML(失敗,'渲染總部選擇()')}`;
+    return;
+  }
+  const [resA,resB]=讀.map(r=>r.res);
   const allRecs=[...(resA.data||[]),...(resB.data||[])];
   const months=[...new Set(allRecs.map(r=>格式化日期(r.date)?.slice(0,7)))].filter(Boolean).sort().reverse();
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">總部月報表</span></div>
@@ -2575,15 +2624,18 @@ async function 渲染總部報表(ym){
   const recsA=(window._allHQRecs?.a||[]).filter(r=>格式化日期(r.date).startsWith(ym));
   const recsB=(window._allHQRecs?.b||[]).filter(r=>格式化日期(r.date).startsWith(ym));
   載入中(true);
-  const [payResA,payResB,ioResA,ioResB,mcResA,mcResB]=await Promise.all([
-    呼叫API({action:'getPayroll',brand:'a',month:ym}),
-    呼叫API({action:'getPayroll',brand:'b',month:ym}),
-    呼叫API({action:'getInternalOrders',brand:'a'}),
-    呼叫API({action:'getInternalOrders',brand:'b'}),
-    呼叫API({action:'getMonthCost',brand:'a',month:ym}),
-    呼叫API({action:'getMonthCost',brand:'b',month:ym})
+  const 讀=await Promise.all([
+    讀取API({action:'getPayroll',brand:'a',month:ym}),
+    讀取API({action:'getPayroll',brand:'b',month:ym}),
+    讀取API({action:'getInternalOrders',brand:'a'}),
+    讀取API({action:'getInternalOrders',brand:'b'}),
+    讀取API({action:'getMonthCost',brand:'a',month:ym}),
+    讀取API({action:'getMonthCost',brand:'b',month:ym})
   ]);
   載入中(false);
+  const 失敗=第一個讀取失敗(讀);
+  if(失敗){document.getElementById('hqbody').innerHTML=讀取失敗HTML(失敗,`渲染總部報表('${ym}')`);return;}
+  const [payResA,payResB,ioResA,ioResB,mcResA,mcResB]=讀.map(r=>r.res);
   // 跟門市月報同一套口徑：品牌設定＋當月月份成本，再用共用的 計算品牌損益()
   const sA={...(品牌設定['a']||{}),...合併月份成本('a',ym,mcResA.data)};
   const sB={...(品牌設定['b']||{}),...合併月份成本('b',ym,mcResB.data)};
@@ -2933,22 +2985,21 @@ async function 渲染資金管理(){
   const el=document.getElementById('page-資金管理');
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">資金管理</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
   const ym=今日日期().slice(0,7);
-  let res,resA,resB;
-  try{
-    let cfg;
-    [res,resA,resB,cfg]=await Promise.all([
-      呼叫API({action:'getFundRecords'}),
-      呼叫API({action:'getRecords',brand:'a',role:'owner',month:ym}),
-      呼叫API({action:'getRecords',brand:'b',role:'owner',month:ym}),
-      呼叫API({action:'getOwnerConfig'})
-    ]);
-    車貸設定=cfg&&cfg.ok&&cfg.data&&cfg.data.loan||null;
-  }catch(e){
-    載入中(false);
-    el.innerHTML+=`<div style="color:#c0392b;padding:1rem;text-align:center">載入失敗：${e.message}<br><button class="btn" onclick="渲染資金管理()" style="margin-top:8px">重試</button></div>`;
+  const 讀=await Promise.all([
+    讀取API({action:'getFundRecords'}),
+    讀取API({action:'getRecords',brand:'a',role:'owner',month:ym}),
+    讀取API({action:'getRecords',brand:'b',role:'owner',month:ym}),
+    讀取API({action:'getOwnerConfig'})
+  ]);
+  載入中(false);
+  // 任何一個讀不到都不算餘額（否則流水是空的，所有帳戶會被算成 $0）
+  const 失敗=第一個讀取失敗(讀);
+  if(失敗){
+    el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">資金管理</span></div>${讀取失敗HTML(失敗,'渲染資金管理()')}`;
     return;
   }
-  載入中(false);
+  const [res,resA,resB,cfg]=讀.map(r=>r.res);
+  車貸設定=cfg.data&&cfg.data.loan||null;
   try{
   // 只取本月記錄計算週結
   const recsA=(resA.data||[]).filter(r=>格式化日期(r.date).startsWith(ym));
