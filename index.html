@@ -5697,6 +5697,7 @@ async function 渲染進貨結算(){
   const res=await 呼叫API({action:'getPurchaseReports',status:'pending'});
   if(!res.ok){el.querySelector('div:last-child').textContent='載入失敗';return;}
   const list=res.data||[];
+  window._進貨待結算=list;
   const total=list.reduce((s,r)=>s+(+r.totalAmount||0),0);
   const rows=list.sort((a,b)=>b.date?.localeCompare(a.date||'')||0).map(r=>{
     const items=Array.isArray(r.items)?r.items:(typeof r.items==='string'?JSON.parse(r.items||'[]'):[]);
@@ -5721,7 +5722,7 @@ async function 渲染進貨結算(){
       </details>
       ${r.note?`<div style="font-size:13px;color:#888;margin-bottom:.8rem">備註：${r.note}</div>`:''}
       <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" style="flex:1" onclick="確認進貨結算('${r.id}',${r.totalAmount})">確認結算</button>
+        <button class="btn btn-primary" style="flex:1" onclick="確認進貨結算('${r.id}')">確認結算</button>
         <button class="btn btn-danger btn-sm" onclick="刪除進貨申報('${r.id}')">刪除</button>
       </div>
     </div>`;
@@ -5737,14 +5738,45 @@ async function 渲染進貨結算(){
   ${rows||'<div style="color:#aaa;text-align:center;padding:3rem">目前無待結算進貨單</div>'}`;
 }
 
-async function 確認進貨結算(id,amount){
-  const pay=prompt(`確認結算這筆進貨（$${格式化金額(amount)}）\n本次補入金額（留空則不補錢）：`);
-  if(pay===null)return;
+// 老闆自己出去買央廚的貨：選付款帳戶，結算時一併記一筆資金支出（不經過央廚備用金）
+// 記資金只有老闆有權限，所以付款帳戶只對老闆顯示；預設「不記資金」，跟以前行為一樣
+function 確認進貨結算(id){
+  const r=(window._進貨待結算||[]).find(x=>String(x.id)===String(id));
+  if(!r){提示('找不到這筆進貨申報');return;}
+  const 是老闆=目前使用者?.role==='owner';
+  document.getElementById('detail-title').textContent=`確認結算 $${格式化金額(r.totalAmount)}`;
+  document.getElementById('detail-content').innerHTML=`
+    ${是老闆?`<div class="field" style="margin-bottom:10px"><label>付款帳戶（會在資金管理記一筆支出）</label>
+      <select id="pr-account" style="font-size:15px;padding:10px 12px">
+        <option value="">不記資金（員工用央廚備用金，已另外記過）</option>
+        ${['公司現金','富郁霖卡','南閩卡','個人戶公司款'].map(a=>`<option value="${a}">${a}</option>`).join('')}
+      </select></div>`:''}
+    <div class="field"><label>本次補入金額（留空則不補錢）</label><input type="number" id="pr-pay" style="font-size:15px;padding:10px 12px"></div>`;
+  document.getElementById('detail-actions').innerHTML=
+    `<button class="btn" style="flex:1;background:#27ae60;color:#fff;border:none" onclick="送出進貨結算('${r.id}')">確認結算</button>
+     <button class="btn" style="flex:1;background:#eee;color:#555;border:none" onclick="關閉詳細()">取消</button>`;
+  document.getElementById('detail-modal').classList.add('open');
+}
+async function 送出進貨結算(id){
+  const r=(window._進貨待結算||[]).find(x=>String(x.id)===String(id));
+  if(!r){提示('找不到這筆進貨申報');return;}
+  const account=document.getElementById('pr-account')?.value||'';
+  const pay=+document.getElementById('pr-pay').value||0;
+  關閉詳細();
   載入中(true,'結算中...');
-  const res=await 呼叫API({action:'confirmPurchaseReport',id,paymentAmount:+pay||0});
-  載入中(false);
-  if(!res.ok){提示('結算失敗：'+(res.error||''));return;}
-  提示('✓ 已結算，庫存已更新');
+  const res=await 呼叫API({action:'confirmPurchaseReport',id,paymentAmount:pay});
+  if(!res.ok){載入中(false);提示('結算失敗：'+(res.error||''));return;}
+  if(account){
+    const items=Array.isArray(r.items)?r.items:(typeof r.items==='string'?JSON.parse(r.items||'[]'):[]);
+    const note=`央廚進貨（${目前使用者?.name||'老闆'}）：${items.map(it=>it.name).join('、')}`;
+    const fr=await 呼叫API({action:'saveFundRecord',date:格式化日期(r.date),type:'支出',account,amount:+r.totalAmount||0,note,created_by:目前使用者?.email});
+    載入中(false);
+    if(!fr.ok){提示(`庫存已更新，但資金支出沒記到（${fr.error||''}），請到資金管理手動補記 ${account} $${格式化金額(r.totalAmount)}`);渲染進貨結算();return;}
+    提示(`✓ 已結算，庫存已更新，${account} 已記支出 $${格式化金額(r.totalAmount)}`);
+  }else{
+    載入中(false);
+    提示('✓ 已結算，庫存已更新');
+  }
   渲染進貨結算();
 }
 
