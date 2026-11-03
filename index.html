@@ -4864,6 +4864,9 @@ async function 送出內部訂購(br){
     results.push(await 呼叫API({action:'saveInternalOrder',record:{brand:br,date,...item,requestId}}));
   }
   載入中(false);
+  // 叫貨通知老闆 LINE：只送存檔成功的訂單 id，不等回應、失敗不影響叫貨
+  const savedIds=results.filter(r=>r?.ok&&r.id).map(r=>r.id);
+  if(savedIds.length)呼叫API({action:'notifyInternalOrder',brand:br,ids:savedIds}).catch(()=>{});
   items.forEach((item,i)=>{if(results[i]?.ok)delete _io數量[`${br}-${item.productId}`];});
   if(results.every(r=>r?.ok)){
     提示('✓ 訂購已記錄，庫存已扣減');
