@@ -71,6 +71,7 @@ git push origin main
 - **防重複送出**：每次送出帶 `requestId`（網頁 `WEB+時間+亂數`，LINE 用 `LINE+message.id+_序號`，擋 webhook 重送），同 requestId 第二次直接回傳原紀錄不再異動
 - **刪除回沖只回沖當初真的有做的部分**：生產紀錄看 `productAdded`=1 才退成品；叫貨看 `stockApplied`=1 才退庫存。10-22 前的舊紀錄沒有這些欄位，刪除時只退原物料（生產）或不退（叫貨），因為舊的扣法不一致
 - 成品庫存允許變負數（不再 `Math.max(0,…)`）：負數代表「沒登記生產就出貨」，盤點時看得出來
+- **叫貨通知老闆**（2026-11-03，GAS@138）：網頁 `送出內部訂購` 存檔後呼叫 `notifyInternalOrder`（只送訂單 id），LINE 叫貨直接呼叫 `notifyInternalOrders_`；訊息從「員工訂購」實際紀錄組出、附央廚剩餘庫存（負數加 ⚠），`notified` 欄防重複通知，推播失敗不影響叫貨
 - 測試方式：建「ZZ測試原料/商品」走 生產→重送→叫貨→勾 directIssue 叫貨→逐筆刪除，確認每步數字，測完刪除（scratchpad 的 test_stock.py 寫法）
 
 ## 資金管理：車貸周轉金（2026-10-20 上線）
