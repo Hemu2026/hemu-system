@@ -2868,6 +2868,11 @@ async function 儲存月份成本(br){
 // 個人戶公司款：老闆個人戶頭裡屬於公司的錢（林家 Uber 入帳、繳電話/電費/網路），跟老闆貸款戶是同一個銀行戶頭
 const 公司帳戶=['富郁霖卡','南閩卡','個人戶公司款','公司現金','央廚備用金'];
 const 老闆帳戶=['老闆貸款戶','股票帳戶'];
+// 畫面顯示名稱：老闆貸款戶、個人戶公司款實際上都是同一個國泰戶頭（貸款撥入、林家 Uber 入帳、股票轉錢都走這裡）
+// 只改顯示，試算表裡存的帳戶代號不變（舊記錄、計算、GAS 都照舊）
+const 帳戶顯示名={'老闆貸款戶':'國泰・貸款','個人戶公司款':'國泰・公司款（林家Uber）'};
+const 顯示帳戶=a=>帳戶顯示名[a]||a;
+const 帳戶選項=(list,sel)=>list.map(a=>`<option value="${a}"${a===sel?' selected':''}>${顯示帳戶(a)}</option>`).join('');
 // 貸款條件（本金、年利率、期數、首期、月付、原車貸）不寫在公開程式碼，存在 GAS 指令碼屬性 OWNER_LOAN_CONFIG，
 // 老闆登入後由 getOwnerConfig 讀取；讀不到就不顯示車貸卡
 let 車貸設定=null;
@@ -2937,7 +2942,7 @@ function 渲染車貸周轉金卡(sorted,餘額,公司總資金,正規化帳戶)
   return`
   <div class="card" style="border:1px solid #c8a96e">
     <div class="card-title-lg" style="margin-bottom:6px">🚗 車貸周轉金</div>
-    <div style="font-size:12px;color:#888;margin-bottom:14px">老闆個人名義車貸增貸，不算公司資金。撥款／投資／還款都用「轉帳」記在老闆貸款戶、股票帳戶之間；股票市值每月用「對帳快照」更新。</div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">老闆個人名義車貸增貸，不算公司資金。貸款撥入國泰戶頭（同一戶也收林家 Uber），系統分成「國泰・貸款」和「國泰・公司款」兩筆記。撥款／投資／還款都用「轉帳」；股票市值每月用「對帳快照」更新。</div>
     <div class="metric-grid">
       <div class="metric green"><div class="metric-label">保守現金跑道</div><div class="metric-value" style="color:${跑道色(保守可用)}">${跑道(保守可用)}</div></div>
       <div class="metric"><div class="metric-label">含股票跑道</div><div class="metric-value">${跑道(保守可用+股票市值)}</div></div>
@@ -2946,8 +2951,8 @@ function 渲染車貸周轉金卡(sorted,餘額,公司總資金,正規化帳戶)
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px 24px">
       <div>
         <div class="card-title">資金池</div>
-        ${列('未動用（老闆貸款戶）','$'+格式化金額(未動用))}
-        ${列('個人戶銀行應有餘額（貸款 ＋ 公司款）','$'+格式化金額(未動用+(餘額['個人戶公司款']||0)),'color:#8a6a2a')}
+        ${列('未動用（國泰・貸款）','$'+格式化金額(未動用))}
+        ${列('國泰戶頭應有餘額（貸款 ＋ 公司款）','$'+格式化金額(未動用+(餘額['個人戶公司款']||0)),'color:#8a6a2a')}
         ${列('公司欠老闆（已撥 − 已還）','$'+格式化金額(公司欠款))}
         ${列('股票投入淨額（來自貸款）','$'+格式化金額(股票投入))}
         ${股票外部投入?列('股票其他資金（非貸款）','$'+格式化金額(股票外部投入)):''}
@@ -3067,7 +3072,7 @@ async function 渲染資金管理(){
   </div>
   <div class="g2">
     <div class="card"><div class="card-title">銀行帳戶</div>
-      ${[['富郁霖卡','富郁霖卡'],['南閩卡','南閩卡'],['個人戶公司款（林家Uber）','個人戶公司款']].map(([n,k])=>`
+      ${[['富郁霖卡','富郁霖卡'],['南閩卡','南閩卡'],[顯示帳戶('個人戶公司款'),'個人戶公司款']].map(([n,k])=>`
       <div class="sum-row"><span class="sum-label">${n}</span><span style="font-weight:600;font-size:16px">$${格式化金額(餘額[k])}</span></div>`).join('')}
     </div>
     <div class="card"><div class="card-title">公司現金</div>
@@ -3093,10 +3098,10 @@ async function 渲染資金管理(){
     <div style="font-size:12px;color:#888;margin-bottom:14px">填入今日各帳戶的實際餘額，系統會以此為新起點計算後續流水。</div>
     <div class="g2" style="margin-bottom:12px">
       ${帳戶.map(a=>`<div class="field">
-        <label>${a==='股票帳戶'?'股票帳戶（目前市值）':a}</label>
+        <label>${a==='股票帳戶'?'股票帳戶（目前市值）':顯示帳戶(a)}</label>
         <input type="number" inputmode="decimal" id="snap-${a}" placeholder="0" style="font-size:18px;font-weight:600;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-family:inherit;width:100%">
         ${a==='個人戶公司款'?`<div style="font-size:12px;color:#888;margin-top:6px">同一個戶頭也放貸款的錢，不要直接填銀行餘額。填這裡自動換算：</div>
-        <input type="number" inputmode="decimal" id="snap-個人戶銀行" placeholder="個人戶銀行實際餘額" oninput="換算個人戶公司款(${餘額['老闆貸款戶']||0})" style="font-size:15px;padding:8px 12px;border:1px dashed #c8a96e;border-radius:8px;font-family:inherit;width:100%;margin-top:4px">`:''}
+        <input type="number" inputmode="decimal" id="snap-個人戶銀行" placeholder="國泰戶頭實際餘額（網銀看到的數字）" oninput="換算個人戶公司款(${餘額['老闆貸款戶']||0})" style="font-size:15px;padding:8px 12px;border:1px dashed #c8a96e;border-radius:8px;font-family:inherit;width:100%;margin-top:4px">`:''}
       </div>`).join('')}
     </div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -3119,8 +3124,8 @@ async function 渲染資金管理(){
           <option value="央廚備用金">央廚備用金</option>
           <option value="富郁霖卡">富郁霖卡</option>
           <option value="南閩卡">南閩卡</option>
-          <option value="個人戶公司款">個人戶公司款</option>
-          <option value="老闆貸款戶">老闆貸款戶</option>
+          <option value="個人戶公司款">${顯示帳戶('個人戶公司款')}</option>
+          <option value="老闆貸款戶">${顯示帳戶('老闆貸款戶')}</option>
           <option value="股票帳戶">股票帳戶</option>
         </select>
       </div>
@@ -3130,8 +3135,8 @@ async function 渲染資金管理(){
           <option value="公司現金">公司現金</option>
           <option value="富郁霖卡">富郁霖卡</option>
           <option value="南閩卡">南閩卡</option>
-          <option value="個人戶公司款">個人戶公司款</option>
-          <option value="老闆貸款戶">老闆貸款戶</option>
+          <option value="個人戶公司款">${顯示帳戶('個人戶公司款')}</option>
+          <option value="老闆貸款戶">${顯示帳戶('老闆貸款戶')}</option>
           <option value="股票帳戶">股票帳戶</option>
         </select>
       </div>
@@ -3156,7 +3161,7 @@ async function 渲染資金管理(){
   </div>
   ${車貸設定?渲染車貸周轉金卡(sorted,餘額,總資金,正規化帳戶):'<div class="card" style="color:#999;font-size:13px">🚗 車貸周轉金：尚未設定貸款條件（GAS 指令碼屬性 OWNER_LOAN_CONFIG）</div>'}
   <div class="card"><div class="card-title">🚗 車貸周轉金流水記錄</div>
-    ${渲染資金流水表(records.filter(是車貸記錄),'尚無記錄。先到「月初對帳」填老闆貸款戶餘額，之後撥款／投資／還款用「轉帳」記',false)}
+    ${渲染資金流水表(records.filter(是車貸記錄),'尚無記錄。先到「月初對帳」填國泰・貸款餘額，之後撥款／投資／還款用「轉帳」記',false)}
   </div>`;
   }catch(e){
     console.error('渲染資金管理錯誤:',e);
@@ -3192,7 +3197,7 @@ function 渲染資金流水表(records,空白文字,顯示小計=true){
           <tbody>${rows.map(r=>`<tr>
             <td>${格式化日期(r.date)}</td>
             <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${顏色map[r.type]||'#eee'};color:${文字map[r.type]||'#555'}">${r.type}</span></td>
-            <td>${r.account}${r.toAccount?'→'+r.toAccount:''}</td>
+            <td>${顯示帳戶(r.account)}${r.toAccount?'→'+顯示帳戶(r.toAccount):''}</td>
             <td style="font-weight:600;color:${r.type==='支出'?'#c0392b':'#1a1a1a'}">${r.type==='支出'?'-':''}$${格式化金額(r.amount)}</td>
             <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;color:#666">${r.note||'—'}</td>
             <td style="display:flex;gap:6px">${/^LINE進貨：/.test(r.note||'')?'':`<button class="btn btn-sm" style="background:#eee;color:#555" onclick="編輯資金記錄('${r.id}')">編輯</button>`}<button class="btn btn-danger btn-sm" onclick="刪除資金記錄('${r.id}',${JSON.stringify(r.note||'').replace(/"/g,'&quot;')},${+r.amount||0})">刪除</button></td>
@@ -3386,7 +3391,7 @@ function 編輯資金記錄(id){
   const r=(window._frRecordsRaw||[]).find(x=>String(x.id)===String(id));
   if(!r){提示('找不到這筆記錄');return;}
   const 帳戶清單=['公司現金','央廚備用金','富郁霖卡','南閩卡','個人戶公司款',...老闆帳戶];
-  const opt=(sel,list)=>list.map(a=>`<option value="${a}"${a===sel?' selected':''}>${a}</option>`).join('');
+  const opt=(sel,list)=>帳戶選項(list,sel);
   document.getElementById('detail-title').textContent='編輯資金記錄';
   document.getElementById('detail-content').innerHTML=`
     <div class="field" style="margin-bottom:10px"><label>類型</label>
@@ -5752,7 +5757,7 @@ function 確認進貨結算(id){
     ${是老闆?`<div class="field" style="margin-bottom:10px"><label>付款帳戶（會在資金管理記一筆支出）</label>
       <select id="pr-account" style="font-size:15px;padding:10px 12px">
         <option value="">不記資金（員工用央廚備用金，已另外記過）</option>
-        ${['公司現金','富郁霖卡','南閩卡','個人戶公司款'].map(a=>`<option value="${a}">${a}</option>`).join('')}
+        ${帳戶選項(['公司現金','富郁霖卡','南閩卡','個人戶公司款'])}
       </select></div>`:''}
     <div class="field"><label>本次補入金額（留空則不補錢）</label><input type="number" id="pr-pay" style="font-size:15px;padding:10px 12px"></div>`;
   document.getElementById('detail-actions').innerHTML=
