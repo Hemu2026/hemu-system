@@ -4405,9 +4405,13 @@ let _costProducts=[];
 async function 渲染成本表(){
   const el=document.getElementById('page-成本表');
   el.innerHTML=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">成本表</span></div><div style="color:#aaa;padding:2rem;text-align:center">載入中...</div>`;
-  const [resP,resM]=await Promise.all([呼叫API({action:'getProducts'}),呼叫API({action:'getMaterials'})]);
+  const [resP,resM,resRate,resStd]=await Promise.all([呼叫API({action:'getProducts'}),呼叫API({action:'getMaterials'}),
+    呼叫API({action:'getLaborRates'}),呼叫API({action:'getLaborStandards'})]);
   const products=resP.data||[];
   _costProducts=products;
+  _laborRates=resRate.data||[];
+  _laborStandards=resStd.data||[];
+  const 人工讀取失敗=resRate.ok===false||resStd.ok===false;
   const matMap={};
   (resM.data||[]).forEach(m=>{matMap[m.id]=m;});
   if(!products.length){
@@ -4422,6 +4426,7 @@ async function 渲染成本表(){
     groups[g].push(p);
   });
   let html=`<div class="brand-header"><span class="brand-badge badge-hq">富郁霖企業社</span><span class="page-title">成本表</span></div>`;
+  html+=人工設定卡HTML(人工讀取失敗);
   Object.entries(groups).forEach(([cat,prods])=>{
     html+=`<div class="card" style="margin-bottom:1.25rem">
       <div class="card-title">${cat}</div>`;
@@ -4490,6 +4495,7 @@ async function 渲染成本表(){
             <span style="color:#888">食材成本合計</span>
             <strong>$${cost.toFixed(2)}</strong>
           </div>`:'<div style="color:#aaa;font-size:13px;padding:8px">尚未設定配方</div>'}
+          ${recipe.length&&!人工讀取失敗?標準人工HTML(p,recipe,matMap,internalPrice):''}
           ${b2bEnabled?`<div style="margin-top:12px;padding:10px 12px;background:#f0f7ff;border-radius:8px;font-size:13px;display:flex;gap:24px;flex-wrap:wrap">
             <span>🏪 批發價 <strong>$${格式化金額(b2bPrice)}/袋</strong></span>
             ${pkgSize?`<span>每袋 <strong>${pkgSize} 包</strong>　單包均攤 $${pkgSize?(b2bPrice/pkgSize).toFixed(2):'—'}</span>`:''}
@@ -4509,6 +4515,128 @@ async function 渲染成本表(){
     html+='</div>';
   });
   el.innerHTML=html;
+}
+
+// ===== 成本表：人工設定（時薪、標準工時）=====
+function 人工設定卡HTML(讀取失敗){
+  if(讀取失敗)return`<div class="card" style="margin-bottom:1.25rem;color:#c0392b;font-size:13px">⚠ 人工設定讀取失敗，標準人工成本暫時無法顯示</div>`;
+  const 今=今日日期(),時薪=適用時薪(今);
+  const 輸入='padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px';
+  return`<div class="card" style="margin-bottom:1.25rem">
+    <div class="card-title">人工成本設定（管理用，不是實際薪資）</div>
+    <div style="font-size:13px;margin-bottom:6px">目前計價時薪：<strong>${時薪?'$'+時薪:'<span style="color:#c0392b">未設定</span>'}</strong>
+      ${_laborRates.length?`<span style="font-size:11px;color:#aaa">　歷史：${_laborRates.slice(0,5).map(r=>`${r.effectiveFrom} 起 $${r.rate}`).join('、')}</span>`:''}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <input type="date" id="lr-date" value="${今}" style="${輸入}">
+      <input type="number" id="lr-rate" min="1" placeholder="時薪" style="${輸入};width:90px">
+      <button class="btn btn-sm btn-primary" onclick="儲存人工時薪()">新增時薪</button>
+      <span style="font-size:11px;color:#aaa">改時薪＝新增一筆生效日，已登記的工時不會重算</span>
+    </div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:4px">標準工時（一組可以包含一起做的商品）</div>
+    ${_laborStandards.length?_laborStandards.map(g=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f3f3f3;font-size:13px;gap:8px">
+      <span>${轉義HTML(g.name||'未命名')}：${(g.items||[]).map(it=>`${轉義HTML(it.productName)} ${it.qty}（${it.pct}%）`).join('、')}　${g.workers} 人 × ${g.hours} 小時</span>
+      <span style="white-space:nowrap"><button class="btn btn-sm" style="background:#eee;color:#555" onclick="開啟標準工時('${g.id}')">編輯</button>
+      <button class="btn btn-sm btn-danger" onclick="刪除標準工時('${g.id}')">刪除</button></span></div>`).join(''):'<div style="font-size:12px;color:#aaa;padding:4px 0">尚未設定</div>'}
+    <button class="btn btn-sm" style="background:#eef6f1;color:#2a6b58;margin-top:8px" onclick="開啟標準工時('')">＋ 新增一組標準工時</button>
+  </div>`;
+}
+// 商品的標準人工：所屬那組的總人時 × 分攤比例 × 目前時薪 ÷ 標準數量
+function 標準人工(p){
+  const g=_laborStandards.find(x=>(x.items||[]).some(it=>String(it.productId)===String(p.id)));
+  if(!g)return null;
+  const it=g.items.find(x=>String(x.productId)===String(p.id));
+  const 總人時=(+g.workers||0)*(+g.hours||0),時薪=適用時薪(今日日期());
+  const 人時=總人時*(+it.pct||0)/100;
+  return{組:g,數量:+it.qty||0,人時,時薪,成本:人時*時薪,單位:+it.qty>0?人時*時薪/(+it.qty):0};
+}
+function 標準人工HTML(p,recipe,matMap,internalPrice){
+  const s=標準人工(p);
+  let 原料=0,包材=0,製造=0;
+  recipe.forEach(r=>{const amt=r.unitCost*r.amount,cat=matMap[r.id]?.category||'';
+    if(製造費用原料.includes(r.name))製造+=amt;else if(cat==='包材')包材+=amt;else 原料+=amt;});
+  const 列=(k,v,強)=>`<div style="display:flex;justify-content:space-between;padding:2px 0">${k}<span${強?' style="font-weight:700"':''}>${v}</span></div>`;
+  const 直接=s&&s.時薪?原料+包材+s.單位:null;
+  return`<div style="margin-top:12px;padding:10px 12px;background:#f6faf8;border-radius:8px;font-size:13px">
+    ${列('原物料',成本金額(原料))}${列('包材',成本金額(包材))}${製造?列('配方內製造費用（瓦斯／電費）',成本金額(製造)):''}
+    ${列('標準人工',!s?'<span style="color:#e67e22">標準人工未設定</span>':!s.時薪?'<span style="color:#c0392b">未設定時薪</span>':`${成本金額(s.單位)} <small style="color:#888">（「${轉義HTML(s.組.name||'')}」${s.數量} 單位分到 ${Math.round(s.人時*100)/100} 人時 × $${s.時薪}）</small>`)}
+    ${列('直接製造成本（原物料＋包材＋直接人工）',直接===null?'<span style="color:#e67e22">人工成本未核算</span>':成本金額(直接),true)}
+    ${直接!==null&&internalPrice?列('內部價毛利率（含人工）',`<span style="color:${(internalPrice-直接)/internalPrice*100>=20?'#27ae60':'#c0392b'}">${((internalPrice-直接)/internalPrice*100).toFixed(1)}%</span>`):''}
+    ${列('其他製造費用（水電瓦斯）','<span style="color:#aaa">未核算</span>')}
+  </div>`;
+}
+async function 儲存人工時薪(){
+  const effectiveFrom=document.getElementById('lr-date').value,rate=+document.getElementById('lr-rate').value;
+  if(!effectiveFrom||!(rate>0))return alert('請填生效日期和時薪');
+  if(!confirm(`新增時薪 $${rate}，${effectiveFrom} 起生效？`))return;
+  載入中(true);
+  const res=await 呼叫API({action:'saveLaborRate',record:{effectiveFrom,rate}});
+  載入中(false);
+  if(!res||!res.ok)return alert('❌ 沒有存進去：'+(res&&res.error||''));
+  提示('✓ 時薪已新增');渲染成本表();
+}
+let _標準表單=null;
+function 開啟標準工時(id){
+  const g=_laborStandards.find(x=>x.id===id);
+  _標準表單=g?{id:g.id,name:g.name||'',workers:g.workers,hours:g.hours,note:g.note||'',items:(g.items||[]).map(x=>({...x}))}
+    :{id:'',name:'',workers:'',hours:'',note:'',items:[{productId:'',productName:'',qty:'',pct:100}]};
+  渲染標準工時表單();
+  document.getElementById('detail-modal').classList.add('open');
+}
+function 標準依數量分攤(){
+  const f=_標準表單,總=f.items.reduce((a,x)=>a+(+x.qty||0),0);let 已=0;
+  f.items.forEach((x,i)=>{const p=i===f.items.length-1?Math.round((100-已)*100)/100:(總?Math.round((+x.qty||0)/總*10000)/100:Math.round(100/f.items.length*100)/100);x.pct=p;已+=p;});
+}
+function 渲染標準工時表單(){
+  const f=_標準表單;
+  const 輸入='padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px';
+  const 已用=new Set(_laborStandards.filter(g=>g.id!==f.id).flatMap(g=>(g.items||[]).map(it=>String(it.productId))));
+  const 可選=(_costProducts||[]).filter(p=>p.recipe&&JSON.parse(p.recipe).length&&!已用.has(String(p.id)));
+  const 合計=f.items.reduce((a,x)=>a+(+x.pct||0),0),總人時=(+f.workers||0)*(+f.hours||0),時薪=適用時薪(今日日期());
+  document.getElementById('detail-title').textContent=f.id?'編輯標準工時':'新增標準工時';
+  document.getElementById('detail-content').innerHTML=`
+    <div class="field"><label>名稱</label><input type="text" value="${轉義HTML(f.name)}" placeholder="例：麻醬包大小一起包" onchange="_標準表單.name=this.value" style="${輸入};width:100%"></div>
+    <div style="font-size:13px;font-weight:600;margin:8px 0 4px">一起做的商品與標準數量</div>
+    ${f.items.map((x,i)=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+      <select onchange="const o=this.options[this.selectedIndex];_標準表單.items[${i}].productId=this.value;_標準表單.items[${i}].productName=o.dataset.name||''" style="${輸入};flex:1;min-width:140px">
+        <option value="">— 選商品 —</option>${可選.map(p=>`<option value="${p.id}" data-name="${轉義HTML(p.name)}"${String(p.id)===String(x.productId)?' selected':''}>${轉義HTML(p.name)}</option>`).join('')}
+      </select>
+      <input type="number" min="0" placeholder="數量" value="${x.qty}" onchange="_標準表單.items[${i}].qty=this.value;標準依數量分攤();渲染標準工時表單()" style="${輸入};width:80px">
+      <input type="number" min="0" max="100" step="0.01" value="${x.pct}" onchange="_標準表單.items[${i}].pct=+this.value;渲染標準工時表單()" style="${輸入};width:72px"><span style="font-size:12px">%</span>
+      ${f.items.length>1?`<button type="button" class="btn btn-sm btn-danger" onclick="_標準表單.items.splice(${i},1);標準依數量分攤();渲染標準工時表單()">✕</button>`:''}
+    </div>`).join('')}
+    <button type="button" class="btn btn-sm" style="background:#eee;color:#555" onclick="_標準表單.items.push({productId:'',productName:'',qty:'',pct:0});渲染標準工時表單()">＋ 再加一個商品</button>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap">
+      <input type="number" min="0" placeholder="人數" value="${f.workers}" onchange="_標準表單.workers=this.value;渲染標準工時表單()" style="${輸入};width:70px"><span style="font-size:12px">人 ×</span>
+      <input type="number" min="0" step="0.25" placeholder="小時" value="${f.hours}" onchange="_標準表單.hours=this.value;渲染標準工時表單()" style="${輸入};width:80px"><span style="font-size:12px">小時</span>
+    </div>
+    <div style="background:#f8f8f8;border-radius:8px;padding:.6rem .75rem;margin-top:.75rem;font-size:13px">
+      總人時 ${總人時}　×　時薪 ${時薪?'$'+時薪:'未設定'}　＝　標準人工 ${成本金額(總人時*時薪)}
+      ${f.items.filter(x=>+x.qty>0).map(x=>`<div style="font-size:12px;color:#2a6b58">${轉義HTML(x.productName||'')}：每單位 ${成本金額(總人時*時薪*(+x.pct||0)/100/(+x.qty))}</div>`).join('')}
+      <div style="font-size:12px;color:${Math.abs(合計-100)<0.01?'#27ae60':'#c0392b'}">比例合計 ${Math.round(合計*100)/100}%（預設依數量分攤，可以自己改）</div>
+    </div>`;
+  document.getElementById('detail-actions').innerHTML=
+    `<button class="btn" style="flex:1;background:#27ae60;color:#fff;border:none" onclick="儲存標準工時()">儲存</button>
+     <button class="btn" style="flex:1;background:#eee;color:#555;border:none" onclick="關閉詳細()">取消</button>`;
+}
+async function 儲存標準工時(){
+  const f=_標準表單;
+  const items=f.items.filter(x=>x.productId).map(x=>({productId:x.productId,productName:x.productName,qty:+x.qty,pct:+x.pct}));
+  if(!items.length||items.some(x=>!(x.qty>0)))return alert('每個商品都要選好並填數量');
+  if(!(+f.workers>0)||!(+f.hours>0))return alert('請填人數和小時');
+  if(Math.abs(items.reduce((a,x)=>a+x.pct,0)-100)>=0.01)return alert('分攤比例合計要是 100%');
+  載入中(true);
+  const res=await 呼叫API({action:'saveLaborStandard',record:{id:f.id,name:f.name,items,workers:+f.workers,hours:+f.hours,note:f.note}});
+  載入中(false);
+  if(!res||!res.ok)return alert('❌ 沒有存進去：'+(res&&res.error||''));
+  關閉詳細();提示('✓ 標準工時已儲存');渲染成本表();
+}
+async function 刪除標準工時(id){
+  if(!confirm('確定刪除這組標準工時？（不影響已登記的實際工時）'))return;
+  載入中(true);
+  const res=await 呼叫API({action:'deleteLaborStandard',id});
+  載入中(false);
+  if(!res||!res.ok)return alert('❌ 刪除失敗：'+(res&&res.error||''));
+  提示('已刪除');渲染成本表();
 }
 
 // ===== AI 生成 SOP =====
@@ -5799,20 +5927,29 @@ async function 刪除進貨申報(id){
 
 // ===== 生產紀錄 =====
 let _prodProducts=[], _prodMaterials=[];
+let _prodRecords=[], _laborEntries=[], _laborRates=[], _laborStandards=[], _laborLoadError='';
 
 async function 渲染生產紀錄(){
   const el=document.getElementById('page-生產紀錄');
   el.innerHTML=`<div class="brand-header"><span class="brand-badge">央廚</span><span class="page-title">生產紀錄</span></div><div style="color:#aaa;text-align:center;padding:2rem">載入中...</div>`;
   載入中(true);
-  const [resP,resM,resR]=await Promise.all([
+  const 是老闆=目前使用者?.role==='owner';
+  const [resP,resM,resR,resL,resRate]=await Promise.all([
     呼叫API({action:'getProducts'}),
     呼叫API({action:'getMaterials'}),
-    呼叫API({action:'getProductionRecords'})
+    呼叫API({action:'getProductionRecords'}),
+    是老闆?呼叫API({action:'getLaborEntries'}):Promise.resolve({data:[]}),
+    是老闆?呼叫API({action:'getLaborRates'}):Promise.resolve({data:[]})
   ]);
   載入中(false);
   _prodProducts=(resP.data||[]).filter(p=>p.recipe&&JSON.parse(p.recipe).length>0);
   _prodMaterials=resM.data||[];
   const records=resR.data||[];
+  _prodRecords=records;
+  _laborEntries=resL.data||[];
+  _laborRates=resRate.data||[];
+  // 人工資料讀不到時不能當成「未核算」，要讓老闆知道是讀取失敗
+  _laborLoadError=是老闆&&(resL.ok===false||resRate.ok===false)?(resL.error||resRate.error||'讀取失敗'):'';
 
   const prodOptions=_prodProducts.map(p=>`<option value="${p.id}">${p.name}（${p.spec||''}）</option>`).join('');
 
@@ -5847,6 +5984,7 @@ async function 渲染生產紀錄(){
   </div>
   <div style="background:#fff;border-radius:12px;padding:1rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
     <div style="font-size:14px;font-weight:600;margin-bottom:.75rem">生產歷史</div>
+    ${是老闆&&_laborLoadError?`<div style="font-size:12px;color:#c0392b;margin-bottom:.5rem">⚠ 人工資料讀取失敗（${轉義HTML(_laborLoadError)}），下方人工成本暫時無法顯示</div>`:''}
     ${records.length===0?'<div style="color:#aaa;text-align:center;padding:1rem">尚無紀錄</div>':
       `<table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="background:#f5f5f5">
@@ -5857,11 +5995,11 @@ async function 渲染生產紀錄(){
           <th style="padding:8px;width:60px"></th>
         </tr></thead>
         <tbody>${records.map(r=>`<tr style="border-bottom:1px solid #f0f0f0">
-          <td style="padding:8px">${格式化日期(r.date)}</td>
-          <td style="padding:8px">${r.productName}${(+r.atContractor)?' <span style="font-size:11px;color:#2c6e9e;background:#eaf2f8;padding:1px 6px;border-radius:4px">代工</span>':''}</td>
+          <td style="padding:8px">${格式化日期(r.date)}${r.batchNo?`<div style="font-size:10px;color:#aaa">${r.batchNo}</div>`:''}</td>
+          <td style="padding:8px">${r.productName}${(+r.atContractor)?' <span style="font-size:11px;color:#2c6e9e;background:#eaf2f8;padding:1px 6px;border-radius:4px">代工</span>':''}${是老闆&&!_laborLoadError?批次成本HTML(r):''}</td>
           <td style="padding:8px;text-align:center">${r.qty}</td>
           <td style="padding:8px;color:#555;font-size:12px">${渲染消耗摘要(r.ingredients)}</td>
-          <td style="padding:8px"><button class="btn btn-sm btn-danger" onclick="刪除生產紀錄('${r.id}','${(r.productName||'').replace(/'/g,"\\'")}','${r.productId}',${r.qty||0})">刪除</button></td>
+          <td style="padding:8px">${是老闆&&!_laborLoadError?`<button class="btn btn-sm" style="background:#eef6f1;color:#2a6b58;margin-bottom:4px" onclick="開啟工時登記('${r.id}')">工時</button>`:''}<button class="btn btn-sm btn-danger" onclick="刪除生產紀錄('${r.id}','${(r.productName||'').replace(/'/g,"\\'")}','${r.productId}',${r.qty||0})">刪除</button></td>
         </tr>`).join('')}</tbody>
       </table>`
     }
@@ -5930,13 +6068,153 @@ async function 送出生產紀錄(){
 }
 
 async function 刪除生產紀錄(id,name,productId,qty){
-  if(!confirm(`確定刪除「${name}」這筆生產紀錄？\n（會退回原物料與商品庫存）`))return;
+  const 有工時=工時找生產(id);
+  if(!confirm(`確定刪除「${name}」這筆生產紀錄？\n（會退回原物料與商品庫存）${有工時?'\n\n⚠ 這筆有登記工時，刪除後那筆工時的分攤會失效，請記得到其他生產紀錄的「工時」重新登記':''}`))return;
   載入中(true);
   // 原物料與商品庫存都由後端退回
   const res=await 呼叫API({action:'deleteProductionRecord',id});
   載入中(false);
   if(res.error)return alert('錯誤：'+res.error);
   提示('已刪除，原物料與商品庫存已退回');
+  渲染生產紀錄();
+}
+
+// ===== 央廚人工成本（老闆專用；管理成本，不碰庫存、不進月報）=====
+// 配方裡的瓦斯、電費屬於製造費用，不算進原物料
+const 製造費用原料=['瓦斯','電費(度)'];
+function 工時找生產(pid){return _laborEntries.find(e=>(e.allocations||[]).some(a=>String(a.productionId)===String(pid)));}
+function 適用時薪(date){
+  const d=格式化日期(String(date||''));
+  const r=_laborRates.filter(x=>String(x.effectiveFrom)<=d).sort((a,b)=>String(b.effectiveFrom).localeCompare(String(a.effectiveFrom)))[0];
+  return r?+r.rate||0:0;
+}
+function 成本金額(n){return'$'+(Math.round((+n||0)*100)/100).toLocaleString('zh-TW')}
+// 用生產當下存的原料單價算，不用現在的價格；舊紀錄沒存單價就標「未留存」，不拿現價補
+function 批次成本(r){
+  let ing=[];
+  try{ing=typeof r.ingredients==='string'?JSON.parse(r.ingredients||'[]'):(r.ingredients||[]);}catch(e){}
+  const 有單價=ing.length>0&&ing.every(i=>i.unitCost!==undefined&&i.unitCost!=='');
+  let 原料=0,包材=0,製造=0;
+  ing.forEach(i=>{
+    const amt=(+i.unitCost||0)*(+i.totalAmount||0);
+    const cat=i.category||_prodMaterials.find(m=>(i.id&&m.id===i.id)||m.name===i.name)?.category||'';
+    if(製造費用原料.includes(i.name))製造+=amt;else if(cat==='包材')包材+=amt;else 原料+=amt;
+  });
+  const e=工時找生產(r.id);
+  const a=e&&(e.allocations||[]).find(x=>String(x.productionId)===String(r.id));
+  const 人工=a?(+e.totalCost||0)*(+a.pct||0)/100:null;
+  return{有單價,原料,包材,製造,人工,直接:有單價&&人工!==null?原料+包材+人工:null,qty:+r.qty||0};
+}
+function 批次成本HTML(r){
+  const c=批次成本(r);
+  const 每=n=>c.qty>0?`（每單位 ${成本金額(n/c.qty)}）`:'（合格產量為 0，無法算單位成本）';
+  const 段=[c.有單價?`原料 ${成本金額(c.原料)}・包材 ${成本金額(c.包材)}${c.製造?`・配方內製造費用 ${成本金額(c.製造)}`:''}`:'<span style="color:#aaa">原料單價未留存（舊紀錄）</span>',
+    c.人工===null?'<span style="color:#e67e22">人工成本未核算</span>':`人工 ${成本金額(c.人工)}${每(c.人工)}`];
+  if(c.直接!==null)段.push(`<strong>直接製造成本 ${成本金額(c.直接)}</strong>${每(c.直接)}`);
+  段.push('<span style="color:#aaa">其他製造費用（水電瓦斯）未核算</span>');
+  return`<div style="font-size:11px;color:#666;margin-top:4px;line-height:1.6">${段.join('<br>')}</div>`;
+}
+
+let _工時表單=null;
+function 開啟工時登記(pid){
+  const r=_prodRecords.find(x=>String(x.id)===String(pid));
+  if(!r)return;
+  const e=工時找生產(pid);
+  const 日=e?String(e.date):格式化日期(r.date);
+  const 時薪=適用時薪(日);
+  _工時表單={id:e?.id||'',date:日,
+    lines:e?(e.lines||[]).map(x=>({...x})):[{label:'',workers:'',hours:'',rate:時薪||''}],
+    picked:e?Object.fromEntries((e.allocations||[]).map(a=>[String(a.productionId),+a.pct])):{[String(pid)]:100},
+    note:e?.note||''};
+  渲染工時表單();
+  document.getElementById('detail-modal').classList.add('open');
+}
+// 同一天、還沒登記過工時（或就是這筆工時）的生產紀錄才能選，同一筆生產不會被兩筆工時重複計價
+function 工時可選生產(){
+  const f=_工時表單;
+  return _prodRecords.filter(x=>格式化日期(x.date)===f.date&&(e=>!e||e.id===f.id)(工時找生產(x.id)));
+}
+function 工時依數量分攤(){
+  const f=_工時表單,ids=Object.keys(f.picked);
+  const qty=id=>+(_prodRecords.find(x=>String(x.id)===id)?.qty)||0;
+  const 總=ids.reduce((a,id)=>a+qty(id),0);
+  let 已=0;
+  ids.forEach((id,i)=>{
+    const p=i===ids.length-1?Math.round((100-已)*100)/100:(總?Math.round(qty(id)/總*10000)/100:Math.round(100/ids.length*100)/100);
+    f.picked[id]=p;已+=p;
+  });
+}
+function 工時勾選(id,勾){
+  const f=_工時表單;
+  if(勾)f.picked[id]=0;else delete f.picked[id];
+  工時依數量分攤();渲染工時表單();
+}
+function 渲染工時表單(){
+  const f=_工時表單,可選=工時可選生產();
+  const 已刪=Object.keys(f.picked).filter(id=>!可選.some(x=>String(x.id)===id));
+  const 總人時=f.lines.reduce((a,l)=>a+(+l.workers||0)*(+l.hours||0),0);
+  const 總額=f.lines.reduce((a,l)=>a+(+l.workers||0)*(+l.hours||0)*(+l.rate||0),0);
+  const 合計=Object.values(f.picked).reduce((a,v)=>a+(+v||0),0);
+  const 輸入='padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:13px';
+  document.getElementById('detail-title').textContent=`${f.id?'修改':'登記'}工時　${f.date}`;
+  document.getElementById('detail-content').innerHTML=`
+    <div style="font-size:12px;color:#888;margin-bottom:8px">這天適用時薪 ${適用時薪(f.date)?'$'+適用時薪(f.date):'<span style="color:#c0392b">未設定（請到成本表設定，或在每行填時薪）</span>'}；儲存時記下每行時薪，之後改時薪設定不會重算這筆</div>
+    ${f.lines.map((l,i)=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+      <input type="number" min="0" step="1" placeholder="人數" value="${l.workers}" onchange="_工時表單.lines[${i}].workers=this.value;渲染工時表單()" style="${輸入};width:64px">
+      <span style="font-size:12px;color:#888">人 ×</span>
+      <input type="number" min="0" step="0.25" placeholder="小時" value="${l.hours}" onchange="_工時表單.lines[${i}].hours=this.value;渲染工時表單()" style="${輸入};width:72px">
+      <span style="font-size:12px;color:#888">小時 × $</span>
+      <input type="number" min="0" placeholder="時薪" value="${l.rate}" onchange="_工時表單.lines[${i}].rate=this.value;渲染工時表單()" style="${輸入};width:72px">
+      <input type="text" placeholder="姓名或備註（選填）" value="${轉義HTML(l.label||'')}" onchange="_工時表單.lines[${i}].label=this.value" style="${輸入};flex:1;min-width:110px">
+      ${f.lines.length>1?`<button type="button" class="btn btn-sm btn-danger" onclick="_工時表單.lines.splice(${i},1);渲染工時表單()">✕</button>`:''}
+    </div>`).join('')}
+    <button type="button" class="btn btn-sm" style="background:#eee;color:#555" onclick="_工時表單.lines.push({label:'',workers:'',hours:'',rate:適用時薪(_工時表單.date)||''});渲染工時表單()">＋ 新增一行</button>
+    <div style="background:#f8f8f8;border-radius:8px;padding:.6rem .75rem;margin:.75rem 0;font-size:13px;display:flex;justify-content:space-between">
+      <span>總人時 ${Math.round(總人時*100)/100}</span><strong>人工合計 ${成本金額(總額)}</strong>
+    </div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:4px">分攤到這天的生產（比例合計要 100%）</div>
+    ${可選.map(x=>{const id=String(x.id),勾=id in f.picked,pct=f.picked[id];
+      return`<div style="display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid #f3f3f3;font-size:13px">
+        <input type="checkbox" ${勾?'checked':''} onchange="工時勾選('${id}',this.checked)" style="width:16px;height:16px">
+        <span style="flex:1">${轉義HTML(x.productName)} × ${x.qty}</span>
+        ${勾?`<input type="number" min="0" max="100" step="0.01" value="${pct}" onchange="_工時表單.picked['${id}']=+this.value;渲染工時表單()" style="${輸入};width:72px"><span>%</span>
+        <span style="width:130px;text-align:right;color:#2a6b58">${成本金額(總額*pct/100)}${+x.qty>0?`<br><small>每單位 ${成本金額(總額*pct/100/x.qty)}</small>`:''}</span>`:''}
+      </div>`;}).join('')}
+    ${已刪.map(id=>`<div style="font-size:12px;color:#c0392b;padding:4px 0">⚠ 原本分攤的一筆生產紀錄已刪除（${f.picked[id]}%）<button type="button" class="btn btn-sm" style="margin-left:6px" onclick="工時勾選('${id}',false)">移除</button></div>`).join('')}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px">
+      <span style="color:${Math.abs(合計-100)<0.01?'#27ae60':'#c0392b'}">比例合計 ${Math.round(合計*100)/100}%</span>
+      <button type="button" class="btn btn-sm" style="background:#eee;color:#555" onclick="工時依數量分攤();渲染工時表單()">依數量重新分攤</button>
+    </div>
+    <div class="field" style="margin-top:.75rem"><label>備註</label><input type="text" value="${轉義HTML(f.note)}" onchange="_工時表單.note=this.value" style="${輸入};width:100%"></div>`;
+  document.getElementById('detail-actions').innerHTML=
+    `<button class="btn" style="flex:1;background:#27ae60;color:#fff;border:none" onclick="儲存工時()">儲存</button>
+     ${f.id?`<button class="btn btn-danger" style="flex:1" onclick="刪除工時()">刪除這筆工時</button>`:''}
+     <button class="btn" style="flex:1;background:#eee;color:#555;border:none" onclick="關閉詳細()">取消</button>`;
+}
+async function 儲存工時(){
+  const f=_工時表單;
+  const lines=f.lines.filter(l=>l.workers!==''||l.hours!=='').map(l=>({label:l.label||'',workers:+l.workers,hours:+l.hours,rate:l.rate===''?'':+l.rate}));
+  const allocations=Object.entries(f.picked).map(([productionId,pct])=>({productionId,pct:+pct}));
+  if(!lines.length||lines.some(l=>!(l.workers>0)||!(l.hours>0)))return alert('每一行都要填人數和小時');
+  if(!allocations.length)return alert('至少要勾一筆生產紀錄');
+  if(Math.abs(allocations.reduce((a,x)=>a+x.pct,0)-100)>=0.01)return alert('分攤比例合計要是 100%');
+  載入中(true);
+  const res=await 呼叫API({action:'saveLaborEntry',record:{id:f.id,date:f.date,lines,allocations,note:f.note}});
+  載入中(false);
+  if(!res||!res.ok)return alert('❌ 工時沒有存進去：'+(res&&res.error||'請再試一次'));
+  關閉詳細();
+  提示(`✓ 工時已儲存，人工合計 ${成本金額(res.totalCost)}`);
+  渲染生產紀錄();
+}
+async function 刪除工時(){
+  const f=_工時表單;
+  if(!f.id||!confirm('確定刪除這筆工時？分攤到的生產紀錄會變回「人工成本未核算」（不影響庫存）'))return;
+  載入中(true);
+  const res=await 呼叫API({action:'deleteLaborEntry',id:f.id});
+  載入中(false);
+  if(!res||!res.ok)return alert('❌ 刪除失敗：'+(res&&res.error||''));
+  關閉詳細();
+  提示('已刪除這筆工時');
   渲染生產紀錄();
 }
 
